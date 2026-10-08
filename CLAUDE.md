@@ -35,6 +35,8 @@ baselineprofile
 ./gradlew spotlessApply                      # format
 ./gradlew spotlessCheck detekt testDebugUnitTest assembleDebug     # "green"
 ./gradlew :app:assembleRelease
+./gradlew :app:connectedDebugAndroidTest     # instrumented tests (needs a device or emulator, API 35 is the reference)
+./gradlew :app:generateBaselineProfile       # regenerates app/src/release/generated/baselineProfiles/*-prof.txt (device, live wiki)
 ```
 Needs `local.properties` with `sdk.dir=...` (gitignored) or `ANDROID_HOME`, and the SDK packages `platforms;android-37.1`, `build-tools;37.0.0`.
 Open it with a stable Android Studio release that supports AGP 9.4 (see the AGP/Studio compatibility table); no canary needed.
@@ -80,3 +82,5 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Material 3 1.5 deprecates `ListItem(headlineContent = ...)` and `Slider(value, ...)`: use `ListItem(onClick|checked, ...) { headline }` and `Slider(state = SliderState, onValueChange = { state.value = it })`.
 - External links go through `openWebUrl` in `:core:ui` (Custom Tabs, http/https only).
 - A snackbar shown from a state field (`removed`, `message`) is acknowledged after `showSnackbar` returns; acknowledging first changes the effect key and cancels it.
+- Instrumented tests run in `TestWikiApp` (swapped in by `WikiDroidTestRunner`), which points the graph at a `MockWebServer` serving `core/testing` fixtures; debug builds allow cleartext to localhost for it. Use `createAndroidComposeRule` v1: the `v2` one hangs the app on its splash screen.
+- `WikiDroidApp.baseUrl()` is the seam for pointing the app at another server.

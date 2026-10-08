@@ -44,6 +44,10 @@ gradlePlugin {
             id = "wikidroid.android.room"
             implementationClass = "AndroidRoomConventionPlugin"
         }
+        register("baselineProfile") {
+            id = "wikidroid.baselineprofile"
+            implementationClass = "BaselineProfileConventionPlugin"
+        }
         register("metro") {
             id = "wikidroid.metro"
             implementationClass = "MetroConventionPlugin"

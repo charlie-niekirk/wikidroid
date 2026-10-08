@@ -5,17 +5,22 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import dev.zacsweers.metro.createGraphFactory
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
-class WikiDroidApp :
+/** `open` so the instrumented tests' `TestWikiApp` can point the graph at a `MockWebServer`. */
+open class WikiDroidApp :
     Application(),
     SingletonImageLoader.Factory {
     val graph: AppGraph by lazy {
         createGraphFactory<AppGraph.Factory>().create(
             application = this,
-            baseUrl = WIKI_BASE_URL.toHttpUrl(),
+            baseUrl = baseUrl(),
         )
     }
+
+    /** The wiki the app talks to. Read once, when the graph is first built. */
+    protected open fun baseUrl(): HttpUrl = WIKI_BASE_URL.toHttpUrl()
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = graph.imageLoader
 
