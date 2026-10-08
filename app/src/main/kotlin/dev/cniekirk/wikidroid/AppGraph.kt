@@ -1,24 +1,51 @@
 package dev.cniekirk.wikidroid
 
-import dev.cniekirk.wikidroid.core.common.IoDispatcher
+import android.app.Application
+import coil3.ImageLoader
+import dev.cniekirk.wikidroid.core.data.ArticleRepository
+import dev.cniekirk.wikidroid.core.data.CategoryRepository
+import dev.cniekirk.wikidroid.core.data.LibraryRepository
+import dev.cniekirk.wikidroid.core.data.SearchRepository
+import dev.cniekirk.wikidroid.core.data.SettingsRepository
+import dev.cniekirk.wikidroid.core.data.WikiInfoRepository
+import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
+import dev.cniekirk.wikidroid.core.network.WikiBaseUrl
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
-import kotlinx.coroutines.CoroutineDispatcher
+import dev.zacsweers.metro.Multibinds
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metrox.viewmodel.ViewModelGraph
+import okhttp3.HttpUrl
 
-/** Root dependency graph. Later sessions add the Application/base-URL factory and feature bindings. */
+/**
+ * The application's dependency graph. Every `@ContributesTo`/`@ContributesBinding` in a module that `:app`
+ * depends on directly (see `checkMainMetroHiddenDependencies`) ends up here.
+ *
+ * Tests build it with a different [WikiBaseUrl], such as a `MockWebServer`'s.
+ */
 @DependencyGraph(AppScope::class)
-interface AppGraph {
-    val greeter: Greeter
+interface AppGraph : ViewModelGraph {
+    /** One installer per feature module; empty until the features exist. */
+    @Multibinds(allowEmpty = true)
+    val entryInstallers: Set<EntryProviderInstaller>
 
-    /** Resolving this at compile time proves `:core:common`'s contributed providers reach the app graph. */
-    @IoDispatcher
-    val ioDispatcher: CoroutineDispatcher
-}
+    /** Registered as Coil's singleton loader so every `AsyncImage` shares the API's `OkHttpClient`. */
+    val imageLoader: ImageLoader
 
-@Inject
-@SingleIn(AppScope::class)
-class Greeter {
-    val greeting: String = "Hello WikiDroid"
+    // Metro only checks bindings reachable from the graph's roots. Exposing the repositories makes the whole
+    // data stack (network, Room, DataStore, parser) resolve at compile time, before any feature injects them.
+    val articleRepository: ArticleRepository
+    val categoryRepository: CategoryRepository
+    val libraryRepository: LibraryRepository
+    val searchRepository: SearchRepository
+    val settingsRepository: SettingsRepository
+    val wikiInfoRepository: WikiInfoRepository
+
+    @DependencyGraph.Factory
+    fun interface Factory {
+        fun create(
+            @Provides application: Application,
+            @Provides @WikiBaseUrl baseUrl: HttpUrl,
+        ): AppGraph
+    }
 }
