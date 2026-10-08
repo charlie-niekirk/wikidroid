@@ -9,7 +9,13 @@ android {
 
     defaultConfig {
         applicationId = "dev.cniekirk.wikidroid"
+        testInstrumentationRunner = "dev.cniekirk.wikidroid.WikiDroidTestRunner"
     }
+
+    // The instrumented tests answer the wiki's API with the network fixtures the unit tests already use.
+    sourceSets.getByName("androidTest").assets.directories.add(
+        rootProject.file("core/testing/src/main/resources/fixtures").path,
+    )
 }
 
 // Metro only sees contributions from modules on the compile classpath, so every module that can
@@ -49,6 +55,14 @@ dependencies {
     implementation(libs.metro.viewmodel.compose)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
+    // Lets the OS compile the baseline profile at install time (and from the Play Store's cloud profiles).
+    implementation(libs.androidx.profileinstaller)
+
+    androidTestImplementation(platform(libs.okhttp.bom))
+    androidTestImplementation(libs.okhttp.mockwebserver3)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.truth)
 
     testImplementation(projects.core.testing)
     testImplementation(libs.orbit.test)
