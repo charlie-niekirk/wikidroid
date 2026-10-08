@@ -40,5 +40,9 @@ data class ArticleKey(
     val anchor: String? = null,
 ) : WikiKey
 
+/** The About screen, pushed from Settings: version, attribution, disclaimer and licences. */
+@Serializable
+data object AboutKey : WikiKey
+
 /** The tabs in bottom-bar order. */
 val TopLevelKeys: List<TopLevelKey> = listOf(ExploreKey, SearchKey, LibraryKey, SettingsKey)

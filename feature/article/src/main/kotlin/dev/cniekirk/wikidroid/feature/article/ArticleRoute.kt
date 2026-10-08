@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import dev.cniekirk.wikidroid.core.model.Link
+import dev.cniekirk.wikidroid.core.ui.openWebUrl
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 

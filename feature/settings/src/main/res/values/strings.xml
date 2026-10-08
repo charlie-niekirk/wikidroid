@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic colour</string>
+    <string name="settings_dynamic_color_summary">Use colours from your wallpaper.</string>
+
+    <string name="settings_section_reading">Reading</string>
+    <string name="settings_text_size">Article text size</string>
+    <string name="settings_text_size_value">%1$d%%</string>
+    <string name="settings_text_size_preview">Creepers explode when they get close to you.</string>
+    <string name="settings_edition">Preferred edition</string>
+    <string name="settings_edition_summary">Your main edition of Minecraft.</string>
+    <string name="settings_edition_java">Java</string>
+    <string name="settings_edition_bedrock">Bedrock</string>
+
+    <string name="settings_section_data">History and storage</string>
+    <string name="settings_save_history">Save reading history</string>
+    <string name="settings_save_history_summary">Remember the articles you open, in Library.</string>
+    <string name="settings_clear_history">Clear history</string>
+    <string name="settings_clear_history_summary">Remove every article from your reading history.</string>
+    <string name="settings_clear_cache">Clear article cache</string>
+    <string name="settings_clear_cache_summary">Frees up space. Bookmarked articles stay available offline.</string>
+
+    <string name="settings_clear_history_dialog_title">Clear history?</string>
+    <string name="settings_clear_history_dialog_message">Every article in your reading history will be removed. Your bookmarks are not affected.</string>
+    <string name="settings_clear_cache_dialog_title">Clear article cache?</string>
+    <string name="settings_clear_cache_dialog_message">Downloaded articles will be removed and fetched again when you next open them. Bookmarked articles are kept.</string>
+    <string name="settings_clear_confirm">Clear</string>
+    <string name="settings_clear_cancel">Cancel</string>
+    <string name="settings_history_cleared">History cleared</string>
+    <string name="settings_cache_cleared">Article cache cleared</string>
+    <string name="settings_clear_failed">Couldn\'t clear that. Try again.</string>
+
+    <string name="settings_section_about">About</string>
+    <string name="settings_about">About WikiDroid</string>
+    <string name="settings_about_summary">Version, licences and attribution</string>
+
+    <string name="about_title">About</string>
+    <string name="about_app_name">WikiDroid</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_disclaimer_title">Unofficial app</string>
+    <string name="about_disclaimer">WikiDroid is an unofficial app and is not affiliated with Mojang or Microsoft. It is an independent reader for the community-run Minecraft Wiki.</string>
+    <string name="about_content_title">Content</string>
+    <string name="about_content">Articles come from the Minecraft Wiki and are available under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 licence. Because of the non-commercial licence, WikiDroid has no ads and no in-app purchases.</string>
+    <string name="about_link_licence">View the licence</string>
+    <string name="about_link_wiki">Visit the Minecraft Wiki</string>
+    <string name="about_source_title">Source code</string>
+    <string name="about_link_source">WikiDroid on GitHub</string>
+    <string name="about_libraries_title">Open source libraries</string>
+    <string name="about_libraries_summary">WikiDroid is built with these projects.</string>
+    <string name="about_open_link">Opens in your browser</string>
+</resources>

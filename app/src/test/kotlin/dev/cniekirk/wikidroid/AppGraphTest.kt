@@ -9,7 +9,9 @@ import dev.cniekirk.wikidroid.core.testing.RobolectricTest
 import dev.cniekirk.wikidroid.feature.article.ArticleViewModel
 import dev.cniekirk.wikidroid.feature.explore.CategoryDetailViewModel
 import dev.cniekirk.wikidroid.feature.explore.ExploreViewModel
+import dev.cniekirk.wikidroid.feature.library.LibraryViewModel
 import dev.cniekirk.wikidroid.feature.search.SearchViewModel
+import dev.cniekirk.wikidroid.feature.settings.SettingsViewModel
 import dev.zacsweers.metro.createGraphFactory
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Test
@@ -34,7 +36,13 @@ class AppGraphTest : RobolectricTest() {
     @Test
     fun theFeaturesRegisterTheirScreens() {
         assertThat(graph.entryInstallers.map { it::class.simpleName })
-            .containsExactly("ArticleEntryInstaller", "ExploreEntryInstaller", "SearchEntryInstaller")
+            .containsExactly(
+                "ArticleEntryInstaller",
+                "ExploreEntryInstaller",
+                "LibraryEntryInstaller",
+                "SearchEntryInstaller",
+                "SettingsEntryInstaller",
+            )
     }
 
     @Test
@@ -47,6 +55,12 @@ class AppGraphTest : RobolectricTest() {
         assertThat(
             factory.create(SearchViewModel::class, CreationExtras.Empty),
         ).isInstanceOf(SearchViewModel::class.java)
+        assertThat(
+            factory.create(LibraryViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(LibraryViewModel::class.java)
+        assertThat(
+            factory.create(SettingsViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(SettingsViewModel::class.java)
     }
 
     @Test

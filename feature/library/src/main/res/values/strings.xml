@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_title">Library</string>
+    <string name="library_tab_bookmarks">Bookmarks</string>
+    <string name="library_tab_history">History</string>
+
+    <string name="library_bookmarks_empty_title">No bookmarks yet</string>
+    <string name="library_bookmarks_empty_message">Tap the bookmark icon in an article to keep it here and read it offline.</string>
+    <string name="library_history_empty_title">No history yet</string>
+    <string name="library_history_empty_message">Articles you read will show up here.</string>
+    <string name="library_history_off_title">History is turned off</string>
+    <string name="library_history_off_message">Turn on “Save reading history” in Settings to see the articles you read here.</string>
+
+    <string name="library_saved_ago">Saved %1$s</string>
+    <string name="library_viewed_ago">Viewed %1$s</string>
+    <string name="library_remove_entry">Remove %1$s</string>
+
+    <string name="library_bookmark_removed">Removed “%1$s” from bookmarks</string>
+    <string name="library_history_removed">Removed “%1$s” from history</string>
+    <string name="library_undo">Undo</string>
+
+    <string name="library_clear_history">Clear history</string>
+    <string name="library_clear_history_dialog_title">Clear history?</string>
+    <string name="library_clear_history_dialog_message">Every article in your reading history will be removed. Your bookmarks are not affected.</string>
+    <string name="library_clear_history_confirm">Clear</string>
+    <string name="library_clear_history_cancel">Cancel</string>
+</resources>

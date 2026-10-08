@@ -77,3 +77,6 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Don't force a box size and then apply `aspectRatio` inside it (the image overflows the box); fix the width and let the ratio set the height.
 - Compose tests that tap a link tap its left edge, not the node's centre (`click(Offset(8f, centerY))`).
 - Inline images are `RichSpan.image`. `RichText.isBlank` counts them as content; use `hasText` to ask whether there is readable text (a paragraph with only a block-sized picture is an `Image` block).
+- Material 3 1.5 deprecates `ListItem(headlineContent = ...)` and `Slider(value, ...)`: use `ListItem(onClick|checked, ...) { headline }` and `Slider(state = SliderState, onValueChange = { state.value = it })`.
+- External links go through `openWebUrl` in `:core:ui` (Custom Tabs, http/https only).
+- A snackbar shown from a state field (`removed`, `message`) is acknowledged after `showSnackbar` returns; acknowledging first changes the effect key and cancels it.

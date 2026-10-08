@@ -1,10 +1,10 @@
-package dev.cniekirk.wikidroid.feature.article
+package dev.cniekirk.wikidroid.core.ui
 
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.testing.RobolectricTest
 import org.junit.Test
 
-class ExternalLinksTest : RobolectricTest() {
+class WebLinksTest : RobolectricTest() {
     @Test
     fun webAddressesAreOpened() {
         assertThat(isWebUrl("https://minecraft.wiki/w/Diamond")).isTrue()
