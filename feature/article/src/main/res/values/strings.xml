@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_toc_action">Table of contents</string>
+    <string name="article_toc_title">Contents</string>
+    <string name="article_bookmark_add">Save for offline reading</string>
+    <string name="article_bookmark_remove">Remove from saved</string>
+    <string name="article_share">Share</string>
+    <string name="article_more_options">More options</string>
+    <string name="article_open_on_wiki">Open on wiki</string>
+    <string name="article_section_expand">Expand section</string>
+    <string name="article_section_collapse">Collapse section</string>
+    <string name="article_crafting_recipe">Crafting recipe</string>
+    <string name="article_unsupported_open_on_wiki">Can\'t show this here. Open on wiki</string>
+    <string name="article_share_chooser">Share article</string>
+</resources>

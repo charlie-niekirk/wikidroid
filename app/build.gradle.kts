@@ -25,6 +25,7 @@ dependencies {
     implementation(projects.core.navigation)
     implementation(projects.core.network)
     implementation(projects.core.ui)
+    implementation(projects.feature.article)
     implementation(projects.feature.explore)
     implementation(projects.feature.search)
 

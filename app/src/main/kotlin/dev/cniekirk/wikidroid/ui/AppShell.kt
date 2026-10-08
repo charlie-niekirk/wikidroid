@@ -91,8 +91,8 @@ private fun AppNavDisplay(
 }
 
 /**
- * An article's stub is already a detail pane, so on wide windows opening a page from a list shows both side by
- * side; the article feature keeps that when it replaces the stub.
+ * The fallback for a key no feature has registered. `:feature:article` registers the real article screen, so this
+ * stub only shows for an article when that module is absent. It is a detail pane like the real one.
  */
 private fun placeholderEntry(key: NavKey): NavEntry<NavKey> =
     NavEntry(key, metadata = if (key is ArticleKey) WikiPanes.detail() else emptyMap()) {
