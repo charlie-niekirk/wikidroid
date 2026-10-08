@@ -99,14 +99,15 @@ fun ErrorState(
         icon = if (error is DataError.Network && error.httpCode == null) WikiIcons.CloudOff else WikiIcons.Error,
         title = stringResource(R.string.ui_error_title),
         modifier = modifier,
-        message = error.message(),
+        message = error.userMessage(),
         actionLabel = onRetry?.let { stringResource(R.string.ui_retry) },
         onAction = onRetry,
     )
 }
 
+/** A plain-language explanation of the failure, for inline use where [ErrorState] is too large. */
 @Composable
-private fun DataError.message(): String =
+fun DataError.userMessage(): String =
     when (this) {
         is DataError.Network -> {
             val code = httpCode
