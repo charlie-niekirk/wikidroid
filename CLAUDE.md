@@ -76,3 +76,4 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Article tables are drawn by a custom grid `Layout` (`TableBlock`) because `rowspan` needs it. `TableCell.crafting` carries a recipe grid when a cell holds only a crafting widget.
 - Don't force a box size and then apply `aspectRatio` inside it (the image overflows the box); fix the width and let the ratio set the height.
 - Compose tests that tap a link tap its left edge, not the node's centre (`click(Offset(8f, centerY))`).
+- Inline images are `RichSpan.image`. `RichText.isBlank` counts them as content; use `hasText` to ask whether there is readable text (a paragraph with only a block-sized picture is an `Image` block).
