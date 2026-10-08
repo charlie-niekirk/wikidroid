@@ -94,7 +94,6 @@ jobs:
     env:
       # Absent on fork and Dependabot runs; the build then falls back to the debug key.
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-      WIKIDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
       WIKIDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       WIKIDROID_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       WIKIDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -104,8 +103,10 @@ jobs:
       - name: Decode keystore
         id: signing
         run: |
+          # Always exported; the file only exists when the secret is set, otherwise the build uses the debug key.
+          echo "WIKIDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$WIKIDROID_KEYSTORE_FILE"
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "kind=release key" >> "$GITHUB_OUTPUT"
           else
             echo "kind=debug key (no keystore secrets)" >> "$GITHUB_OUTPUT"
