@@ -5,10 +5,12 @@ import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.data.ArticleRepository
 import dev.cniekirk.wikidroid.core.model.Article
+import dev.cniekirk.wikidroid.core.model.ArticleSection
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import dev.cniekirk.wikidroid.core.testing.MainDispatcherRule
 import dev.cniekirk.wikidroid.core.testing.fake.FakeLibraryRepository
 import dev.cniekirk.wikidroid.core.testing.fake.FakeSettingsRepository
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -255,16 +257,25 @@ class ArticleViewModelTest {
     // region sections, contents and anchors
 
     @Test
-    fun foldsAndUnfoldsASection() =
+    fun everySectionWithAHeadingStartsFolded() =
+        runTest {
+            article(viewModel(ScriptedArticles(listOf(success())))) { state ->
+                // Section 0 is the lead, which has no heading and is never folded.
+                assertThat(state().collapsedSections).containsExactly(1, 2)
+            }
+        }
+
+    @Test
+    fun unfoldsAndRefoldsASection() =
         runTest {
             article(viewModel(ScriptedArticles(listOf(success())))) { state ->
                 containerHost.onAction(ArticleAction.ToggleSection(1))
                 runCurrent()
-                assertThat(state().collapsedSections).containsExactly(1)
+                assertThat(state().collapsedSections).containsExactly(2)
 
                 containerHost.onAction(ArticleAction.ToggleSection(1))
                 runCurrent()
-                assertThat(state().collapsedSections).isEmpty()
+                assertThat(state().collapsedSections).containsExactly(1, 2)
             }
         }
 
@@ -276,7 +287,49 @@ class ArticleViewModelTest {
                 containerHost.onAction(ArticleAction.ToggleSection(42))
                 runCurrent()
 
-                assertThat(state().collapsedSections).isEmpty()
+                assertThat(state().collapsedSections).containsExactly(1, 2)
+            }
+        }
+
+    @Test
+    fun aRefreshedCopyKeepsTheReadersChoicesAndFoldsNewSections() =
+        runTest {
+            val cached = sampleArticle()
+            val refreshed =
+                cached.copy(
+                    revisionId = 2,
+                    sections =
+                        (
+                            cached.sections +
+                                ArticleSection(
+                                    heading("History"),
+                                    cached.sections[0].blocks,
+                                )
+                        ).toImmutableList(),
+                )
+            val refreshGate = CompletableDeferred<Unit>()
+            val repository =
+                object : ArticleRepository {
+                    override fun getArticle(title: String) =
+                        flow<Result<Article, DataError>> {
+                            emit(success(cached))
+                            refreshGate.await()
+                            emit(success(refreshed))
+                        }
+
+                    override suspend fun clearCache() = Unit
+                }
+
+            article(viewModel(repository)) { state ->
+                containerHost.onAction(ArticleAction.ToggleSection(1))
+                runCurrent()
+
+                refreshGate.complete(Unit)
+                runCurrent()
+
+                assertThat(state().article?.revisionId).isEqualTo(2)
+                // Obtaining (1) stays open as the reader left it; Crafting (2) stays folded; History (3) is new.
+                assertThat(state().collapsedSections).containsExactly(2, 3)
             }
         }
 
@@ -284,14 +337,14 @@ class ArticleViewModelTest {
     fun goingToAnAnchorUnfoldsItsSectionAndAsksForAScroll() =
         runTest {
             article(viewModel(ScriptedArticles(listOf(success())))) { state ->
-                containerHost.onAction(ArticleAction.ToggleSection(1))
                 containerHost.onAction(ArticleAction.ShowToc)
                 runCurrent()
 
                 containerHost.onAction(ArticleAction.GoToAnchor("Mining"))
                 runCurrent()
 
-                assertThat(state().collapsedSections).isEmpty()
+                // "Mining" is inside Obtaining (1); only that section opens.
+                assertThat(state().collapsedSections).containsExactly(2)
                 assertThat(state().pendingAnchor).isEqualTo("Mining")
                 assertThat(state().isTocVisible).isFalse()
             }
@@ -326,6 +379,8 @@ class ArticleViewModelTest {
         runTest {
             article(viewModel(ScriptedArticles(listOf(success())), anchor = "Mining")) { state ->
                 assertThat(state().pendingAnchor).isEqualTo("Mining")
+                // The anchor's section is open; the others are still folded.
+                assertThat(state().collapsedSections).containsExactly(2)
             }
         }
 

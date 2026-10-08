@@ -17,7 +17,7 @@ data class ArticleState(
     val title: String,
     val phase: ArticlePhase = ArticlePhase.Loading,
     val isBookmarked: Boolean = false,
-    /** Indices into [Article.sections] that the reader has folded away. The lead section never folds. */
+    /** Indices into [Article.sections] that are folded. Sections start folded; the lead section never folds. */
     val collapsedSections: ImmutableSet<Int> = persistentSetOf(),
     val textScale: Float = UserPreferences.DEFAULT_TEXT_SCALE,
     val isTocVisible: Boolean = false,

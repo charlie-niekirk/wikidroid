@@ -32,7 +32,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 /**
  * One open article. Loads it offline-first (a saved copy shows at once and is replaced if the wiki has a newer
  * revision), records the visit in the history, and keeps the bookmark star, the reader's text size and the
- * folded sections in its state.
+ * folded sections in its state (sections start folded).
  *
  * [anchor] is the heading to scroll to once the page first appears.
  */
@@ -176,7 +176,7 @@ class ArticleViewModel(
         article: Article,
         isFirst: Boolean,
     ) {
-        reduce { state.copy(phase = ArticlePhase.Loaded(article)) }
+        reduce { state.withArticle(article) }
         shownTitle.value = article.title
         if (!isFirst) return
         // A history write that fails must not take the page down with it.
@@ -193,6 +193,19 @@ class ArticleViewModel(
             @Assisted anchor: String?,
         ): ArticleViewModel
     }
+}
+
+/**
+ * Shows [article]. Sections fold by default, so every headed section the reader has not seen before starts
+ * folded; on a refreshed copy the reader's own choices for the sections they already had are kept.
+ */
+private fun ArticleState.withArticle(article: Article): ArticleState {
+    val alreadyKnown = this.article?.sections?.size ?: 0
+    val added = article.sections.indices.filter { it >= alreadyKnown && article.sections[it].heading != null }
+    return copy(
+        phase = ArticlePhase.Loaded(article),
+        collapsedSections = (collapsedSections + added).toImmutableSet(),
+    )
 }
 
 private fun ArticleState.toggleSection(index: Int): ArticleState {
