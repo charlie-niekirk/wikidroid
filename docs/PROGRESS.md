@@ -10,7 +10,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 6: App shell
 - [x] Session 7: `:feature:explore` and `:feature:search`
 - [x] Session 8: `:feature:article`
-- [ ] Session 9: `:feature:library` and `:feature:settings`
+- [x] Session 9: `:feature:library` and `:feature:settings`
 - [ ] Session 10: Instrumented tests and baseline profile
 - [ ] Session 11: CI and docs
 
@@ -270,3 +270,41 @@ What it exposes (for Sessions 9-10):
 - The article shows no signal that a saved copy is stale because the device is offline (Session 5 TODO, still open).
 - Images cannot be opened full screen, and galleries have no pager; both are out of this session's scope.
 - Unchanged: ViewModel state is lost when leaving a tab, autocomplete is cached for 3 days, tabbers render every tab, `Random article` skips version pages by title only.
+
+## Session 9 notes
+Verified: `spotlessCheck` (own invocation), then `detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies :app:assembleRelease` pass. 84 new tests (565 in total): 44 in `:feature:library`, 39 in `:feature:settings`, 1 in `:core:navigation`; the `ExternalLinksTest` moved to `:core:ui` as `WebLinksTest`. On the Pixel_10_Pro emulator (API 37) against the live wiki: bookmarking an article shows it in Library with the offline badge; with airplane mode on and the app force-stopped and relaunched, the bookmark still opens and renders; swipe-to-remove shows the Undo snackbar and Undo restores the row (checked on History); Dark theme chosen in Settings survives a force-stop and relaunch (system theme was light); About shows the version, disclaimer, attribution and licences. Screenshots are in `docs/pr-assets/session-9`. Not checked by hand: clear history and clear article cache (covered by ViewModel and screen tests, and by the Session 5 repository tests), the tablet layout of Library and Settings.
+
+Modules added: `:feature:library`, `:feature:settings` (both `wikidroid.android.feature`, no extra dependencies). `:app` depends on both directly.
+
+What each exposes (for Session 10):
+- `LibraryEntryInstaller` registers `LibraryKey` with `WikiPanes.list()`; tapping a row pushes `ArticleKey(title)`. `LibraryViewModel` is plain (`@ViewModelKey`); `LibraryScreen(state, onAction)` is stateless.
+- `SettingsEntryInstaller` registers `SettingsKey` and the new `AboutKey` (both without pane metadata, so they are full-screen). `SettingsRoute` sends `OpenAbout` to navigation; every other action goes to `SettingsViewModel`. `AboutScreen` has no ViewModel; `AboutRoute` reads the version name from `PackageManager` and opens links in a Custom Tab.
+- Test tags for instrumented tests: `LIBRARY_LIST_TAG`, `SETTINGS_LIST_TAG`, `TEXT_SIZE_SLIDER_TAG`, `ABOUT_LIST_TAG` (all `internal` to their module).
+
+### Deviations
+- **`AboutKey` was added to `:core:navigation`.** The plan's key list has no About destination. It is a `data object : WikiKey` pushed onto the Settings tab's stack (so back works, and the Navigator saver covers it, with a test). `:app`'s `PlaceholderScreen` gained a branch for it because its `when` is exhaustive.
+- **`openWebUrl`/`isWebUrl` moved from `:feature:article` to `:core:ui`** (`WebLinks.kt`, now public, with `androidx.browser` as an `implementation` dependency there), because the About screen needs Custom Tabs too. `shareArticle` stays in the article module. `:feature:article` no longer depends on `androidx.browser`.
+- **Undo is state, not an effect.** `LibraryState.removed` holds the entry the snackbar is offering; the screen shows the snackbar for it and sends `Undo` or `UndoExpired`. A new removal replaces the previous one (only the latest can be undone), and clearing the history drops a pending history undo so it can't bring one entry back. The same pattern as `pendingAnchor` in Session 8.
+- **Removal is also a TalkBack custom action** ("Remove <title>"), since swiping isn't available to everyone.
+- **Rows read "Saved/Viewed 5 min. ago"** (`DateUtils.getRelativeTimeSpanString`, taken when the tab is shown) in the card's description line; the offline badge is `ArticleCard`'s trailing icon (`ui_offline_available` finally has a user).
+- **Empty History explains itself:** when "Save reading history" is off it says so instead of "No history yet".
+- **Clear history (Library top bar and Settings) and clear article cache ask for confirmation.** Clear history deletes only history; clear cache keeps bookmarked articles (`ArticleRepository.clearCache`). A failure is reported in a snackbar, not thrown.
+- **Text size is saved when the slider is released**, not on every step; the percentage label and a preview sentence follow the drag. Steps of 5% between 85% and 150%.
+- **Dynamic colour is hidden before Android 12** (the screen takes `dynamicColorSupported`, defaulting to `SDK_INT >= S`).
+- **Licences are a hand-written list** (`OpenSourceLibrary.kt`: AndroidX/Compose/Material 3, Kotlin and kotlinx, Metro, Orbit, Retrofit, OkHttp, Coil, jsoup, Material Icons) on the About screen, not generated, so no new dependency or Gradle plugin. Keep it in step with `gradle/libs.versions.toml`.
+- **No separate "Licences" screen:** About is one scrolling screen (version, disclaimer, content licence with links, source code, libraries).
+- **The Settings preference "preferred edition" is stored but nothing reads it yet.** The plan lists the setting without saying what it drives. See open TODOs.
+
+### Workarounds
+- **Material 3 1.5.0-beta01 deprecates the old `ListItem(headlineContent = ...)` and `Slider(value, onValueChange, ...)`.** Use `ListItem(onClick/checked, ...) { headline }` and `Slider(state = SliderState, onValueChange = { state.value = it }, onValueChangeFinished = ...)`. The `Slider(state, modifier, onValueChange = null ...)` overload is hidden, so `onValueChange` is mandatory. `SliderState` must be created inside `remember`.
+- **A snackbar effect keyed on a state field must acknowledge it after `showSnackbar` returns**, not before: clearing the field changes the key and cancels the snackbar immediately (`SettingsScreen`'s `MessageSnackbar`).
+- **compose-rules:** a composable that emits two things at its top level (`Header`, `TextSection`) is wrapped in a `Column`; lambda parameters are present tense (`onCommit`, not `onChangeFinished`); `List<T>` parameters are `ImmutableList<T>`. Detekt's `TooManyFunctions` (11 per file) pushed the reusable settings rows into `SettingsRows.kt`.
+- **orbit-test:** the two lists arriving are state items ahead of a side effect in the stream, so a test that expects an effect without consuming states first needs `skipItems(2)`.
+- **Compose tests that wait on a snackbar timing out** set `mainClock.autoAdvance = false` and advance the clock by hand.
+- Emulator driving: the short snackbar lasts 4 s, so tap Undo in the same command as the swipe (a screenshot read in between is too slow).
+
+### Open TODOs
+- **`preferredEdition` has no effect.** Decide what it drives (for example, which edition's version is shown first on Explore, or which infobox variant opens) or drop it from Settings.
+- **Library and Settings view-model state is lost when leaving the tab** (the Session 7 TODO applies: the selected Library tab resets to Bookmarks, and an undo snackbar is dropped).
+- Library and Settings were not checked on the tablet AVD; both are single-pane layouts (`WikiPanes.list()` on Library shows "Select a page" beside it on wide windows).
+- Unchanged: first article load is slow on the emulator, no stale-offline signal in the article, tabbers render every tab, `Random article` skips version pages by title only.
