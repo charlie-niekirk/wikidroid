@@ -1,0 +1,152 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "182368d260cf48434076f1ef9514037e",
+    "entities": [
+      {
+        "tableName": "bookmarks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`title` TEXT NOT NULL, `displayTitle` TEXT NOT NULL, `thumbnailUrl` TEXT, `savedAt` INTEGER NOT NULL, PRIMARY KEY(`title`))",
+        "fields": [
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayTitle",
+            "columnName": "displayTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbnailUrl",
+            "columnName": "thumbnailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "savedAt",
+            "columnName": "savedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "title"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bookmarks_savedAt",
+            "unique": false,
+            "columnNames": [
+              "savedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bookmarks_savedAt` ON `${TABLE_NAME}` (`savedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`title` TEXT NOT NULL, `displayTitle` TEXT NOT NULL, `thumbnailUrl` TEXT, `viewedAt` INTEGER NOT NULL, PRIMARY KEY(`title`))",
+        "fields": [
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayTitle",
+            "columnName": "displayTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbnailUrl",
+            "columnName": "thumbnailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "viewedAt",
+            "columnName": "viewedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "title"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_history_viewedAt",
+            "unique": false,
+            "columnNames": [
+              "viewedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_history_viewedAt` ON `${TABLE_NAME}` (`viewedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "cached_articles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`title` TEXT NOT NULL, `revisionId` INTEGER NOT NULL, `html` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`title`))",
+        "fields": [
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionId",
+            "columnName": "revisionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "html",
+            "columnName": "html",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fetchedAt",
+            "columnName": "fetchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "title"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cached_articles_fetchedAt",
+            "unique": false,
+            "columnNames": [
+              "fetchedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cached_articles_fetchedAt` ON `${TABLE_NAME}` (`fetchedAt`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '182368d260cf48434076f1ef9514037e')"
+    ]
+  }
+}
