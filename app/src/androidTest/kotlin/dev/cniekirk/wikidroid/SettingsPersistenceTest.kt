@@ -4,7 +4,9 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ActivityScenario
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.model.ThemeMode
@@ -41,6 +43,9 @@ class SettingsPersistenceTest {
     fun theHistoryToggleIsSavedAndShownInLibrary() {
         ActivityScenario.launch(MainActivity::class.java).use {
             composeRule.openTab("Settings")
+            // The row can be below the fold on a small screen, and a lazy list only composes what is visible.
+            composeRule.waitForText("Appearance")
+            composeRule.onNodeWithTag("settings-list").performScrollToNode(hasText("Save reading history"))
             composeRule.clickText("Save reading history")
             composeRule.waitUntil(UI_TIMEOUT_MILLIS) { !currentPreferences().saveHistory }
 
