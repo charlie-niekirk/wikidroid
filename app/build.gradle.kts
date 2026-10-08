@@ -2,6 +2,7 @@ plugins {
     id("wikidroid.android.application")
     id("wikidroid.android.compose")
     id("wikidroid.metro")
+    id("androidx.baselineprofile")
 }
 
 android {
@@ -57,6 +58,7 @@ dependencies {
     implementation(libs.orbit.viewmodel)
     // Lets the OS compile the baseline profile at install time (and from the Play Store's cloud profiles).
     implementation(libs.androidx.profileinstaller)
+    baselineProfile(projects.baselineprofile)
 
     androidTestImplementation(platform(libs.okhttp.bom))
     androidTestImplementation(libs.okhttp.mockwebserver3)
