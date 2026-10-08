@@ -37,16 +37,20 @@ baselineprofile
 ./gradlew :app:assembleRelease
 ```
 Needs `local.properties` with `sdk.dir=...` (gitignored) or `ANDROID_HOME`, and the SDK packages `platforms;android-37.1`, `build-tools;37.0.0`.
-The project needs the Android Studio canary to open (AGP 9.5 alpha).
+Open it with a stable Android Studio release that supports AGP 9.4 (see the AGP/Studio compatibility table); no canary needed.
 
 ## Version policy
 Google/AndroidX libraries use the newest pre-release if newer than stable, otherwise stable. Everything else uses latest stable.
-The one approved exception is Detekt (2.0.0-alpha.6).
+Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest *stable* (9.4.1) because the 9.5 alpha broke Android Studio sync.
 
 ## Workarounds and gotchas found so far
 - Root `build.gradle.kts` lists every plugin with `apply false` (including spotless/detekt). Convention plugins use them `compileOnly`, so they must be on the root classpath. This also lifts AGP's Kotlin 2.2.10 floor.
-- AGP 9.5 DSL: `compileSdk { version = release(37) { minorApiLevel = 1 } }`; `CommonExtension` is non-generic.
+- AGP 9 DSL: `compileSdk { version = release(37) { minorApiLevel = 1 } }`; `CommonExtension` is non-generic.
 - Detekt 2.0 config schema differs from 1.x: no top-level `build:` block, no `LongParameterList` thresholds, `UnusedPrivateMember` is now `UnusedPrivateFunction`/`UnusedPrivateProperty`. Unknown keys fail the run, so check `config/detekt/detekt.yml` against the error's allowed list.
 - activity-compose 1.14 alpha deprecates `enableEdgeToEdge()`; use `WindowCompat.enableEdgeToEdge(window)`.
 - Metro 1.4.5 has no `checkMainMetroHiddenDependencies` task (see docs/PROGRESS.md open items).
 - Material icons are frozen at 1.7.8; ship Material Symbols as vector drawables in `:core:designsystem`.
+- Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
+- Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
+- Modules without `wikidroid.android.compose` that compile `@Composable` code (even in tests) must apply `org.jetbrains.kotlin.plugin.compose`.
+- Android Studio may offer "Set up Kotlin"/"Configure Kotlin". Dismiss it: it adds `org.jetbrains.kotlin.android` and `kotlinOptions`, and AGP 9 then fails the sync ("no longer required for Kotlin support since AGP 9.0").

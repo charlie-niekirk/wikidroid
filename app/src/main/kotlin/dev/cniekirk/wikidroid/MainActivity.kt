@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
+import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.enableEdgeToEdge(window)
         val greeting = (application as WikiDroidApp).graph.greeter.greeting
         setContent {
-            MaterialTheme {
+            WikiDroidTheme {
                 HelloScreen(greeting = greeting)
             }
         }
@@ -42,7 +43,7 @@ internal fun HelloScreen(
 @Preview
 @Composable
 private fun HelloScreenPreview() {
-    MaterialTheme {
+    WikiDroidTheme {
         HelloScreen(greeting = "Hello WikiDroid")
     }
 }
