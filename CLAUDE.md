@@ -59,3 +59,6 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - DataStore allows one active instance per file; tests that reopen a file must cancel the first store's scope.
 - Network fixtures are trimmed real responses in `core/testing/src/main/resources/fixtures/network`; read them with `Fixtures.read("network/<name>.json")`.
 - Android Studio may offer "Set up Kotlin"/"Configure Kotlin". Dismiss it: it adds `org.jetbrains.kotlin.android` and `kotlinOptions`, and AGP 9 then fails the sync ("no longer required for Kotlin support since AGP 9.0").
+- jsoup 1.23 needs `compileOnly(libs.jspecify)` in any module that calls it, or Kotlin fails on inferred jsoup types.
+- Never use `MutableList.removeLast()`/`removeFirst()` in code that runs on Android: on JDK 21 they bind to Java 21 methods missing on API 29-34. Use `removeAt(lastIndex)`.
+- Article-parser HTML fixtures are in `core/article-parser/src/test/resources/fixtures` (the JVM module can't use `:core:testing`).
