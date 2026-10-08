@@ -1,13 +1,20 @@
 import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.withType
 
 class AndroidApplicationConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply("com.android.application")
             pluginManager.apply("wikidroid.detekt")
+
+            // Robolectric's SDK 37 sandbox reaches into JDK internals that JDK 21 doesn't export.
+            tasks.withType<Test>().configureEach {
+                jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+            }
 
             extensions.configure<ApplicationExtension> {
                 configureAndroidCommon(this)
