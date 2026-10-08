@@ -8,7 +8,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 4: Article parser
 - [x] Session 5: Repositories and shared UI
 - [x] Session 6: App shell
-- [ ] Session 7: `:feature:explore` and `:feature:search`
+- [x] Session 7: `:feature:explore` and `:feature:search`
 - [ ] Session 8: `:feature:article`
 - [ ] Session 9: `:feature:library` and `:feature:settings`
 - [ ] Session 10: Instrumented tests and baseline profile
@@ -196,3 +196,38 @@ What `:app` now has (for Sessions 7-9):
 - The splash icon is the placeholder launcher "W".
 - Predictive back and the tablet/list-detail layout can only be checked once Sessions 7-8 register real entries (the placeholders carry no pane metadata).
 - Unchanged from earlier sessions: recipe tables lose their grids, tabbers render every tab (Session 8), autocomplete is cached for 3 days.
+
+## Session 7 notes
+Verified: `spotlessCheck` (own invocation), then `detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies :app:assembleRelease` pass. 107 new tests (375 in total): 44 in `:feature:explore`, 53 in `:feature:search`, 8 in `:core:ui`, net +2 in `:app`. On the Pixel_10_Pro emulator (API 37) against the live wiki: Explore loads the real latest versions, a category (Hostile mobs) lists pages with thumbnails and scrolls, tapping a page or a version row opens the article stub, Random article opens a real page, search shows live suggestions then paged results, and recent searches appear and clear. On the Pixel_Tablet AVD the category list and the article stub show side by side. Screenshots are in `docs/pr-assets/session-7`.
+
+Modules added: `:feature:explore`, `:feature:search` (both `wikidroid.android.feature`, no extra dependencies). `:app` depends on both directly.
+
+What each exposes (for Sessions 8-9):
+- Each feature contributes one `EntryProviderInstaller` (`ExploreEntryInstaller` for `ExploreKey` and `CategoryKey`, `SearchEntryInstaller` for `SearchKey`). Tapping a page pushes `ArticleKey(title)`, a subcategory pushes `CategoryKey(name)`. Version rows push `ArticleKey("Java Edition 26.3")` and so on.
+- Screens are `XxxScreen(state, onAction)` (stateless) wrapped by `XxxRoute` (ViewModel via `metroViewModel()` or `assistedMetroViewModel`). Navigation actions are intercepted in the route; the ViewModel never sees them.
+- `:core:ui` gained `PaginationEffect` and `pagingFooter` (paged lists), `DataError.userMessage()` (the text `ErrorState` shows, public now), `WikiPanes.list()/detail()` (list-detail pane metadata) and `ui_navigate_back`.
+- `MainActivity` now provides `LocalMetroViewModelFactory`, which `metroViewModel()` reads.
+- **The `ArticleKey` stub in `:app` carries `WikiPanes.detail()`.** Session 8's real entry must use `metadata = WikiPanes.detail()` too, or wide windows lose the side-by-side layout. Library (Session 9) should register its list entries with `WikiPanes.list()`.
+
+### Deviations
+- **Pane metadata lives in `:core:ui` (`WikiPanes`), not in the features.** Each feature would otherwise depend on `adaptive-navigation3` and repeat the placeholder. A small addition to an earlier module.
+- **The Search text lives in a `TextFieldState` in the screen, not in the ViewModel.** Round-tripping every keystroke through an async Orbit state can drop characters. The ViewModel's `query` is an echo used for logic; changes from outside the field (recent search, clear) edit the field first. Every decision that depends on the state is made inside `reduce`, so concurrent intents can't undo each other.
+- **Suggestions are fetched for the trimmed query after a 250 ms debounce; a stale response is dropped** if the query changed while it loaded. Tapping a suggestion saves its title as a recent search. Submitting saves the query.
+- **Paging is guarded by a `Mutex.tryLock()` per ViewModel**, and the continuation token is read under the lock, so repeated "load more" calls fetch one batch and a queued call can't repeat a batch.
+- **Category subcategories are a horizontal chip row above the pages**, not a section within the list. All pages and subcategories accumulate across batches (repeats dropped).
+- **No icons on category tiles** (text only); the curated list is in `ExploreCategories`. Names were checked against the live wiki (for example `End biomes`, not `The End biomes`).
+- `ExploreAction.OpenArticle/OpenCategory` and `CategoryDetailAction.Back` exist so the screens can be tested statelessly, but the ViewModels ignore them.
+- **Orbit state-conflation:** the first `reduce { copy(phase = Loading) }` on a state that is already `Loading` emits nothing, so the first load shows one state change, not two.
+
+### Workarounds
+- **orbit-test (`viewModel.test(this) { ... }`):** `expectInitialState()` checks the initial state but is not an item in the stream, and `expectState { copy(...) }` is relative to the last *consumed* state, so after `skipItems` assert explicit states instead. Call `runOnCreate()` to start `orbitContainer { ... }` work.
+- **`advanceUntilIdle()` ignores Orbit's background tasks.** Use `runCurrent()` and `advanceTimeBy(...)`; otherwise "does nothing" tests pass vacuously. Intents run lazily on the test scheduler, so call `runCurrent()` before releasing a gate to check a call was dropped.
+- **Assisted ViewModels:** a nested `@AssistedFactory @ManualViewModelAssistedFactoryKey(Factory::class) @ContributesIntoMap(AppScope::class, binding = binding<ManualViewModelAssistedFactory>()) fun interface Factory : ManualViewModelAssistedFactory`. In tests build them with `graph.metroViewModelFactory.createManuallyAssistedFactory(Factory::class)()` (the provider maps are protected).
+- `KeyboardActionHandler` is in `androidx.compose.foundation.text.input`, and `TextField(state = ...)` is the state-based Material 3 overload.
+- An `adb` Enter key press does not dismiss the keyboard like the IME's search key does; test submit with a tap on the keyboard's search key.
+
+### Open TODOs
+- **ViewModel state is lost when leaving a tab.** Switching tabs removes the other tab's entries from the displayed back stack, so their ViewModels are cleared (inferred from how `rememberViewModelStoreNavEntryDecorator` works, and the category list was back at the top after a tab round trip; not otherwise verified). A typed search query would be lost the same way. If that matters, keep the saveable state (for example `SavedStateHandle`) or keep non-selected tabs' entries alive in `AppShell`.
+- Autocomplete suggestions often have no description or thumbnail (the REST title search omits them for many pages); the rows show a placeholder icon.
+- `Random article` skips version pages by title pattern only.
+- Unchanged: article stub until Session 8, recipe tables lose their grids, tabbers render every tab, autocomplete cached 3 days.
