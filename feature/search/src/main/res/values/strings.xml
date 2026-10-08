@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">Search</string>
+    <string name="search_hint">Search the wiki</string>
+    <string name="search_clear_query">Clear search</string>
+
+    <string name="search_prompt_title">What are you looking for?</string>
+    <string name="search_prompt_message">Search for blocks, mobs, items, commands and more.</string>
+
+    <string name="search_recent_title">Recent searches</string>
+    <string name="search_recent_clear_all">Clear</string>
+    <string name="search_recent_remove">Remove %1$s from recent searches</string>
+
+    <string name="search_for_query">Search for “%1$s”</string>
+    <string name="search_suggestions_failed">Couldn\'t load suggestions.</string>
+
+    <string name="search_no_results_title">No results</string>
+    <string name="search_no_results_message">Nothing on the wiki matches “%1$s”.</string>
+</resources>
