@@ -14,7 +14,7 @@ Confirmed decisions:
 - Tests: JUnit 4 everywhere. Robolectric Compose UI tests on the JVM, plus a small instrumented suite on a CI emulator.
 - Quality: Spotless + ktlint, Detekt **2.0.0-alpha.6**, compose-rules, `:baselineprofile` module.
 - CI: `gradle/actions/setup-gradle@v6` with its Terms of Use accepted. Release signing uses a keystore from GitHub secrets and falls back to the debug key.
-- Version policy: Google/AndroidX libraries use the newest pre-release if it is newer than stable, otherwise stable. Everything else uses latest stable. The one approved exception is Detekt.
+- Version policy: Google/AndroidX libraries use the newest pre-release if it is newer than stable, otherwise stable. Everything else uses latest stable. Approved exceptions: Detekt, and AGP (latest stable).
 - Workflow: after Session 1 (committed straight to `main` while bootstrapping), every session is built on its own branch and lands through its own pull request. Nothing is pushed to `main` directly. See "Session protocol".
 
 ## Versions (verified 2026-10-07; `gradle/libs.versions.toml`)
@@ -23,8 +23,8 @@ Confirmed decisions:
 
 | Component | Version | Notes |
 |---|---|---|
-| AGP | 9.5.0-alpha08 | Built-in Kotlin, new DSL. Needs the Android Studio canary. |
-| Gradle wrapper | 9.8.1 | Latest stable. AGP 9.5 needs at least 9.6. |
+| AGP | 9.4.1 | Latest stable (was 9.5.0-alpha08, which broke Android Studio sync). Built-in Kotlin, new DSL. |
+| Gradle wrapper | 9.8.1 | Latest stable. |
 | compileSdk | 37, minor 1 | Required by Compose 1.13. |
 | targetSdk | 37 | |
 | build-tools | 37.0.0 | |
@@ -269,7 +269,7 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 - Build config: `settings.gradle.kts` (pluginManagement includeBuild `build-logic`, foojay, typesafe project accessors), root `build.gradle.kts` (plugins `apply false`, spotless), `gradle.properties` (configuration cache, build cache, parallel, `android.useAndroidX`).
 - Gradle wrapper 9.8.1.
 - Lint config: `.editorconfig`, `config/detekt/detekt.yml`.
-- `.gitignore`, `README.md` (setup, Android Studio canary requirement, secrets, attribution).
+- `.gitignore`, `README.md` (setup, Android Studio version requirement, secrets, attribution).
 - Git: the repo is `charlie-niekirk/wikidroid` and `main` is the default branch. All changes after Session 1 reach `main` through a pull request (see "Session protocol").
 
 ## Implementation sessions (run in order, one per session)
@@ -398,7 +398,7 @@ Each session is one branch and one pull request into `main`. The user's request 
 - **Build:**
   - `.github/workflows/pr.yml` with the `checks`, `instrumented` and `release-apk` jobs as specified above.
   - `.github/dependabot.yml`.
-  - README covering setup, the Android Studio canary requirement, secret generation (`keytool` + `base64`), attribution and the disclaimer.
+  - README covering setup, the Android Studio version requirement, secret generation (`keytool` + `base64`), attribution and the disclaimer.
   - Run `actionlint` locally if available.
 - **Done when:** a test PR shows all three jobs green, the sticky comment carries the APK artifact link, and a fork-style run with no secrets still produces a debug-signed APK.
 
@@ -413,7 +413,7 @@ Each session is one branch and one pull request into `main`. The user's request 
 - PR CI posts the release APK comment.
 
 ## Risks
-- AGP 9.5 alpha with Metro, Detekt alpha and Robolectric on SDK 37 may need small workarounds. Fallbacks:
+- AGP 9 with Metro, Detekt alpha and Robolectric on SDK 37 may need small workarounds. Fallbacks:
   - Robolectric: `@Config(sdk = [36])`.
   - Metro: pin compiler compatibility flags.
-- Android Studio canary (Rabbit 2) is required to open the project.
+- A stable Android Studio release that supports AGP 9.4 is required to open the project.

@@ -1,6 +1,6 @@
 [versions]
 # Build tooling
-agp = "9.5.0-alpha08"
+agp = "9.4.1"
 kotlin = "2.4.20"
 ksp = "2.3.12"
 metro = "1.4.5"
