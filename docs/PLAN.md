@@ -1,7 +1,9 @@
 # WikiDroid — Minecraft Wiki Android companion (greenfield plan)
 
 ## Context
-`/Users/cniekirk/Projects/wikidroid` is empty (not a git repo). Goal: a standalone native Android client
+Local checkout: `/Users/cniekirk/Projects/wikidroid`. GitHub repo:
+[`charlie-niekirk/wikidroid`](https://github.com/charlie-niekirk/wikidroid) (public, default branch `main`).
+The project started greenfield. Goal: a standalone native Android client
 for **minecraft.wiki** (MediaWiki 1.45, hosted by Weird Gloop) with Material 3 UI, built as a multi-module
 project with Gradle convention plugins, plus GitHub Actions CI that runs unit + UI tests on every PR and
 posts a signed release APK to the PR in a comment.
@@ -13,6 +15,7 @@ Confirmed decisions:
 - Quality: Spotless + ktlint, Detekt **2.0.0-alpha.6**, compose-rules, `:baselineprofile` module.
 - CI: `gradle/actions/setup-gradle@v6` with its Terms of Use accepted. Release signing uses a keystore from GitHub secrets and falls back to the debug key.
 - Version policy: Google/AndroidX libraries use the newest pre-release if it is newer than stable, otherwise stable. Everything else uses latest stable. The one approved exception is Detekt.
+- Workflow: after Session 1 (committed straight to `main` while bootstrapping), every session is built on its own branch and lands through its own pull request. Nothing is pushed to `main` directly. See "Session protocol".
 
 ## Versions (verified 2026-10-07; `gradle/libs.versions.toml`)
 
@@ -176,7 +179,7 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 ### Network (`:core:network`)
 - `Json { ignoreUnknownKeys = true; explicitNulls = false }`.
 - Interceptors:
-  - User-Agent: `WikiDroid/<versionName> (Android; https://github.com/cniekirk/wikidroid)`. This is required, since an empty UA gets a 403.
+  - User-Agent: `WikiDroid/<versionName> (Android; https://github.com/charlie-niekirk/wikidroid)`. This is required, since an empty UA gets a 403.
   - Default params on api.php: `format=json&formatversion=2`.
   - Logging in debug builds.
 - 50 MB OkHttp disk cache. Article parse calls add `maxage=600&smaxage=600`.
@@ -267,22 +270,43 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 - Gradle wrapper 9.8.1.
 - Lint config: `.editorconfig`, `config/detekt/detekt.yml`.
 - `.gitignore`, `README.md` (setup, Android Studio canary requirement, secrets, attribution).
-- `git init` only. No commit or push unless asked.
+- Git: the repo is `charlie-niekirk/wikidroid` and `main` is the default branch. All changes after Session 1 reach `main` through a pull request (see "Session protocol").
 
 ## Implementation sessions (run in order, one per session)
 
-### Session protocol (applies to every session)
+### Session protocol (applies to every session after Session 1)
+Each session is one branch and one pull request into `main`. The user's request to run a session is standing permission to create the branch, commit, push it and open the PR. It is **not** permission to merge: the user reviews and merges.
+
 - **Start:**
-  1. Read `CLAUDE.md`, `docs/PLAN.md` (a copy of this plan, created in Session 1) and `docs/PROGRESS.md`.
-  2. Confirm the previous session's "Done when" still passes: `./gradlew build -x connectedCheck` or the listed commands.
-- **During:** stay inside the session's scope. If an earlier module needs changing, keep the change minimal and record it in PROGRESS.md.
+  1. Make sure the previous session's PR is merged. If it isn't, stop and tell the user rather than stacking branches, unless they ask for a stacked PR (branch from the previous session's branch and set `--base` to it).
+  2. Sync and branch:
+     ```
+     git switch main && git pull --ff-only
+     git switch -c session-<N>-<short-slug>      # e.g. session-2-foundation-core
+     ```
+  3. Read `CLAUDE.md`, `docs/PLAN.md` (a copy of this plan) and `docs/PROGRESS.md`.
+  4. Confirm the previous session's "Done when" still passes: `./gradlew build -x connectedCheck` or the listed commands.
+- **During:**
+  - Stay inside the session's scope. If an earlier module needs changing, keep the change minimal and record it in PROGRESS.md.
+  - Commit on the session branch in small logical commits using conventional prefixes (`feat:`, `fix:`, `test:`, `build:`, `docs:`, `chore:`). Never commit to `main`, never force-push `main`, and keep secrets, keystores and `local.properties` out of git.
 - **End:**
-  1. Run the session's "Done when" commands.
-  2. Tick the session in `docs/PROGRESS.md`, adding deviations, version workarounds and open TODOs.
-  3. Ask the user before committing. Use one commit per session, e.g. `feat: session 3 – data sources`.
+  1. Run the session's "Done when" commands and keep the results.
+  2. Tick the session in `docs/PROGRESS.md`, adding deviations, version workarounds and open TODOs. This goes in the same PR.
+  3. Push and open the PR:
+     ```
+     git push -u origin session-<N>-<short-slug>
+     gh pr create --base main --title "feat: session <N> – <name>" --body-file <body.md>
+     ```
+     The PR body has these sections: **Summary** (what was built), **Done when** (each command or manual check and its result), **Deviations and workarounds**, **Open TODOs**, **Manual checks for the reviewer**. End the body with the attribution line required by the session's tooling.
+  4. Report the PR link to the user and stop. Do not merge, enable auto-merge, or start the next session.
+- **After the PR is open:**
+  - Review feedback and CI fixes go on the same branch as new commits. Don't amend or force-push once the PR has been reviewed unless the user asks.
+  - Until Session 11 there is no CI, so the PR body's "Done when" results are the evidence. From Session 11 on, all workflow jobs must be green before the PR is reported as ready.
+  - Changes to this plan or to `CLAUDE.md` also go through a PR (a `docs/<slug>` branch).
 - **Definition of green** for every session, unless the session says otherwise: `./gradlew spotlessCheck detekt testDebugUnitTest assembleDebug` passes.
 
 ### Session 1: Repo bootstrap and convention plugins
+- **Status:** done. Committed directly to `main` (`ff5d899`) because the repo did not exist yet; this is the only session that skips the PR flow.
 - **Depends on:** nothing.
 - **Build:**
   - Setup: `git init`, `.gitignore`, `.editorconfig`, `gradle.properties`, Gradle wrapper 9.8.1.
@@ -369,7 +393,8 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 - **Done when:** `./gradlew :app:connectedDebugAndroidTest` passes on a local API 35 emulator, `:app:generateBaselineProfile` produces a profile (committed), and the release build includes it.
 
 ### Session 11: CI and docs
-- **Depends on:** Session 10, and a GitHub remote, which the user creates and pushes.
+- **Depends on:** Session 10. The GitHub remote (`charlie-niekirk/wikidroid`) already exists.
+- **PR note:** this session's own PR is the first one with CI, so it doubles as the "test PR" below. Repo secrets (`KEYSTORE_BASE64` etc.) are added by the user in GitHub settings; the session never handles real keystore values.
 - **Build:**
   - `.github/workflows/pr.yml` with the `checks`, `instrumented` and `release-apk` jobs as specified above.
   - `.github/dependabot.yml`.
