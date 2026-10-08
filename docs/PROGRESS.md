@@ -5,7 +5,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 1: Repo bootstrap and convention plugins
 - [x] Session 2: Foundation core modules
 - [x] Session 3: Data sources (network, database, datastore)
-- [ ] Session 4: Article parser
+- [x] Session 4: Article parser
 - [ ] Session 5: Repositories and shared UI
 - [ ] Session 6: App shell
 - [ ] Session 7: `:feature:explore` and `:feature:search`
@@ -86,3 +86,34 @@ What each module exposes (for Sessions 4-5):
 - **Random article filtering** ("skip version/snapshot pages") is left to the Session 5 repository; `randomPages(count)` returns 5 by default so it can filter without a retry.
 - `latestRevision()` resolves redirects, so its `revisionId` is the target page's. The Session 5 article cache should key on the resolved title from `parseArticle` (`ParsedPageDto.title`) and compare against that.
 - Autocomplete responses are cached by OkHttp for 3 days (the server sends `max-age=259200`). Revisit if suggestions feel stale.
+
+## Session 4 notes
+Verified: `spotlessCheck`, then `detekt testDebugUnitTest :core:article-parser:test assembleDebug` pass (Spotless in its own invocation, see the Session 2 workaround). 60 new unit tests, all in `:core:article-parser`. The full Diamond page parses in about 22 ms on the JVM (limit 300 ms). Not run on a device: `:app` does not depend on the module yet (Session 6 wires it).
+
+Module added: `:core:article-parser` (pure JVM, jsoup). Public surface: `ArticleParser` (`fun interface`, `parse(html): ImmutableList<ArticleSection>`) and `JsoupArticleParser`, bound with `@ContributesBinding(AppScope::class)`. Everything else is `internal`. No changes to `:core:model`.
+
+What the parser does, for Sessions 5 and 8:
+- Input is the `parse.text` HTML (mobile format or plain). Each `<h2>` starts an `ArticleSection`; `h3` and deeper stay in the blocks as `ContentBlock.Heading` with the element `id` as `anchor`. An empty lead is omitted.
+- Stripped: everything from `h2#Navigation` on, `table.navbox`, `.navigation-not-searchable`, `pre.history-json`, `.chest-json`, `.noexcerpt`, `.navbar-mini`, `#toc`, `.mw-editsection`, `.mw-cite-backlink`, `style`/`script`/`link`/`meta`, `.hidden-alt-text`, `.msgbox-icon`.
+- Block mapping: `div.infobox` → `Infobox`, hatnotes/`msgbox` → `Note`, `figure[typeof^=mw:File]` and bare file spans → `Image`, `ul.gallery` → `Gallery`, `table` → `Table`, `ul`/`ol` → `ListBlock` (nested), `dl` → bold term paragraph plus definitions, `pre` → code `Paragraph`, standalone `span.mcui-Crafting_Table` → `CraftingGrid`. Unknown containers are looked through; loose inline content between blocks becomes a `Paragraph`.
+- `Unsupported` is used for `figure.embedvideo`, `div.issue-list`, `mcw-calc*`, `calculator-container`, `load-page`, `treeview`, non-crafting `mcui` widgets (Furnace, Smithing Table) and `iframe`/`video`/`form`-style tags. The snippet is capped at 1000 characters.
+- Links: `/w/Title#Anchor` and `https://minecraft.wiki/w/...` → `Link.Internal(title, anchor)` (underscores become spaces in the title, the anchor keeps the `id` spelling). `File:`, `Special:` and `Media:` pages, query-string URLs and other hosts → `Link.External`. Red links and same-page `#fragment` links (citation markers) are plain text.
+- Images resolve against `https://minecraft.wiki`; an image is `pixelated` when it sits inside `.pixel-image`, `.sprite-file` or `.pixelated`.
+
+### Deviations
+- **HTML fixtures live in `core/article-parser/src/test/resources/fixtures`, not `:core:testing`.** The parser is a JVM module and cannot depend on the Android library `:core:testing`. They are `parse.text` from `action=parse&mobileformat=1` for Diamond, Creeper, Crafting Table and `Tutorial:Mining`, captured 2026-10-08 (1.2 MB total). They are untouched except that the Navigation footer (200 to 340 KB of navboxes each) is cut down to the first two navbox rows, which keeps the stripping rule under test.
+- **Crafting grids inside table cells become text, not `CraftingGrid` blocks.** All 36 crafting widgets on the four real pages sit in recipe table cells, and `TableCell` holds only `RichText`. A cell shows `Oak Planks → Crafting Table` (distinct ingredients, then the output with `×count` when above 1). `CraftingGrid` is produced only for widgets outside tables. See open TODOs.
+- **Inline images are dropped** (`RichText` has no image span). Inline sprites (`.sprite-file`) disappear but their `.sprite-text` label stays. Images inside `.iconbar` contribute their alt text, so a health bar reads `20❤️ × 10`.
+- **Infobox:** the small inventory sprite (`.infobox-invimages`) is left out of `images`. When the images sit in tabs (Creeper: Normal, Charged) the tab title is the image caption.
+- **Tabbers render every tab, one after another, each with a bold title paragraph.** On Creeper the drop tables appear four times (Decimal, Fraction, Distribution, Expectation). Showing only the first tab would be a one-line change in `TextBlocks.tab`.
+- Footnote markers stay as superscript text (`[1]`) without a link; reference lists parse as ordinary ordered lists without the `↑` back-links.
+- A `Note` built from a `msgbox` has its bold title and its text on separate lines.
+
+### Workarounds
+- **jsoup 1.23 needs `org.jspecify:jspecify` on the compile classpath.** Without it Kotlin fails with `MISSING_DEPENDENCY_IN_INFERRED_TYPE_ANNOTATION_ERROR` on any inferred jsoup type. It is `compileOnly(libs.jspecify)` in `:core:article-parser`; modules that use jsoup directly later will need the same.
+- **Do not call `MutableList.removeLast()`.** On JDK 21 it resolves to `java.util.List.removeLast`, which does not exist on Android 10 (minSdk 29). The parser uses `removeAt(lastIndex)`.
+
+### Open TODOs
+- **Recipe tables lose their grids (Session 8).** To show real grids, either add a block-valued cell content to the model or let `TableParser` split a recipe table around its widget rows. The text summary is the fallback until then.
+- Parsing is synchronous and CPU-bound (about 22 ms for the largest page here, longer on a phone). The Session 5 repository should call it on the default dispatcher.
+- Same-page `#fragment` links are plain text because the parser does not know the page title. If in-page links matter, give `parse` an optional title and emit `Link.Internal(title, anchor)`.

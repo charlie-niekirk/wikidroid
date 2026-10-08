@@ -40,7 +40,7 @@ include(":app")
 // Modules are enabled by the session that creates them (see docs/PLAN.md).
 include(":core:model")
 include(":core:common")
-// include(":core:article-parser")
+include(":core:article-parser")
 include(":core:network")
 include(":core:database")
 include(":core:datastore")
