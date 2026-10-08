@@ -49,6 +49,8 @@ Modules added: `:core:model`, `:core:common`, `:core:designsystem`, `:core:navig
 - **Robolectric 4.17 runs SDK 37, but on JDK 21 it needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`** (its `FileDescriptorInterceptor` hits `SharedSecrets`). Set for every test task in `wikidroid.android.library`. The `@Config(sdk = [36])` fallback was not needed. The SDK level lives in one place, `core:testing/.../RobolectricTest.kt`.
 - Running `spotlessApply` in the same Gradle invocation as compile tasks can fail with "Could not read path ... build/kotlin/..." (the `**/*.kts` glob races the compiler). Run Spotless as its own invocation.
 
+- **Android Studio sync failed** with `Could not create task ':<module>:generateReleaseComposePreviewRunfiles' ... Unit tests are disabled for this variant`. AGP 9.5 alpha only enables unit tests for the debug variant, yet Studio's sync creates a Compose Preview task for release too. Fixed with `android.onlyEnableUnitTestForTheTestedBuildType=false` in `gradle.properties`, which also adds `testReleaseUnitTest` tasks (`testDebugUnitTest` stays the "green" command). Command-line builds never hit this, so `./gradlew tasks --all` is the quick reproduction. Revisit when AGP leaves alpha.
+
 ### Open TODOs
 - Session 3 still has to configure `room3 { schemaDirectory(...) }` (carried over from Session 1).
 - `:app:checkMainMetroHiddenDependencies` decision is still open for Session 6 (carried over).

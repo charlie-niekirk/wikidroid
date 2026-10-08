@@ -53,3 +53,4 @@ The one approved exception is Detekt (2.0.0-alpha.6).
 - Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
 - Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
 - Modules without `wikidroid.android.compose` that compile `@Composable` code (even in tests) must apply `org.jetbrains.kotlin.plugin.compose`.
+- `android.onlyEnableUnitTestForTheTestedBuildType=false` is required for Android Studio sync (Compose Preview tasks for release); check with `./gradlew tasks --all`.
