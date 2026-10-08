@@ -6,7 +6,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 2: Foundation core modules
 - [x] Session 3: Data sources (network, database, datastore)
 - [x] Session 4: Article parser
-- [ ] Session 5: Repositories and shared UI
+- [x] Session 5: Repositories and shared UI
 - [ ] Session 6: App shell
 - [ ] Session 7: `:feature:explore` and `:feature:search`
 - [ ] Session 8: `:feature:article`
@@ -117,3 +117,51 @@ What the parser does, for Sessions 5 and 8:
 - **Recipe tables lose their grids (Session 8).** To show real grids, either add a block-valued cell content to the model or let `TableParser` split a recipe table around its widget rows. The text summary is the fallback until then.
 - Parsing is synchronous and CPU-bound (about 22 ms for the largest page here, longer on a phone). The Session 5 repository should call it on the default dispatcher.
 - Same-page `#fragment` links are plain text because the parser does not know the page title. If in-page links matter, give `parse` an optional title and emit `Link.Internal(title, anchor)`.
+
+## Session 5 notes
+Verified: `spotlessCheck`, then `detekt testDebugUnitTest assembleDebug` pass (Spotless in its own invocation). 70 new tests: 40 in `:core:data`, 17 in `:core:ui`, 12 for the fakes in `:core:testing`, 1 in `:core:model`. Not run on a device or emulator: `:app` does not depend on the new modules yet (Session 6 wires them).
+
+Modules added: `:core:data`, `:core:ui`. `:core:testing` now depends on `:core:data` (for the fakes); this does not create a cycle with the data-source modules' own tests.
+
+What each module exposes (for Sessions 6-9):
+- `:core:data` (interfaces are public, implementations are `internal` and bound with `@ContributesBinding`; the module's public API is model and common types only):
+  - `SearchRepository`: `autocomplete(query)`, `search(query, continuation)` returning `Paged<ArticleSummary>`, and recent searches (`saveRecentSearch` and friends).
+  - `ArticleRepository`: `getArticle(title): Flow<Result<Article, DataError>>` (offline-first, see below) and `clearCache()`.
+  - `CategoryRepository`: `getMembers(category, continuation)` returning `Paged<CategoryMember>`.
+  - `LibraryRepository`: `bookmarks`/`history` flows, `isBookmarked`, add/remove/restore for bookmarks and history, `recordVisit`, `clearHistory`.
+  - `SettingsRepository`: `preferences` flow and one setter per preference.
+  - `WikiInfoRepository`: `latestVersions()` and `randomArticle()`.
+  - `OfflineFirstArticleRepository` needs `@WikiBaseUrl HttpUrl` (to build `Article.pageUrl`) and `Clock`; `DataGraphTest` shows the whole stack assembled through Metro.
+- `:core:ui`: `ArticleCard`, `PageThumbnail`, `LoadingState`, `EmptyState`, `ErrorState(error: DataError, onRetry)`, `MessageState`, `AttributionFooter(onOpenUrl, pageUrl)`, and `ImageLoaderProviders` (a `@SingleIn(AppScope)` Coil `ImageLoader` on the shared `OkHttpClient`).
+- `:core:testing`: `fake.FakeSearchRepository`, `FakeArticleRepository`, `FakeCategoryRepository`, `FakeLibraryRepository`, `FakeSettingsRepository`, `FakeWikiInfoRepository`. Results are scripted through public `var` handlers or `emit(...)`; calls are recorded.
+
+How `ArticleRepository.getArticle` behaves:
+1. A cached copy (looked up by the requested title, underscores read as spaces) is parsed and emitted first.
+2. `latestRevision` is then asked for the current revision. If revision and canonical title match the cache, the flow completes with no second emission. Otherwise the page is downloaded, cached and emitted again.
+3. With no cache the page is downloaded and emitted, or a `Failure` is emitted. Once a cached copy was emitted, network failures are swallowed.
+4. After each download the cache is pruned to the 100 most recent unbookmarked articles plus every bookmarked one. `clearCache()` removes everything unbookmarked.
+Parsing runs on `@DefaultDispatcher`.
+
+### Deviations
+- **`Article` gained `thumbnailUrl` and `toSummary()`** (`:core:model`). History and bookmark rows need a picture, and the article screen is the only place that has the page. The repository fills it from the first infobox image, else the first lead image. `LibraryRepository` takes an `ArticleSummary`, so the article ViewModel calls `recordVisit(article.toSummary())`.
+- **`Article.displayTitle` is the canonical title, and `Article.categories` is empty.** The cache table stores only the HTML, and showing different titles for a cached and a fresh copy would flicker. Pages with a `DISPLAYTITLE` (for example `Commands/give`, shown by the wiki as `/give`) therefore show the plain title. Fixing it needs a schema v2 with a nullable `displayTitle` column and an auto-migration; see open TODOs.
+- **Freshness uses `latestRevision` (`prop=info`) rather than re-downloading.** The plan said "fetch from the network"; this keeps the common case, an unchanged page, to one tiny request.
+- **A redirect title misses the cache.** The cache is keyed by the canonical title from `parseArticle`, so opening `Dirt block` always downloads (OkHttp's 10-minute response cache helps) while `Dirt` opens offline. Library and history entries use canonical titles, so they open offline.
+- **`recordVisit` honours the `saveHistory` preference; recent searches ignore it.** The toggle is described as history, and recent searches are a separate list with their own clear button.
+- **`restoreBookmark`/`restoreHistoryEntry` were added** to `LibraryRepository` so Session 9's swipe-to-delete undo keeps the original timestamp.
+- **The curated Explore category list is not in `CategoryRepository`.** It is UI-flavoured (names, icons) and belongs to Session 7.
+- **`PageThumbnail` is pixelated by default** (`FilterQuality.None`), because wiki imagery is mostly sprites; pass `pixelated = false` for photographs.
+- **`Clock` is injected.** `:core:common` gained `ClockProviders`, a `kotlin.time.Clock` binding, so repositories and tests control timestamps.
+- **Detekt `TooManyFunctions` now has `ignoreOverridden: true`**, so implementing a wide interface (a repository or its fake) doesn't count against the class limit.
+- Added `coil-test` to the version catalog for the thumbnail tests.
+
+### Workarounds
+- **Coil 3's test artifact has no `FakeImageLoader`.** Build an `ImageLoader` with `FakeImageLoaderEngine` as a component and register it with `setSingletonImageLoaderFactory` inside `setContent` (see `PageThumbnailTest`).
+- Repository tests use real Room (in-memory, `AndroidSQLiteDriver` on Robolectric) with a hand-written `FakeRemote`, so cache and pruning behaviour is the real SQL. `DataTestGraph` replaces `SqliteDriverProviders` the same way the database module's graph test does.
+
+### Open TODOs
+- **Session 6 must register the Coil loader:** make `WikiDroidApp` implement `SingletonImageLoader.Factory` and return the graph's `ImageLoader`, otherwise `PageThumbnail` falls back to a default loader with no shared User-Agent. `:app` also needs direct dependencies on `:core:data`, `:core:ui`, `:core:network`, `:core:database`, `:core:datastore` and `:core:article-parser`.
+- **Cache `displayTitle` (and categories) with a schema v2** if `DISPLAYTITLE` pages matter. A nullable column plus `@AutoMigration(1, 2)` keeps old rows readable.
+- `ArticleRepository` emits no signal that a cached copy is stale because the device is offline. If Session 8 wants an "offline, showing saved copy" banner, add a flag to the emission rather than an error.
+- Unchanged from Session 4: recipe tables lose their grids, and tabbers render every tab (Session 8).
+- Unchanged from Session 3: autocomplete responses are cached by OkHttp for 3 days.
