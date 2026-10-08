@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalView
@@ -18,6 +19,7 @@ import dev.cniekirk.wikidroid.core.model.ThemeMode
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import dev.cniekirk.wikidroid.core.navigation.rememberNavigator
 import dev.cniekirk.wikidroid.ui.AppShell
+import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import kotlinx.collections.immutable.toImmutableSet
 
 class MainActivity : ComponentActivity() {
@@ -42,8 +44,11 @@ class MainActivity : ComponentActivity() {
                     ThemeMode.Dark -> true
                 }
             SystemBarIcons(window = window, darkTheme = darkTheme)
-            WikiDroidTheme(themeMode = preferences.themeMode, dynamicColor = preferences.dynamicColor) {
-                AppShell(navigator = rememberNavigator(), installers = installers)
+            // Feature routes ask for their ViewModels with `metroViewModel()`, which reads this local.
+            CompositionLocalProvider(LocalMetroViewModelFactory provides graph.metroViewModelFactory) {
+                WikiDroidTheme(themeMode = preferences.themeMode, dynamicColor = preferences.dynamicColor) {
+                    AppShell(navigator = rememberNavigator(), installers = installers)
+                }
             }
         }
     }
