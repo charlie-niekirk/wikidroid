@@ -12,7 +12,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 8: `:feature:article`
 - [x] Session 9: `:feature:library` and `:feature:settings`
 - [x] Session 10: Instrumented tests and baseline profile
-- [ ] Session 11: CI and docs
+- [x] Session 11: CI and docs
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -337,3 +337,30 @@ What was added:
 - No Macrobenchmark or startup measurement was taken, so the profile's effect on startup and first article load (the ~10 s on-emulator load noted in Session 8) is unmeasured.
 - The tests run on a phone-size AVD only; the tablet list-detail layout is still manual.
 - Unchanged: first article load is slow on the emulator, no stale-offline signal in the article, tabbers render every tab, `preferredEdition` has no effect, ViewModel state is lost when leaving a tab.
+
+## Session 11 notes
+Verified locally: `spotlessCheck` (own invocation), then `detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies assembleDebug` (the `checks` job's commands) and `:app:assembleRelease` pass; `aapt2 dump badging` on the release APK gives the version fields the PR comment uses. The three jobs themselves can only be proved on GitHub: see the PR body for the run results.
+
+What was added:
+- `.github/workflows/pr.yml` (`pull_request` and `push: main`, cancel-in-progress): `checks`, `instrumented` and `release-apk` (needs `checks`) as in the plan.
+- `.github/actions/setup-android` (local composite action): JDK 21 (Temurin), `setup-gradle@v6`, and `sdkmanager` for `platforms;android-37.1` and `build-tools;37.0.0`. All three jobs use it.
+- `.github/dependabot.yml`: `github-actions` and `gradle`, weekly.
+- `README.md`: setup, Studio requirement, checks, CI, signing secrets (`keytool`, `base64`, `gh secret set`), attribution and the unofficial-app disclaimer.
+- `CLAUDE.md`: a short CI section.
+
+### Deviations
+- **The composite action** is not in the plan; it avoids repeating the JDK, Gradle and SDK steps three times.
+- **Explicit `sdkmanager` step.** AGP can download missing SDK packages, but only if licences are accepted, so the action installs the two packages up front.
+- **`setup-gradle` Terms of Use:** there is no input to accept them. Using the default `enhanced` cache provider is the acceptance (see Gradle's `DISTRIBUTION.md`); `cache-provider: basic` opts out. Noted in the composite action and the README.
+- **AVD cache** uses `actions/cache@v5` and a fixed key (`avd-api35-x86_64-google_apis`); the first run creates the snapshot, later runs reuse it. Bump the key if the emulator settings change.
+- **Reports are uploaded `if: failure()`** in both test jobs.
+- **Comment skipped for forks and Dependabot** (read-only token). The APK is still built and uploaded for them. For a push to `main` there is no PR, so the comment is skipped and the artifact is named `wikidroid-release-run<N>`.
+- **Signing:** `release-apk` always exports `WIKIDROID_KEYSTORE_FILE` (a path in the runner temp dir) and the secrets; the file is only written when `KEYSTORE_BASE64` is set, so with no secrets the convention plugin falls back to the debug key. The comment says which one was used.
+- **`actionlint` is not installed on this machine**, so it was not run. The YAML was parsed with Ruby and the workflow's shell snippets were run by hand; GitHub is the real validation.
+- **`ls` is aliased on the dev machine** (prints icons), so shell snippets avoid parsing `ls`; the workflow uses `printf` with a glob to find `aapt2`.
+
+### Open TODOs
+- **User action:** add the secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` in the repo settings (README has the commands). Until then CI APKs are debug-signed.
+- Consider branch protection on `main` requiring `checks`, `instrumented` and `release-apk`.
+- Anyone with write access can read the signing secrets through a changed workflow on a branch; consider an environment with required reviewers if more people get access.
+- Unchanged from earlier sessions: `preferredEdition` has no effect, ViewModel state is lost when leaving a tab, first article load is slow on the emulator, no startup measurement for the baseline profile, tablet layout only checked by hand.

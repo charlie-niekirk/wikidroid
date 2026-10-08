@@ -41,6 +41,9 @@ baselineprofile
 Needs `local.properties` with `sdk.dir=...` (gitignored) or `ANDROID_HOME`, and the SDK packages `platforms;android-37.1`, `build-tools;37.0.0`.
 Open it with a stable Android Studio release that supports AGP 9.4 (see the AGP/Studio compatibility table); no canary needed.
 
+## CI
+`.github/workflows/pr.yml` (PRs and pushes to `main`): `checks` (spotless, detekt, lintDebug, unit tests, `checkMainMetroHiddenDependencies`), `instrumented` (API 35 x86_64 `google_apis` emulator, `connectedDebugAndroidTest`), `release-apk` (needs `checks`; uploads the APK and posts a sticky PR comment). Shared setup is the composite action `.github/actions/setup-android`. `:baselineprofile` is never run in CI. Secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` are optional; without them the APK is debug-signed. Setup is in `README.md`. From Session 11 on, all three jobs must be green before a PR is reported as ready.
+
 ## Version policy
 Google/AndroidX libraries use the newest pre-release if newer than stable, otherwise stable. Everything else uses latest stable.
 Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest *stable* (9.4.1) because the 9.5 alpha broke Android Studio sync.
