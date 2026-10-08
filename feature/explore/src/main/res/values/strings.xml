@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="explore_title">Explore</string>
+
+    <string name="explore_latest_versions">Latest versions</string>
+    <string name="explore_version_java">Java Edition</string>
+    <string name="explore_version_java_snapshot">Java Edition snapshot</string>
+    <string name="explore_version_bedrock">Bedrock Edition</string>
+    <string name="explore_version_bedrock_preview">Bedrock Edition preview</string>
+    <string name="explore_versions_unavailable">Couldn\'t load the latest versions.</string>
+
+    <string name="explore_random_title">Random article</string>
+    <string name="explore_random_subtitle">Discover something you haven\'t read yet</string>
+    <string name="explore_random_failed">Couldn\'t load a random article. Check your connection and try again.</string>
+
+    <string name="explore_browse_by_category">Browse by category</string>
+
+    <string name="explore_category_empty_title">Nothing here yet</string>
+    <string name="explore_category_empty_message">This category has no pages or subcategories.</string>
+    <string name="explore_subcategories">Subcategories</string>
+</resources>
