@@ -18,10 +18,12 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.navigation.Navigator
 import dev.cniekirk.wikidroid.core.navigation.TopLevelKeys
 import dev.cniekirk.wikidroid.core.navigation.WikiKey
+import dev.cniekirk.wikidroid.core.ui.pane.WikiPanes
 import kotlinx.collections.immutable.ImmutableSet
 
 /**
@@ -88,4 +90,11 @@ private fun AppNavDisplay(
     )
 }
 
-private fun placeholderEntry(key: NavKey): NavEntry<NavKey> = NavEntry(key) { PlaceholderScreen(key = key as WikiKey) }
+/**
+ * An article's stub is already a detail pane, so on wide windows opening a page from a list shows both side by
+ * side; the article feature keeps that when it replaces the stub.
+ */
+private fun placeholderEntry(key: NavKey): NavEntry<NavKey> =
+    NavEntry(key, metadata = if (key is ArticleKey) WikiPanes.detail() else emptyMap()) {
+        PlaceholderScreen(key = key as WikiKey)
+    }

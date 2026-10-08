@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="ui_loading">Loading</string>
+    <string name="ui_loading_more">Loading more</string>
+    <string name="ui_load_more_failed">Couldn\'t load more.</string>
+    <string name="ui_select_page">Select a page</string>
+    <string name="ui_navigate_back">Back</string>
     <string name="ui_retry">Try again</string>
 
     <string name="ui_error_title">Something went wrong</string>

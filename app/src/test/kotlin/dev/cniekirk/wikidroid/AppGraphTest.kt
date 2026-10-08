@@ -6,6 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import coil3.SingletonImageLoader
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.testing.RobolectricTest
+import dev.cniekirk.wikidroid.feature.explore.CategoryDetailViewModel
+import dev.cniekirk.wikidroid.feature.explore.ExploreViewModel
+import dev.cniekirk.wikidroid.feature.search.SearchViewModel
 import dev.zacsweers.metro.createGraphFactory
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Test
@@ -28,8 +31,30 @@ class AppGraphTest : RobolectricTest() {
     }
 
     @Test
-    fun noFeatureInstallersAreRegisteredYet() {
-        assertThat(graph.entryInstallers).isEmpty()
+    fun theExploreAndSearchFeaturesRegisterTheirScreens() {
+        assertThat(graph.entryInstallers.map { it::class.simpleName })
+            .containsExactly("ExploreEntryInstaller", "SearchEntryInstaller")
+    }
+
+    @Test
+    fun theViewModelFactoryBuildsTheFeatureViewModels() {
+        val factory = graph.metroViewModelFactory
+
+        assertThat(
+            factory.create(ExploreViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(ExploreViewModel::class.java)
+        assertThat(
+            factory.create(SearchViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(SearchViewModel::class.java)
+    }
+
+    @Test
+    fun theCategoryViewModelIsBuiltFromItsAssistedFactory() {
+        val factory = graph.metroViewModelFactory.createManuallyAssistedFactory(CategoryDetailViewModel.Factory::class)
+
+        val viewModel = factory().create("Hostile mobs")
+
+        assertThat(viewModel.container.stateFlow.value.title).isEqualTo("Hostile mobs")
     }
 
     @Test
