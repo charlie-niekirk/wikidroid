@@ -18,6 +18,9 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.layout)
     implementation(libs.androidx.compose.material3.adaptive.navigation3)
 
+    // Custom Tabs for external links (see WebLinks).
+    implementation(libs.androidx.browser)
+
     // The ImageLoader provider shares the app's OkHttpClient (bound in :core:network).
     implementation(libs.coil.network.okhttp)
     implementation(platform(libs.okhttp.bom))

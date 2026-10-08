@@ -7,8 +7,5 @@ android {
 }
 
 dependencies {
-    // Custom Tabs for "Open on wiki" and external links.
-    implementation(libs.androidx.browser)
-
     testImplementation(libs.coil.test)
 }
