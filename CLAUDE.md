@@ -54,3 +54,4 @@ The one approved exception is Detekt (2.0.0-alpha.6).
 - Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
 - Modules without `wikidroid.android.compose` that compile `@Composable` code (even in tests) must apply `org.jetbrains.kotlin.plugin.compose`.
 - `android.onlyEnableUnitTestForTheTestedBuildType=false` is required for Android Studio sync (Compose Preview tasks for release); check with `./gradlew tasks --all`.
+- Android Studio may offer "Set up Kotlin"/"Configure Kotlin". Dismiss it: it adds `org.jetbrains.kotlin.android` and `kotlinOptions`, and AGP 9 then fails the sync ("no longer required for Kotlin support since AGP 9.0").
