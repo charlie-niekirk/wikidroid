@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_loading">Loading</string>
+    <string name="ui_retry">Try again</string>
+
+    <string name="ui_error_title">Something went wrong</string>
+    <string name="ui_error_offline">You appear to be offline. Check your connection and try again.</string>
+    <string name="ui_error_http">The wiki couldn\'t be reached (error %1$d). Try again in a moment.</string>
+    <string name="ui_error_api">The wiki rejected the request: %1$s</string>
+    <string name="ui_error_not_found">That page doesn\'t exist on the wiki.</string>
+    <string name="ui_error_parse">The wiki\'s response couldn\'t be understood.</string>
+    <string name="ui_error_unknown">An unexpected error occurred.</string>
+
+    <string name="ui_thumbnail_placeholder">No image</string>
+    <string name="ui_offline_available">Available offline</string>
+
+    <string name="ui_attribution_text">Content from the Minecraft Wiki, available under CC BY-NC-SA 3.0.</string>
+    <string name="ui_attribution_view_page">View page</string>
+    <string name="ui_attribution_view_history">View history</string>
+    <string name="ui_attribution_license">License</string>
+</resources>
