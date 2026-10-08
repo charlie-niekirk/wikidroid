@@ -70,12 +70,17 @@ data class ListItem(
     val sublists: ImmutableList<ContentBlock.ListBlock> = persistentListOf(),
 )
 
+/**
+ * A table cell. When the cell holds nothing but a crafting recipe, [crafting] is that recipe and [content] is
+ * its one-line text summary, for places that can't draw a grid.
+ */
 @Immutable
 data class TableCell(
     val content: RichText,
     val isHeader: Boolean = false,
     val colSpan: Int = 1,
     val rowSpan: Int = 1,
+    val crafting: ContentBlock.CraftingGrid? = null,
 )
 
 /** A [label] of `null` means [value] spans the full width, which is how section headers appear. */

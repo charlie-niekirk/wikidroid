@@ -69,6 +69,11 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Repository implementations are `internal` (`@Inject @ContributesBinding @SingleIn`); feature modules see only the interfaces in `:core:data`.
 - Coil tests: `FakeImageLoaderEngine` + `setSingletonImageLoaderFactory` (there is no `FakeImageLoader` in Coil 3). `PageThumbnail` uses the singleton loader, which the app must register from the graph's `ImageLoader`.
 - Feature screens read ViewModels through `LocalMetroViewModelFactory`, which `MainActivity` provides; a screen test that calls a `Route` needs the same.
-- List/detail panes: register list-like entries with `WikiPanes.list()` and article entries with `WikiPanes.detail()` (`:core:ui`); the `:app` stub for `ArticleKey` is already a detail pane.
+- List/detail panes: register list-like entries with `WikiPanes.list()` and article entries with `WikiPanes.detail()` (`:core:ui`); `ArticleEntryInstaller` registers `ArticleKey` that way (the `:app` placeholder is only a fallback).
 - orbit-test: `expectInitialState()` is not a stream item; `expectState { copy() }` is relative to the last consumed state; `advanceUntilIdle()` ignores Orbit's tasks, so use `runCurrent()`/`advanceTimeBy()`. See "Session 7" in `docs/PROGRESS.md`.
 - Search text lives in a `TextFieldState` in the screen, not in the ViewModel (async state round-trips drop keystrokes).
+- Metro `@Assisted` has no identifier: assisted constructor parameters are matched by name, so use plain `@Assisted` with distinct names.
+- Article tables are drawn by a custom grid `Layout` (`TableBlock`) because `rowspan` needs it. `TableCell.crafting` carries a recipe grid when a cell holds only a crafting widget.
+- Don't force a box size and then apply `aspectRatio` inside it (the image overflows the box); fix the width and let the ratio set the height.
+- Compose tests that tap a link tap its left edge, not the node's centre (`click(Offset(8f, centerY))`).
+- Inline images are `RichSpan.image`. `RichText.isBlank` counts them as content; use `hasText` to ask whether there is readable text (a paragraph with only a block-sized picture is an `Image` block).

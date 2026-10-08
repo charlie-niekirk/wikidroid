@@ -3,7 +3,7 @@ package dev.cniekirk.wikidroid.core.articleparser
 import org.jsoup.nodes.Element
 
 private val HIDDEN_TAGS = setOf("style", "script", "link", "meta", "noscript", "template")
-private val HIDDEN_CLASSES = setOf("sprite-file", "hidden-alt-text", "mw-editsection", "indicator", "msgbox-icon")
+private val HIDDEN_CLASSES = setOf("hidden-alt-text", "mw-editsection", "indicator", "msgbox-icon")
 
 /** Elements that carry no readable content: markup the browser would not show. */
 internal fun Element.isHidden(): Boolean =

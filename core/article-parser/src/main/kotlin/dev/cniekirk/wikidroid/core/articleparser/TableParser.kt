@@ -39,6 +39,16 @@ internal object TableParser {
                     isHeader = cell.normalName() == "th",
                     colSpan = cell.intAttr("colspan") ?: 1,
                     rowSpan = cell.intAttr("rowspan") ?: 1,
+                    crafting = recipeOf(cell),
                 )
             }.toImmutableList()
+
+    /** The recipe in a cell that holds nothing else; a cell with other text keeps the one-line summary. */
+    private fun recipeOf(cell: Element): ContentBlock.CraftingGrid? {
+        val widgets = cell.select(".mcui-Crafting_Table")
+        if (widgets.size != 1) return null
+        val rest = cell.clone()
+        rest.select(".mcui").remove()
+        return if (InlineParser.richText(rest).isBlank) CraftingGridParser.grid(widgets.single()) else null
+    }
 }

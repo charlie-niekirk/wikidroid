@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.core.articleparser
 
 import dev.cniekirk.wikidroid.core.model.ContentBlock
+import dev.cniekirk.wikidroid.core.model.InlineImage
 import dev.cniekirk.wikidroid.core.model.RichText
 import kotlinx.collections.immutable.toImmutableList
 import org.jsoup.nodes.Element
@@ -19,6 +20,18 @@ internal object ImageParser {
             height = img.intAttr("height"),
             caption = caption?.takeUnless { it.isBlank },
             altText = img.attr("alt").trim().takeIf { it.isNotEmpty() },
+            pixelated = isPixelArt(img),
+        )
+    }
+
+    /** An `<img>` inside running text, such as an item sprite, or `null` when it has no source. */
+    fun inline(img: Element): InlineImage? {
+        val src = img.attr("src").trim()
+        if (src.isEmpty()) return null
+        return InlineImage(
+            url = WikiUrls.absolute(src),
+            width = img.intAttr("width"),
+            height = img.intAttr("height"),
             pixelated = isPixelArt(img),
         )
     }

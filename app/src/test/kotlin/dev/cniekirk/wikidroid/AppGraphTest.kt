@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import coil3.SingletonImageLoader
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.testing.RobolectricTest
+import dev.cniekirk.wikidroid.feature.article.ArticleViewModel
 import dev.cniekirk.wikidroid.feature.explore.CategoryDetailViewModel
 import dev.cniekirk.wikidroid.feature.explore.ExploreViewModel
 import dev.cniekirk.wikidroid.feature.search.SearchViewModel
@@ -31,9 +32,9 @@ class AppGraphTest : RobolectricTest() {
     }
 
     @Test
-    fun theExploreAndSearchFeaturesRegisterTheirScreens() {
+    fun theFeaturesRegisterTheirScreens() {
         assertThat(graph.entryInstallers.map { it::class.simpleName })
-            .containsExactly("ExploreEntryInstaller", "SearchEntryInstaller")
+            .containsExactly("ArticleEntryInstaller", "ExploreEntryInstaller", "SearchEntryInstaller")
     }
 
     @Test
@@ -55,6 +56,15 @@ class AppGraphTest : RobolectricTest() {
         val viewModel = factory().create("Hostile mobs")
 
         assertThat(viewModel.container.stateFlow.value.title).isEqualTo("Hostile mobs")
+    }
+
+    @Test
+    fun theArticleViewModelIsBuiltFromItsAssistedFactory() {
+        val factory = graph.metroViewModelFactory.createManuallyAssistedFactory(ArticleViewModel.Factory::class)
+
+        val viewModel = factory().create("Diamond", "Uses")
+
+        assertThat(viewModel.container.stateFlow.value.title).isEqualTo("Diamond")
     }
 
     @Test

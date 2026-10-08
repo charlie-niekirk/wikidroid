@@ -26,4 +26,20 @@ class RichTextTest {
     fun isBlank_falseWhenAnySpanHasText() {
         assertThat(RichText.of(RichSpan(" "), RichSpan("x")).isBlank).isFalse()
     }
+
+    @Test
+    fun anImageAloneIsNotBlankAndHasNoText() {
+        val icon = RichText.of(RichSpan("", image = InlineImage("https://minecraft.wiki/images/D.png", 16, 16)))
+
+        assertThat(icon.isBlank).isFalse()
+        assertThat(icon.hasText).isFalse()
+        assertThat(icon.plainText).isEmpty()
+    }
+
+    @Test
+    fun hasText_trueWhenAnySpanHasReadableText() {
+        assertThat(RichText.of(RichSpan("x")).hasText).isTrue()
+        assertThat(RichText.of(RichSpan(" ")).hasText).isFalse()
+        assertThat(RichText.Empty.hasText).isFalse()
+    }
 }

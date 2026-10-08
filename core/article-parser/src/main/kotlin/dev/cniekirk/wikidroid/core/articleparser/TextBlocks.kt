@@ -13,16 +13,18 @@ internal object TextBlocks {
         sink: BlockSink,
     ) {
         val text = InlineParser.richText(element)
-        if (!text.isBlank) {
+        if (text.hasText) {
             sink.add(ContentBlock.Paragraph(text))
             return
         }
-        // A paragraph that only holds images (the wiki wraps bare [[File:]] embeds in one).
-        element
-            .children()
-            .filter { it.isFileWrapper() }
-            .mapNotNull(ImageParser::file)
-            .forEach(sink::add)
+        // A paragraph that only holds images (the wiki wraps bare [[File:]] embeds in one) shows them as blocks.
+        val images = element.children().filter { it.isFileWrapper() }.mapNotNull(ImageParser::file)
+        when {
+            images.isNotEmpty() -> images.forEach(sink::add)
+
+            // Only small inline pictures, such as a row of sprites: keep them as a line.
+            !text.isBlank -> sink.add(ContentBlock.Paragraph(text))
+        }
     }
 
     fun note(

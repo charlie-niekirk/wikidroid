@@ -159,6 +159,29 @@ class FixtureTest {
     }
 
     @Test
+    fun `Diamond's loot table keeps the sprite beside each structure`() {
+        val tables = parse(fixture("diamond")).allBlocks().filterIsInstance<ContentBlock.Table>()
+
+        val sprites =
+            tables
+                .flatMap { it.rows.flatten() }
+                .flatMap { it.content.spans }
+                .mapNotNull { it.image }
+
+        assertThat(sprites).isNotEmpty()
+        assertThat(sprites.all { it.url.startsWith("https://minecraft.wiki/images/") }).isTrue()
+        assertThat(sprites.any { it.pixelated }).isTrue()
+    }
+
+    @Test
+    fun `no hatnote carries the wiki's own icon`() {
+        val notes = parse(fixture("diamond")).allBlocks().filterIsInstance<ContentBlock.Note>()
+
+        assertThat(notes).isNotEmpty()
+        assertThat(notes.filter { note -> note.text.spans.any { it.image?.url?.endsWith(".svg") == true } }).isEmpty()
+    }
+
+    @Test
     fun `every fixture yields only well-formed output`() {
         for (name in listOf("diamond", "creeper", "crafting_table", "tutorial_mining")) {
             val sections = parse(fixture(name))
