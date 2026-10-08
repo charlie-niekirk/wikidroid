@@ -76,4 +76,7 @@ object WikiIcons {
 
     @DrawableRes
     val MoreVert: Int = R.drawable.ic_more_vert
+
+    @DrawableRes
+    val Image: Int = R.drawable.ic_image
 }

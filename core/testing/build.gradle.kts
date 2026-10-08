@@ -10,6 +10,8 @@ android {
 
 // Test fixtures live in src/main so other modules can use them via testImplementation(projects.core.testing).
 dependencies {
+    // Fakes implement the repository interfaces.
+    api(projects.core.data)
     api(platform(libs.androidx.compose.bom.alpha))
     api(libs.junit)
     api(libs.truth)

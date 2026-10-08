@@ -31,6 +31,29 @@ class ArticleTest {
     }
 
     @Test
+    fun toSummary_carriesTheListFields() {
+        val article =
+            Article(
+                title = "Commands/give",
+                displayTitle = "/give",
+                revisionId = 1,
+                sections = persistentListOf(),
+                pageUrl = "https://minecraft.wiki/w/Commands/give",
+                thumbnailUrl = "https://minecraft.wiki/give.png",
+            )
+
+        assertThat(article.toSummary())
+            .isEqualTo(
+                ArticleSummary(
+                    title = "Commands/give",
+                    displayTitle = "/give",
+                    thumbnailUrl = "https://minecraft.wiki/give.png",
+                    pageUrl = "https://minecraft.wiki/w/Commands/give",
+                ),
+            )
+    }
+
+    @Test
     fun category_pageTitleRoundTrips() {
         val category = Category.fromPageTitle("Category:Hostile_mobs")
 

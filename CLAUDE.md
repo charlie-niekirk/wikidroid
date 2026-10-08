@@ -62,3 +62,6 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - jsoup 1.23 needs `compileOnly(libs.jspecify)` in any module that calls it, or Kotlin fails on inferred jsoup types.
 - Never use `MutableList.removeLast()`/`removeFirst()` in code that runs on Android: on JDK 21 they bind to Java 21 methods missing on API 29-34. Use `removeAt(lastIndex)`.
 - Article-parser HTML fixtures are in `core/article-parser/src/test/resources/fixtures` (the JVM module can't use `:core:testing`).
+- `:core:testing` depends on `:core:data` (it holds the repository fakes). Fakes are plain classes with scriptable `var` handlers; they carry no Metro annotations, so they never join a graph.
+- Repository implementations are `internal` (`@Inject @ContributesBinding @SingleIn`); feature modules see only the interfaces in `:core:data`.
+- Coil tests: `FakeImageLoaderEngine` + `setSingletonImageLoaderFactory` (there is no `FakeImageLoader` in Coil 3). `PageThumbnail` uses the singleton loader, which the app must register from the graph's `ImageLoader`.
