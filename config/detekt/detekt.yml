@@ -33,6 +33,8 @@ complexity:
     ignoreAnnotated:
       - 'Composable'
   TooManyFunctions:
+    # Implementing a wide interface (a repository, a fake of it) shouldn't count against the class.
+    ignoreOverridden: true
     ignoreAnnotated:
       - 'Composable'
 
