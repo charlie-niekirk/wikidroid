@@ -11,7 +11,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 7: `:feature:explore` and `:feature:search`
 - [x] Session 8: `:feature:article`
 - [x] Session 9: `:feature:library` and `:feature:settings`
-- [ ] Session 10: Instrumented tests and baseline profile
+- [x] Session 10: Instrumented tests and baseline profile
 - [ ] Session 11: CI and docs
 
 ## Session 1 notes
@@ -308,3 +308,32 @@ What each exposes (for Session 10):
 - **Library and Settings view-model state is lost when leaving the tab** (the Session 7 TODO applies: the selected Library tab resets to Bookmarks, and an undo snackbar is dropped).
 - Library and Settings were not checked on the tablet AVD; both are single-pane layouts (`WikiPanes.list()` on Library shows "Select a page" beside it on wide windows).
 - Unchanged: first article load is slow on the emulator, no stale-offline signal in the article, tabbers render every tab, `Random article` skips version pages by title only.
+
+## Session 10 notes
+Verified: `spotlessCheck` (own invocation), then `detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies :app:assembleRelease` pass. `:app:connectedDebugAndroidTest` passes (7 tests) on a local API 35 arm64 emulator (`google_apis_playstore`, ~1 min). `:app:generateBaselineProfile` ran on the same emulator against the live wiki and wrote `app/src/release/generated/baselineProfiles/{baseline,startup}-prof.txt` (33,048 rules each, covering all five feature modules and the article parser/jsoup); `app-release.apk` contains `assets/dexopt/baseline.prof` and `.profm`.
+
+What was added:
+- `app/src/androidTest`: `WikiDroidTestRunner` (swaps the application class for `TestWikiApp`), `TestWikiApp` (extends the now-`open` `WikiDroidApp`, starts a `MockWebServer` and overrides `baseUrl()`), `FixtureDispatcher` (routes by API action/generator to the Session 3 network fixtures), `ResetAppStateRule`, and three test classes: `TabNavigationTest` (3), `SearchToLibraryTest` (2: search → article → bookmark → Library, and history), `SettingsPersistenceTest` (2: theme survives closing and reopening the activity, history toggle shows "History is turned off").
+- `:baselineprofile` (`wikidroid.baselineprofile` convention plugin: `com.android.test` + `androidx.baselineprofile`, targets `:app`) with one generator journey: cold start, Explore scroll, search "Creeper", open the article and scroll, Library, Settings. `:app` applies `androidx.baselineprofile`, depends on `profileinstaller` and `baselineProfile(projects.baselineprofile)`.
+
+### Deviations
+- **`WikiDroidApp` is now `open` with a `protected open fun baseUrl()`**, the only change to production code. `TestWikiApp` overrides it.
+- **Fixtures are not copied.** `app/build.gradle.kts` adds `core/testing/src/main/resources/fixtures` as an `androidTest` assets directory, so the dispatcher and the unit tests read the same files. `:core:testing` is not an `androidTest` dependency (it would bring Robolectric into the test APK).
+- **A debug-only `network_security_config`** (`app/src/debug`) allows cleartext HTTP to `localhost`/`127.0.0.1`; without it OkHttp refuses the MockWebServer. Release builds are unaffected.
+- **Tests find views by text, tab role and literal test tags** (`search-field`, `article-list`, `library-list`), because the tag constants are `internal` to their feature modules. If a tag or English string changes, these tests need the same edit.
+- **Settings persistence is checked by closing and relaunching the activity in the same process**, not by killing the process. DataStore is a process singleton, so the process-restart case stays a manual check (done by hand in Session 9).
+- **Each test starts from reset state** (`ResetAppStateRule` empties bookmarks, history, cached articles and recent searches, and restores default settings through the repositories). It sits outside the Compose rule in a `RuleChain` so it runs before the activity starts.
+- **Thumbnails are not served by the mock.** Their URLs in the fixtures point at minecraft.wiki, so Coil tries the real network and falls back to a placeholder; no test depends on them.
+- **The baseline profile is generated against the live minecraft.wiki**, not the mock (the generator runs the real release-like build). With no network the profile is smaller, because every wait in the journey gives up quietly. Regenerate when screens change a lot.
+- **API 35 AVD:** the machine only had `Pixel_10_Pro` (API 37.1) and `Pixel_Tablet`, and `avdmanager` could not create one ("Package path is not valid"), so `~/.android/avd/Pixel_API35` was written by hand from the Pixel 10 Pro config with the API 35 `google_apis_playstore` arm64 image.
+
+### Workarounds
+- **`androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` hung the app on its splash screen** in every run (first test never got past the splash, until the 10 minute instrumentation timeout), while the deprecated v1 rule passes. The tests use v1 with `@Suppress("DEPRECATION")`. Cause not investigated (v2 uses `StandardTestDispatcher`); revisit when moving the Robolectric tests to v2 too.
+- A suggestion row and the search field both contain the typed text, so the tests match `hasText(x) and hasClickAction() and !hasSetTextAction()`.
+- Nav items are matched with `Role.Tab` (`ComposeTestRule.tab(label)`), because the tab label is also a screen title.
+
+### Open TODOs
+- Session 11 must give CI an emulator that can run these (API 35 x86_64 `google_apis`) and keep `:baselineprofile` out of CI (the plan runs it locally).
+- No Macrobenchmark or startup measurement was taken, so the profile's effect on startup and first article load (the ~10 s on-emulator load noted in Session 8) is unmeasured.
+- The tests run on a phone-size AVD only; the tablet list-detail layout is still manual.
+- Unchanged: first article load is slow on the emulator, no stale-offline signal in the article, tabbers render every tab, `preferredEdition` has no effect, ViewModel state is lost when leaving a tab.
