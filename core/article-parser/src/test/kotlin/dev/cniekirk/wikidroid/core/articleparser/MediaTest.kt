@@ -130,6 +130,31 @@ class MediaTest {
         ).isEqualTo("Oak Planks → Crafting Table")
     }
 
+    @Test
+    fun `a cell holding only a recipe also carries it as a grid`() {
+        val html = "<table class=\"wikitable\"><tr><th>Recipe</th></tr><tr><td>${craftingWidget()}</td></tr></table>"
+
+        val cell = blockOf<ContentBlock.Table>(html).rows[1].single()
+
+        assertThat(cell.crafting?.output?.name).isEqualTo("Crafting Table")
+        assertThat(
+            cell.crafting?.slots?.flatten()?.mapNotNull {
+                it?.name
+            },
+        ).containsExactly("Oak Planks", "Oak Planks", "Oak Planks", "Oak Planks")
+    }
+
+    @Test
+    fun `a cell with other text next to a recipe keeps only the summary`() {
+        val html =
+            "<table class=\"wikitable\"><tr><td>Shaped: ${craftingWidget()}</td></tr></table>"
+
+        val cell = blockOf<ContentBlock.Table>(html).rows[0].single()
+
+        assertThat(cell.crafting).isNull()
+        assertThat(cell.content.plainText).contains("Oak Planks → Crafting Table")
+    }
+
     // The first crafting recipe of the Crafting Table article, exactly as the wiki serves it.
     private fun craftingWidget(): String =
         Jsoup.parse(fixture("crafting_table")).selectFirst(".mcui-Crafting_Table")!!.outerHtml()
