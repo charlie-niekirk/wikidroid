@@ -7,7 +7,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 3: Data sources (network, database, datastore)
 - [x] Session 4: Article parser
 - [x] Session 5: Repositories and shared UI
-- [ ] Session 6: App shell
+- [x] Session 6: App shell
 - [ ] Session 7: `:feature:explore` and `:feature:search`
 - [ ] Session 8: `:feature:article`
 - [ ] Session 9: `:feature:library` and `:feature:settings`
@@ -25,7 +25,7 @@ Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; d
 - Launcher icon is a placeholder vector "W"; the placeholder theme is `android:Theme.Material.Light.NoActionBar`, so status-bar icons are low contrast. Session 6 replaces the theme.
 
 ### Open TODOs
-- **`:app:checkMainMetroHiddenDependencies` does not exist** in Metro gradle plugin 1.4.5 (no such task listed by `:app:tasks --all`). Session 6 "Done when" and the Session 11 `checks` job reference it. Decide in Session 6: find the replacement Metro diagnostic, or drop the check and rely on the app graph compiling.
+- ~~**`:app:checkMainMetroHiddenDependencies` does not exist** in Metro gradle plugin 1.4.5~~ Resolved in Session 6 (custom task, see Session 6 notes). Original note: it does not exist in Metro gradle plugin 1.4.5 (no such task listed by `:app:tasks --all`). Session 6 "Done when" and the Session 11 `checks` job reference it. Decide in Session 6: find the replacement Metro diagnostic, or drop the check and rely on the app graph compiling.
 - Gradle prints deprecation warnings ("incompatible with Gradle 10"); not yet investigated.
 - `local.properties` (gitignored) holds `sdk.dir` on this machine.
 
@@ -165,3 +165,34 @@ Parsing runs on `@DefaultDispatcher`.
 - `ArticleRepository` emits no signal that a cached copy is stale because the device is offline. If Session 8 wants an "offline, showing saved copy" banner, add a flag to the emission rather than an error.
 - Unchanged from Session 4: recipe tables lose their grids, and tabbers render every tab (Session 8).
 - Unchanged from Session 3: autocomplete responses are cached by OkHttp for 3 days.
+
+## Session 6 notes
+Verified: `spotlessCheck` (own invocation), then `detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies :app:assembleRelease` pass. 13 new unit tests in `:app` (3 `MainViewModelTest`, 6 `AppShellTest`, 4 `AppGraphTest`; Robolectric). On the Pixel_10_Pro emulator (API 37): the app launches with no crash, the four tabs switch, system back from a non-start tab returns to Explore, and the theme follows the system light/dark setting (checked with `cmd uimode night`).
+
+What `:app` now has (for Sessions 7-9):
+- `AppGraph : ViewModelGraph` with a factory taking `Application` and `@WikiBaseUrl HttpUrl` (`WikiDroidApp` passes `https://minecraft.wiki/`; Session 10's test app passes a MockWebServer URL). It exposes `entryInstallers` (a `@Multibinds(allowEmpty = true)` set), `imageLoader`, and every repository.
+- `AppViewModelFactory : MetroViewModelFactory`, bound with `@ContributesBinding`. Feature ViewModels only need `@Inject @ViewModelKey @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())`. Assisted ones use `@ManualViewModelAssistedFactoryKey` as planned.
+- `WikiDroidApp` is also `SingletonImageLoader.Factory` and returns the graph's loader (closes the Session 5 TODO).
+- `MainActivity`: splash screen held until the saved preferences are read (`MainViewModel`, Orbit), `WindowCompat.enableEdgeToEdge`, `WikiDroidTheme(themeMode, dynamicColor)` from `SettingsRepository`, and system-bar icon contrast that follows the app theme rather than the system's.
+- `AppShell(navigator, installers)`: `NavigationSuiteScaffold` with the four `TopLevelKeys` tabs (re-selecting a tab pops it to its root) around a `NavDisplay` fed from `navigator.backStack`, with the saveable-state and ViewModel-store decorators and `rememberListDetailSceneStrategy`.
+- **Placeholders are the `entryProvider` fallback**, not installers. Any key with no registered entry shows `PlaceholderScreen`, so a feature session only has to contribute an `EntryProviderInstaller`; nothing in `:app` changes and nothing is registered twice. List/detail panes still need each entry to carry `ListDetailSceneStrategy.listPane()` / `detailPane()` metadata (Sessions 7 and 8).
+- `:app` depends directly on every `:core:*` module except `:core:testing` (a test dependency).
+
+### Deviations
+- **`checkMainMetroHiddenDependencies` is our own task**, defined in `app/build.gradle.kts` (Metro 1.4.5 has none). It fails when a `:core:*` or `:feature:*` module in the build (other than `:core:testing`) is not a direct `implementation` dependency of `:app`, which is the condition under which Metro silently misses contributions. It is wired into `check`. Features added in later sessions are covered automatically once they are included in `settings.gradle.kts`.
+- **`MainViewModel` is the only ViewModel in `:app`.** It holds just the preferences, so the activity can drive the splash screen and the theme without a flash.
+- **Metro option `generateContributionProviders = true` is now set in `wikidroid.metro`.** Without it the graph in `:app` could not see the `internal` repository implementations ("internal to its module and its module is not a friend module"), which broke the Session 5 convention that implementations stay `internal`. Each contributing module now generates a public provider for its binding.
+- **`wikidroid.android.application` now also sets the Robolectric `--add-exports` JVM argument** on test tasks, as `wikidroid.android.library` does.
+- **The graph exposes every repository** only so that the whole data stack (network, Room, DataStore, parser) is verified by the compiler; Metro checks only bindings reachable from the graph's roots, and without these accessors it warned that `@WikiBaseUrl` was unused. Features inject the repositories directly, so these accessors can go once a feature uses each of them.
+- Splash: green (`#3C8527`) background with the white launcher "W" in both light and dark. `Theme.WikiDroid` is now `android:Theme.DeviceDefault.DayNight` with transparent system bars.
+
+### Workarounds
+- Compose-rules `UnstableCollections` applies to `AppShell`'s installers, so the activity passes `entryInstallers.toImmutableSet()`.
+- `NavigationSuiteScaffold` moved to the `androidx.compose.material3.adaptive.navigationsuite` package; use the overload whose `navigationItems` lambda calls the composable `NavigationSuiteItem`. `rememberListDetailSceneStrategy` needs `@OptIn(ExperimentalMaterial3AdaptiveApi::class)`.
+- `NavDisplay` in Nav3 1.3.0-alpha02 takes `entryDecorators`, `sceneStrategies` and `onBack` by name; `entryProvider(fallback = ...)` is how unknown keys are handled.
+- Orbit ViewModel tests: intents run off the test dispatcher, so Turbine tests on `container.stateFlow` loop on `awaitItem()` until the loaded state arrives.
+
+### Open TODOs
+- The splash icon is the placeholder launcher "W".
+- Predictive back and the tablet/list-detail layout can only be checked once Sessions 7-8 register real entries (the placeholders carry no pane metadata).
+- Unchanged from earlier sessions: recipe tables lose their grids, tabbers render every tab (Session 8), autocomplete is cached for 3 days.

@@ -48,7 +48,10 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - AGP 9 DSL: `compileSdk { version = release(37) { minorApiLevel = 1 } }`; `CommonExtension` is non-generic.
 - Detekt 2.0 config schema differs from 1.x: no top-level `build:` block, no `LongParameterList` thresholds, `UnusedPrivateMember` is now `UnusedPrivateFunction`/`UnusedPrivateProperty`. Unknown keys fail the run, so check `config/detekt/detekt.yml` against the error's allowed list.
 - activity-compose 1.14 alpha deprecates `enableEdgeToEdge()`; use `WindowCompat.enableEdgeToEdge(window)`.
-- Metro 1.4.5 has no `checkMainMetroHiddenDependencies` task (see docs/PROGRESS.md open items).
+- Metro 1.4.5 has no `checkMainMetroHiddenDependencies` task, so `:app` defines its own (every `:core:*`/`:feature:*` module must be a direct `implementation` dependency of `:app`). A new module therefore needs a line in `app/build.gradle.kts`.
+- `wikidroid.metro` sets `generateContributionProviders = true`; without it `:app` cannot see `internal` `@ContributesBinding` classes from other modules.
+- Compose params of type `Set`/`List` trip compose-rules `UnstableCollections`; use `ImmutableSet`/`ImmutableList`.
+- Screens for a key are registered by a feature's `EntryProviderInstaller`; any key without one shows `PlaceholderScreen` (the `entryProvider` fallback in `:app`).
 - Material icons are frozen at 1.7.8; ship Material Symbols as vector drawables in `:core:designsystem`.
 - Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
 - Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
