@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -139,7 +140,9 @@ private fun DataError.message(): String =
 @Composable
 private fun ErrorStatePreview() {
     WikiDroidTheme(dynamicColor = false) {
-        ErrorState(error = DataError.Network(), onRetry = {})
+        Surface {
+            ErrorState(error = DataError.Network(), onRetry = {})
+        }
     }
 }
 
@@ -147,6 +150,8 @@ private fun ErrorStatePreview() {
 @Composable
 private fun EmptyStatePreview() {
     WikiDroidTheme(dynamicColor = false) {
-        EmptyState(title = "No results", message = "Try a different search.")
+        Surface {
+            EmptyState(title = "No results", message = "Try a different search.")
+        }
     }
 }
