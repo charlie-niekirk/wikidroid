@@ -5,17 +5,18 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.net.toUri
 
 /** Only web pages are opened from article content; other schemes (`intent:`, `javascript:`, `file:`) are dropped. */
 internal fun isWebUrl(url: String): Boolean {
-    val scheme = Uri.parse(url).scheme?.lowercase()
+    val scheme = url.toUri().scheme?.lowercase()
     return scheme == "http" || scheme == "https"
 }
 
 /** Opens [url] in a Custom Tab, or in whatever browser is installed if Custom Tabs aren't available. */
 internal fun Context.openWebUrl(url: String) {
     if (!isWebUrl(url)) return
-    val uri = Uri.parse(url)
+    val uri = url.toUri()
     try {
         CustomTabsIntent
             .Builder()
