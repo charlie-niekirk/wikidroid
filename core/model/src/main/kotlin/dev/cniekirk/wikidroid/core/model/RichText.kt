@@ -12,7 +12,11 @@ data class RichText(
 ) {
     val plainText: String get() = spans.joinToString(separator = "") { it.text }
 
-    val isBlank: Boolean get() = spans.all { it.text.isBlank() }
+    /** `true` when there is neither visible text nor an inline image. */
+    val isBlank: Boolean get() = spans.all { it.image == null && it.text.isBlank() }
+
+    /** `true` when there is readable text; icons alone don't count. */
+    val hasText: Boolean get() = spans.any { it.image == null && it.text.isNotBlank() }
 
     companion object {
         val Empty = RichText(persistentListOf())
@@ -23,11 +27,26 @@ data class RichText(
     }
 }
 
+/**
+ * One run of text, or, when [image] is set, one picture that sits in the line like a character.
+ * An image span's [text] is its alt text (often empty), so [RichText.plainText] stays readable.
+ */
 @Immutable
 data class RichSpan(
     val text: String,
     val styles: Set<TextStyleFlag> = emptySet(),
     val link: Link? = null,
+    val image: InlineImage? = null,
+)
+
+/** A small picture inside running text, such as an item sprite beside its name. */
+@Immutable
+data class InlineImage(
+    val url: String,
+    val width: Int? = null,
+    val height: Int? = null,
+    /** Sprites and pixel art, which must be scaled without smoothing. */
+    val pixelated: Boolean = false,
 )
 
 enum class TextStyleFlag {

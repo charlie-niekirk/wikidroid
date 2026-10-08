@@ -23,6 +23,7 @@ import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
 import dev.cniekirk.wikidroid.core.model.ContentBlock
 import dev.cniekirk.wikidroid.core.model.CraftingSlot
 import dev.cniekirk.wikidroid.core.model.InfoboxRow
+import dev.cniekirk.wikidroid.core.model.InlineImage
 import dev.cniekirk.wikidroid.core.model.Link
 import dev.cniekirk.wikidroid.core.model.ListItem
 import dev.cniekirk.wikidroid.core.model.RichSpan
@@ -137,6 +138,66 @@ class BlockRenderersTest : ComposeTest() {
         composeRule.onNodeWithText("Inner").assertIsDisplayed()
         composeRule.onNodeWithText("•").assertIsDisplayed()
         composeRule.onNodeWithText("◦").assertIsDisplayed()
+    }
+
+    @Test
+    fun aParagraphDrawsAnInlineImageBesideItsText() {
+        val sprite = InlineImage("https://minecraft.wiki/images/ItemSprite_diamond.png", 16, 16, pixelated = true)
+        setBlock(
+            ContentBlock.Paragraph(
+                RichText.of(RichSpan("Diamond sprite", image = sprite), RichSpan(" Diamond")),
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("Diamond sprite").assertIsDisplayed()
+        composeRule.onNodeWithText("Diamond", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun anInlineImageWithoutAltTextStillGetsARoomInTheLine() {
+        val sprite = InlineImage("https://minecraft.wiki/images/ItemSprite_diamond.png", 16, 16)
+        val text = RichText.of(RichSpan("Item "), RichSpan("", image = sprite), RichSpan(" Diamond"))
+
+        val annotated = text.toAnnotatedString(Color.Blue, Color.Gray) {}
+        val content = text.inlineContent()
+
+        assertThat(content.keys).containsExactly("inline-1")
+        assertThat(
+            annotated.getStringAnnotations("androidx.compose.foundation.text.inlineContent", 0, annotated.length),
+        ).hasSize(1)
+        assertThat(annotated.text).startsWith("Item ")
+        assertThat(annotated.text).endsWith(" Diamond")
+    }
+
+    @Test
+    fun anInlineImageInsideALinkStaysClickable() {
+        val link = Link.Internal("Diamond")
+        val sprite = InlineImage("https://minecraft.wiki/images/ItemSprite_diamond.png", 16, 16)
+        val annotated =
+            RichText
+                .of(RichSpan("", link = link, image = sprite), RichSpan("Diamond", link = link))
+                .toAnnotatedString(Color.Blue, Color.Gray) {}
+
+        assertThat(annotated.getLinkAnnotations(0, annotated.length)).isNotEmpty()
+    }
+
+    @Test
+    fun aTableCellShowsAnIconAndItsLabel() {
+        val sprite = InlineImage("https://minecraft.wiki/images/EnvSprite_mineshaft.png", 16, 16, pixelated = true)
+        setBlock(
+            ContentBlock.Table(
+                caption = null,
+                rows =
+                    persistentListOf(
+                        persistentListOf(
+                            TableCell(RichText.of(RichSpan("Mineshaft icon", image = sprite), RichSpan("Mineshaft"))),
+                        ),
+                    ),
+            ),
+        )
+
+        composeRule.onNodeWithContentDescription("Mineshaft icon").assertIsDisplayed()
+        composeRule.onNodeWithText("Mineshaft", substring = true).assertIsDisplayed()
     }
 
     // endregion

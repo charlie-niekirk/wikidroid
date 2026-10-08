@@ -1,5 +1,9 @@
 package dev.cniekirk.wikidroid.feature.article.render
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -9,8 +13,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
@@ -24,7 +32,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import dev.cniekirk.wikidroid.core.model.InlineImage
 import dev.cniekirk.wikidroid.core.model.Link
 import dev.cniekirk.wikidroid.core.model.RichSpan
 import dev.cniekirk.wikidroid.core.model.RichText
@@ -51,7 +63,15 @@ internal fun RichTextView(
         remember(text, linkColor, codeBackground) {
             text.toAnnotatedString(linkColor, codeBackground) { link -> currentOnLinkClick(link) }
         }
-    Text(text = annotated, modifier = modifier, style = style, color = color, textAlign = textAlign)
+    val inlineContent = remember(text) { text.inlineContent() }
+    Text(
+        text = annotated,
+        modifier = modifier,
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        inlineContent = inlineContent,
+    )
 }
 
 internal fun RichText.toAnnotatedString(
@@ -60,25 +80,70 @@ internal fun RichText.toAnnotatedString(
     onLinkClick: (Link) -> Unit,
 ): AnnotatedString =
     buildAnnotatedString {
-        spans.forEach { span ->
+        spans.forEachIndexed { index, span ->
             val link = span.link
             if (link == null) {
-                appendStyled(span, codeBackground)
+                appendSpan(index, span, codeBackground)
             } else {
                 val linkStyles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
                 withLink(LinkAnnotation.Clickable(tag = link.tag(), styles = linkStyles) { onLinkClick(link) }) {
-                    appendStyled(span, codeBackground)
+                    appendSpan(index, span, codeBackground)
                 }
             }
         }
     }
 
-private fun AnnotatedString.Builder.appendStyled(
+private fun AnnotatedString.Builder.appendSpan(
+    index: Int,
     span: RichSpan,
     codeBackground: Color,
 ) {
-    withStyle(span.styles.toSpanStyle(codeBackground)) { append(span.text) }
+    if (span.image != null) {
+        appendInlineContent(inlineId(index), span.text.ifBlank { REPLACEMENT_CHARACTER })
+    } else {
+        withStyle(span.styles.toSpanStyle(codeBackground)) { append(span.text) }
+    }
 }
+
+private fun inlineId(index: Int) = "inline-$index"
+
+/**
+ * The pictures in this text, keyed the way [toAnnotatedString] refers to them. Sizes are in `sp`, so an icon
+ * grows with the reader's text size and sits in the line like a letter.
+ */
+internal fun RichText.inlineContent(): Map<String, InlineTextContent> =
+    buildMap {
+        spans.forEachIndexed { index, span ->
+            val image = span.image ?: return@forEachIndexed
+            val (width, height) = image.placeholderSize()
+            val description = span.text.takeIf { it.isNotBlank() }
+            put(
+                inlineId(index),
+                InlineTextContent(Placeholder(width, height, PlaceholderVerticalAlign.TextCenter)) {
+                    AsyncImage(
+                        model = image.url,
+                        contentDescription = description,
+                        modifier = Modifier.fillMaxSize().padding(horizontal = ICON_GAP.dp / 2),
+                        contentScale = ContentScale.Fit,
+                        filterQuality = if (image.pixelated) FilterQuality.None else FilterQuality.Low,
+                    )
+                },
+            )
+        }
+    }
+
+/** The image's own size as `sp`, shrunk to fit [MAX_INLINE_SIZE], plus a small gap so it doesn't touch the text. */
+private fun InlineImage.placeholderSize(): Pair<TextUnit, TextUnit> {
+    val naturalWidth = (width ?: DEFAULT_INLINE_SIZE).toFloat()
+    val naturalHeight = (height ?: width ?: DEFAULT_INLINE_SIZE).toFloat()
+    val scale = minOf(1f, MAX_INLINE_SIZE / maxOf(naturalWidth, naturalHeight))
+    return (naturalWidth * scale + ICON_GAP).sp to (naturalHeight * scale).sp
+}
+
+private const val DEFAULT_INLINE_SIZE = 16
+private const val MAX_INLINE_SIZE = 96f
+private const val ICON_GAP = 4f
+private const val REPLACEMENT_CHARACTER = "\uFFFD"
 
 private fun Link.tag(): String =
     when (this) {

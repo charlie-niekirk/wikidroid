@@ -8,7 +8,7 @@ import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 
-/** Flattens inline markup into [RichText]: styles, links and line breaks survive, images do not. */
+/** Flattens inline markup into [RichText]: styles, links, line breaks and inline images survive. */
 internal object InlineParser {
     private val STYLES =
         mapOf(
@@ -103,7 +103,7 @@ internal object InlineParser {
             }
 
             tag == "img" -> {
-                iconText(element)?.let { out.append(it, styles, link) }
+                image(element, styles, link, out)
             }
 
             element.hasClass("mcui") -> {
@@ -139,12 +139,23 @@ internal object InlineParser {
         if (tag in CELL_TAGS) out.append(" ")
     }
 
-    // Health and hunger bars are rows of tiny images whose alt text is the emoji ("❤️ × 10"); keep those.
-    private fun iconText(img: Element): String? =
-        img.attr("alt").takeIf {
-            img.closest(".iconbar") != null &&
-                it.isNotBlank()
+    private fun image(
+        img: Element,
+        styles: Set<TextStyleFlag>,
+        link: Link?,
+        out: RichTextBuilder,
+    ) {
+        val alt = img.attr("alt").trim()
+        when {
+            // Health and hunger bars are rows of tiny images whose alt text is the emoji ("❤️ × 10"); keep those.
+            img.closest(".iconbar") != null -> if (alt.isNotEmpty()) out.append(alt, styles, link)
+
+            // The wiki's own hatnote decoration; the app draws its own icon on a note.
+            img.closest(".hatnote") != null -> Unit
+
+            else -> ImageParser.inline(img)?.let { out.appendImage(it, alt, styles, link) }
         }
+    }
 }
 
 /** The same text with [flag] added to every span, for things like definition terms. */
