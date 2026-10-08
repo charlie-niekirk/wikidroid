@@ -1,0 +1,18 @@
+name: Set up Android build
+description: JDK 21, Gradle (with caching) and the Android SDK packages the build needs.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: 21
+    # Using setup-gradle's default (enhanced) caching provider means accepting the Gradle Technologies
+    # Terms of Use (https://gradle.com/legal/terms-of-use/). `cache-provider: basic` opts out.
+    - uses: gradle/actions/setup-gradle@v6
+    - name: Install Android SDK packages
+      shell: bash
+      run: |
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.1" "build-tools;37.0.0"

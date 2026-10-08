@@ -1,0 +1,153 @@
+name: PR
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-android
+      - name: Lint, detekt, unit tests
+        run: ./gradlew spotlessCheck detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: checks-reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
+          if-no-files-found: ignore
+
+  instrumented:
+    name: Instrumented tests (API 35)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-android
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Cache AVD
+        id: avd-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api35-x86_64-google_apis
+      - name: Create AVD and snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: ./gradlew :app:connectedDebugAndroidTest
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: instrumented-reports
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
+
+  release-apk:
+    name: Release APK
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      # Absent on fork and Dependabot runs; the build then falls back to the debug key.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      WIKIDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      WIKIDROID_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      WIKIDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-android
+      - name: Decode keystore
+        id: signing
+        run: |
+          # Always exported; the file only exists when the secret is set, otherwise the build uses the debug key.
+          echo "WIKIDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "kind=release key" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=debug key (no keystore secrets)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Assemble release
+        run: ./gradlew :app:assembleRelease
+      - name: Describe APK
+        id: apk
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          aapt2=$(printf "%s\n" "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          badging=$("$aapt2" dump badging "$apk")
+          echo "version=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<< "$badging" | head -1)" >> "$GITHUB_OUTPUT"
+          echo "code=$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<< "$badging" | head -1)" >> "$GITHUB_OUTPUT"
+          echo "size=$(du -h "$apk" | cut -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: Upload APK
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: wikidroid-release-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || format('run{0}', github.run_number) }}
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
+      # Fork and Dependabot PRs get a read-only token, so they cannot comment.
+      - name: Comment on PR
+        if: >-
+          github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.actor != 'dependabot[bot]'
+        uses: marocchino/sticky-pull-request-comment@v3.0.5
+        with:
+          header: release-apk
+          message: |
+            ### Release APK
+
+            [Download `app-release.apk`](${{ steps.upload.outputs.artifact-url }}) (needs a GitHub login; the link opens the workflow artifact)
+
+            | | |
+            |---|---|
+            | Version | `${{ steps.apk.outputs.version }}` (code `${{ steps.apk.outputs.code }}`) |
+            | Commit | `${{ steps.apk.outputs.sha }}` |
+            | Size | ${{ steps.apk.outputs.size }} |
+            | Signed with | ${{ steps.signing.outputs.kind }} |
