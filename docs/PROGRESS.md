@@ -9,7 +9,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 5: Repositories and shared UI
 - [x] Session 6: App shell
 - [x] Session 7: `:feature:explore` and `:feature:search`
-- [ ] Session 8: `:feature:article`
+- [x] Session 8: `:feature:article`
 - [ ] Session 9: `:feature:library` and `:feature:settings`
 - [ ] Session 10: Instrumented tests and baseline profile
 - [ ] Session 11: CI and docs
@@ -114,7 +114,7 @@ What the parser does, for Sessions 5 and 8:
 - **Do not call `MutableList.removeLast()`.** On JDK 21 it resolves to `java.util.List.removeLast`, which does not exist on Android 10 (minSdk 29). The parser uses `removeAt(lastIndex)`.
 
 ### Open TODOs
-- **Recipe tables lose their grids (Session 8).** To show real grids, either add a block-valued cell content to the model or let `TableParser` split a recipe table around its widget rows. The text summary is the fallback until then.
+- ~~**Recipe tables lose their grids (Session 8).**~~ Resolved in Session 8 (`TableCell.crafting`). Original note: to show real grids, either add a block-valued cell content to the model or let `TableParser` split a recipe table around its widget rows. The text summary is the fallback until then.
 - Parsing is synchronous and CPU-bound (about 22 ms for the largest page here, longer on a phone). The Session 5 repository should call it on the default dispatcher.
 - Same-page `#fragment` links are plain text because the parser does not know the page title. If in-page links matter, give `parse` an optional title and emit `Link.Internal(title, anchor)`.
 
@@ -231,3 +231,41 @@ What each exposes (for Sessions 8-9):
 - Autocomplete suggestions often have no description or thumbnail (the REST title search omits them for many pages); the rows show a placeholder icon.
 - `Random article` skips version pages by title pattern only.
 - Unchanged: article stub until Session 8, recipe tables lose their grids, tabbers render every tab, autocomplete cached 3 days.
+
+## Session 8 notes
+Verified: `spotlessCheck` (own invocation), then `detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies :app:assembleRelease` pass. 88 new tests (463 in total): 85 in `:feature:article`, 2 in `:core:article-parser`, 1 in `:app`. On the Pixel_10_Pro emulator (API 37) against the live wiki: Diamond, Creeper, Crafting Table, Mob and a version page render; internal links navigate (a redirect such as `hostile mob` opens its canonical page, `Mob`); anchors scroll from the contents sheet; sections fold; the bookmark toggle writes the bookmark, history and cache rows (read back from the app's Room file). On the Pixel_Tablet AVD an article opens beside the Explore list. Screenshots are in `docs/pr-assets/session-8`.
+
+Module added: `:feature:article` (`wikidroid.android.feature`, plus `androidx.browser` for Custom Tabs). `:app` depends on it directly.
+
+What it exposes (for Sessions 9-10):
+- `ArticleEntryInstaller` registers `ArticleKey` with `WikiPanes.detail()`. Opening an article from a link pushes another `ArticleKey(title, anchor)`. The placeholder in `:app` is now only the fallback for a key with no entry.
+- `ArticleViewModel` is assisted (`create(title, anchor)`). `ArticleScreen(state, onAction)` is stateless; `ArticleRoute` handles links, sharing, Custom Tabs and navigation.
+- Rendering lives in `...feature.article.render`: one composable per `ContentBlock` (`ArticleBlock` dispatches), `RichTextView` (links become `LinkAnnotation.Clickable`), and a table grid layout. `ArticleLayout` (pure) flattens an article into list rows and finds headings.
+- History is recorded on the first successful emission only (canonical title, so a redirect and its target are one entry). The bookmark star follows `LibraryRepository.isBookmarked(canonicalTitle)`, so Library (Session 9) sees the same rows. Text size follows `SettingsRepository.preferences`.
+
+### Deviations
+- **`TableCell` gained `crafting: ContentBlock.CraftingGrid?`** (`:core:model`) and `TableParser` fills it when a cell holds one crafting widget and nothing else. `content` keeps the one-line text summary, so nothing that reads text changed. A cell with a recipe plus other text, and other widgets (Smithing Table, Furnace), still show the summary or the unsupported chip. This closes the Session 4 open TODO.
+- **Tables are drawn by a custom grid `Layout`, not rows of cells.** Rows of cells cannot span rows: the first version drew a `rowspan` cell in its first row only and left a blank column on Diamond's loot table. Columns are equal width, at least 130dp (176dp when a cell holds a recipe, so a compact grid fits), inside a horizontal scroll. Cells are measured with intrinsic heights and then stretched to the squares they cover.
+- **Sections start expanded.** Only the `h2` of a section folds; the lead never does. Fold state and the contents sheet are in `ArticleState`, so they survive rotation but not leaving the tab (see Session 7's open TODO).
+- **A tapped anchor is a state field (`pendingAnchor`), not an effect.** The ViewModel unfolds the section and sets it; the screen scrolls and sends `AnchorHandled`. This keeps scrolling testable without a side-effect channel. An anchor from the `ArticleKey` is applied once, on the first emission, so a refreshed copy does not drag the reader back.
+- **Anchors match leniently** (`Spawn_rates`, `Spawn rates`, percent-encoded, case-insensitive) after an exact match fails. A link to the page you are already on, with an anchor, scrolls instead of pushing a second copy.
+- **Text size scales only the article body**, by multiplying `LocalDensity.fontScale` around the content. The top bar and sheets keep the system size.
+- **Only http and https links are opened.** `javascript:`, `intent:`, `file:` and other schemes in article links are dropped. `Share` and `Open on wiki` appear only when the article has a page URL (the repository always sets one).
+- **Reading width is capped at 720dp** and centred, so a full-width tablet window keeps readable lines.
+- **Tabbers still render every tab in turn** (Creeper's drop table appears four times). Nothing is lost, but a tab picker needs a new block type; left for later.
+- Unchanged: inline images are still dropped by the parser, so cells that held only an icon are blank (Crafting Table's achievements table).
+
+### Workarounds
+- **Metro `@Assisted` takes no identifier argument.** Parameters are matched by name, so `@Assisted("title")` fails with "Too many arguments". Use plain `@Assisted` and distinct parameter names.
+- **`Modifier.size(w)` followed by `aspectRatio` overflows the box** when the ratio asks for more than `w`: the image drew taller than its layout slot and covered the rows below (Creeper's two infobox pictures). Fix a width and let the ratio decide the height.
+- **`rememberModalBottomSheetState` is deprecated** in material3 1.5.0-beta01. `ModalBottomSheet`'s default state is the replacement, so the contents sheet passes none.
+- **compose-rules `lambda-param-in-effect`:** a lambda used inside `LaunchedEffect` goes through `rememberUpdatedState` first.
+- **Compose tests that tap a link** must tap the left edge of the text (`click(Offset(8f, centerY))`): the node is as wide as its container, so the default centre tap misses a short link.
+- **A Compose `Text` node inside a merged parent has the text's bounds, not the cell's.** Test cell geometry through positions of cells that share a row or column, not heights.
+- Emulator driving: `adb shell input text` needs `%s` for spaces, and the keyboard's stylus tutorial sheet can swallow the first taps after a fresh install.
+
+### Open TODOs
+- **First load of a large page took roughly 10 s on the emulator** before the spinner cleared (Diamond, Creeper, Crafting Table). Not profiled: it could be the download (debug builds log bodies with the OkHttp interceptor), Room, or parsing. Worth measuring before the Session 10 baseline profile.
+- The article shows no signal that a saved copy is stale because the device is offline (Session 5 TODO, still open).
+- Images cannot be opened full screen, and galleries have no pager; both are out of this session's scope.
+- Unchanged: ViewModel state is lost when leaving a tab, autocomplete is cached for 3 days, tabbers render every tab, `Random article` skips version pages by title only.
