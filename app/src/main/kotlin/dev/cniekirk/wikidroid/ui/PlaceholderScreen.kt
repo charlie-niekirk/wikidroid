@@ -10,6 +10,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import dev.cniekirk.wikidroid.R
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
+import dev.cniekirk.wikidroid.core.navigation.AboutKey
 import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.CategoryKey
 import dev.cniekirk.wikidroid.core.navigation.ExploreKey
@@ -32,6 +33,7 @@ internal fun PlaceholderScreen(
         when (key) {
             is TopLevelKey -> stringResource(key.labelRes)
             is CategoryKey -> stringResource(R.string.placeholder_category_title, key.title)
+            AboutKey -> stringResource(R.string.placeholder_about_title)
             is ArticleKey -> stringResource(R.string.placeholder_article_title, key.title)
         }
     Surface(modifier = modifier.fillMaxSize().testTag(PLACEHOLDER_TAG)) {

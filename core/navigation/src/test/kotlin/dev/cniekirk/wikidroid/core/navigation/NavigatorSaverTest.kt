@@ -31,4 +31,25 @@ class NavigatorSaverTest : ComposeTest() {
                 .inOrder()
         }
     }
+
+    @Test
+    fun theAboutScreenAboveSettingsSurvivesStateRestoration() {
+        val restorationTester = StateRestorationTester(composeRule)
+        lateinit var navigator: Navigator
+        restorationTester.setContent {
+            navigator = rememberNavigator()
+            Text(navigator.currentKey.toString())
+        }
+        composeRule.runOnIdle {
+            navigator.switchTab(SettingsKey)
+            navigator.navigate(AboutKey)
+        }
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.runOnIdle {
+            assertThat(navigator.currentTab).isEqualTo(SettingsKey)
+            assertThat(navigator.backStack).containsExactly(SettingsKey, AboutKey).inOrder()
+        }
+    }
 }

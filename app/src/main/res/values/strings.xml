@@ -10,4 +10,5 @@
   <string name="placeholder_coming_soon">Coming soon</string>
   <string name="placeholder_article_title">Article: %1$s</string>
   <string name="placeholder_category_title">Category: %1$s</string>
+  <string name="placeholder_about_title">About</string>
 </resources>
