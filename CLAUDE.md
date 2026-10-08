@@ -3,6 +3,10 @@
 Native Android client for minecraft.wiki (MediaWiki 1.45). Material 3, Compose, multi-module, Gradle convention plugins.
 Full plan: `docs/PLAN.md`. Session checklist and deviations: `docs/PROGRESS.md`. Read both before starting a session.
 
+## Git workflow
+Repo: https://github.com/charlie-niekirk/wikidroid (default branch `main`). Never commit or push to `main`.
+Each session = one branch `session-<N>-<slug>` + one PR into `main`; open the PR but don't merge it. Full steps (branching, PR body, review fixes) are in "Session protocol" in `docs/PLAN.md`.
+
 ## Module map
 Modules are enabled in `settings.gradle.kts` (commented out until their session creates them).
 
