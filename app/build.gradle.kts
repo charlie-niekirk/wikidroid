@@ -27,7 +27,9 @@ dependencies {
     implementation(projects.core.ui)
     implementation(projects.feature.article)
     implementation(projects.feature.explore)
+    implementation(projects.feature.library)
     implementation(projects.feature.search)
+    implementation(projects.feature.settings)
 
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)
