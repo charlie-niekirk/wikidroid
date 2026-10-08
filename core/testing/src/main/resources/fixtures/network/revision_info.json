@@ -1,0 +1,25 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "redirects": [
+      {
+        "from": "Diamonds",
+        "to": "Diamond"
+      }
+    ],
+    "pages": [
+      {
+        "pageid": 31051,
+        "ns": 0,
+        "title": "Diamond",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T21:57:05Z",
+        "lastrevid": 3825498,
+        "length": 17733
+      }
+    ]
+  }
+}

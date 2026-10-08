@@ -1,0 +1,35 @@
+{
+  "batchcomplete": true,
+  "continue": {
+    "grncontinue": "0.711154648763|0.711799210936|164813|0",
+    "continue": "grncontinue||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 25612,
+        "ns": 0,
+        "title": "Drops",
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Skeleton_drops.png/160px-Skeleton_drops.png?c7d47",
+          "width": 160,
+          "height": 151
+        },
+        "extract": "Drops are collectible objects that appear when mobs and some other entities die or when most kinds of blocks are broken. In most cases, these consist of items and experience orbs.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-08T03:31:48Z",
+        "lastrevid": 3819364,
+        "length": 77644,
+        "fullurl": "https://minecraft.wiki/w/Drops",
+        "editurl": "https://minecraft.wiki/w/Drops?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Drops"
+      }
+    ]
+  },
+  "limits": {
+    "extracts": 20
+  }
+}

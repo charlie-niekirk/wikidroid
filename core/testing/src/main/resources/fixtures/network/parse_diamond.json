@@ -1,0 +1,66 @@
+{
+  "parse": {
+    "title": "Diamond",
+    "pageid": 31051,
+    "revid": 3825498,
+    "redirects": [],
+    "text": "<div class=\"mw-content-ltr mw-parser-output\" lang=\"en\" dir=\"ltr\"><section class=\"mf-section-0\" id=\"mf-section-0\"><div role=\"note\" class=\"hatnote searchaux\"><span typeof=\"mw:File\"><span><img alt=\"\" src=\"/images/Disambig_color.svg?2db52\" decoding=\"async\" loading=\"lazy\" width=\"12\" height=\"9\" class=\"mw-file-element\" data-file-width=\"444\" data-file-height=\"340\"/></span></span> For other uses, see <a href=\"/w/Diamond_(disambiguation)\" class=\"mw-disambig\" title=\"Diamond (disambiguation)\">Diamond (disambiguation)</a>.\n</div>\n<p>A <b>diamond</b> is a mineral that can be obtained from <a href=\"/w/Diamond_ore\" class=\"mw-redirect\" title=\"Diamond ore\">diamond ore</a> along with various <a href=\"/w/Loot_chest\" class=\"mw-redirect\" title=\"Loot chest\">loot chests</a>, <a href=\"/w/Vault\" title=\"Vault\">vaults</a>, <a href=\"/w/Ominous_Vault\" title=\"Ominous Vault\">ominous vaults</a>, and <a href=\"/w/Suspicious_sand\" class=\"mw-redirect\" title=\"Suspicious sand\">suspicious sand</a>. It is required to craft diamond <a href=\"/w/Tool\" title=\"Tool\">tools</a>, <a href=\"/w/Armor\" title=\"Armor\">armor</a>, and <a href=\"/w/Enchanting_table\" class=\"mw-redirect\" title=\"Enchanting table\">enchanting tables</a>, as well as duplicating <a href=\"/w/Smithing_template\" class=\"mw-redirect\" title=\"Smithing template\">smithing templates</a>.\n</p><div class=\"infobox notaninfobox\">\n<div class=\"mcwiki-header infobox-title\">Diamond</div>\n<div class=\"infobox-imagearea animated-container\"><div><span class=\"pixel-image\" typeof=\"mw:File\"><a href=\"/w/File:Diamond_JE3_BE3.png\" class=\"mw-file-description\"><img alt=\"Diamond.png: Infobox image for Minecraft item 'Diamond'\" src=\"/images/Diamond_JE3_BE3.png?986a9\" decoding=\"async\" loading=\"lazy\" width=\"160\" height=\"160\" class=\"mw-file-element\" data-file-width=\"160\" data-file-height=\"160\"/></a></span></div>\n<div class=\"infobox-invimages\"><div><span class=\"invslot\"><span class=\"invslot-item invslot-item-image\"><span typeof=\"mw:File\"><span title=\"Diamond\"><img alt=\"Invicon Diamond.png: Inventory sprite for Diamond in Minecraft as shown in-game with description: Diamond\" src=\"/images/Invicon_Diamond.png?18e8a\" decoding=\"async\" loading=\"lazy\" width=\"32\" height=\"32\" class=\"mw-file-element\" data-file-width=\"16\" data-file-height=\"16\"/></span></span></span></span></div></div></div>\n<table class=\"infobox-rows\" cellspacing=\"1\" cellpadding=\"4\">\n\n<tbody><tr>\n<th><a href=\"/w/Rarity\" title=\"Rarity\">Rarity tier</a>\n</th>\n<td class=\"list-style-none\"><span style=\"white-space: nowrap;\"><span style=\"display: inline-block; background-color: #fff; border: 1px solid #888; border-radius: 0.3em; color: transparent; width: 1em; height: 1em; vertical-align: -0.36em; margin-right: -0.1em\"><br/></span> </span> Common\n</td></tr>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n<tr>\n<th><a href=\"/w/Renewable_resource\" title=\"Renewable resource\">Renewable</a>\n</th>\n<td>No (<a href=\"/w/Renewable_resource#Vault\" title=\"Renewable resource\">except via vault</a>)\n</td></tr>\n<tr>\n<th>Stackable\n</th>\n<td>Yes (64)\n</td></tr>\n\n</tbody></table>\n<pre class=\"history-json noexcerpt navigation-not-searchable\">{\n    \"title\": \"Diamond\",\n    \"rows\": [\n        {\n            \"field\": \"&lt;span style=\\\"white-space: nowrap;\\\">&lt;span style=\\\"display: inline-block; background-color: #fff; border: 1px solid #888; border-radius: 0.3em; color: transparent; width: 1em; height: 1em; vertical-align: -0.36em; margin-right: -0.1em\\\">&lt;br>&lt;/span> &lt;/span> Common\",\n            \"label\": \"(link to Rarity article, displayed as Rarity tier)\"\n        },\n        {\n            \"field\": \"No ((link to Renewable resource#Vault article, displayed as except via vault))\",\n            \"label\": \"(link to Renewable resource article, displayed as Renewable)\"\n        },\n        {\n            \"field\": \"Yes (64)\",\n            \"label\": \"Stackable\"\n        }\n    ],\n    \"invimages\": [\n        \"Diamond\"\n    ],\n    \"images\": [\n        \"Diamond.png\"\n    ]\n}</pre>\n</div>\n<div class=\"msgbox searchaux msgbox-subtle msgbox-magenta\" style=\"max-width: 306px;\">\n<div class=\"msgbox-icon\">  \n</div>\n<div style=\"width: 100%;\"><div style=\"font-weight: bold; display: inline\"><span class=\"pixel-image\" typeof=\"mw:File\"><span><img alt=\"\" src=\"/images/thumb/Enchanted_Book_JE2_BE2.png/24px-Enchanted_Book_JE2_BE2.png?d340a\" decoding=\"async\" loading=\"lazy\" width=\"24\" height=\"24\" class=\"mw-file-element\" srcset=\"/images/thumb/Enchanted_Book_JE2_BE2.png/48px-Enchanted_Book_JE2_BE2.png?d340a 2x\" data-file-width=\"160\" data-file-height=\"160\"/></span></span> There is a related tutorial page for this topic!</div>\n<div class=\"msgbox-text\">See <a href=\"/w/Tutorial:Mining/Diamonds\" title=\"Tutorial:Mining/Diamonds\">Tutorial:Mining/Diamonds</a>.</div>\n</div>\n</div>\n\n\n</section></div>",
+    "categories": [
+      {
+        "sortkey": "",
+        "category": "Resources_with_invalid_renewability",
+        "hidden": true
+      },
+      {
+        "sortkey": "",
+        "category": "Stackable_resources"
+      },
+      {
+        "sortkey": "",
+        "category": "Pages_with_YouTube_videos",
+        "hidden": true
+      },
+      {
+        "sortkey": "",
+        "category": "Items"
+      }
+    ],
+    "sections": [
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Obtaining",
+        "number": "1",
+        "index": "1",
+        "fromtitle": "Diamond",
+        "byteoffset": 481,
+        "anchor": "Obtaining",
+        "linkAnchor": "Obtaining"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Mining",
+        "number": "1.1",
+        "index": "2",
+        "fromtitle": "Diamond",
+        "byteoffset": 536,
+        "anchor": "Mining",
+        "linkAnchor": "Mining"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Generated loot",
+        "number": "1.2",
+        "index": "3",
+        "fromtitle": "Diamond",
+        "byteoffset": 1228,
+        "anchor": "Generated_loot",
+        "linkAnchor": "Generated_loot"
+      }
+    ],
+    "showtoc": true,
+    "displaytitle": "<span class=\"mw-page-title-main\">Diamond</span>"
+  }
+}

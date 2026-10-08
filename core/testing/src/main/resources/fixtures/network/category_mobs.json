@@ -1,0 +1,130 @@
+{
+  "batchcomplete": true,
+  "continue": {
+    "gcmcontinue": "subcat|464c59494e47204d4f4253|146949",
+    "continue": "gcmcontinue||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 7626,
+        "ns": 0,
+        "title": "Animal",
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Animals_preview.png/160px-Animals_preview.png?4eb90",
+          "width": 160,
+          "height": 95
+        },
+        "extract": "Animal refers to a category of mobs that are mainly based on real-life animals. Many other mobs and even some blocks are also based on real life animals, but are not treated as such in Minecraft.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T04:55:21Z",
+        "lastrevid": 3751452,
+        "length": 16306,
+        "fullurl": "https://minecraft.wiki/w/Animal",
+        "editurl": "https://minecraft.wiki/w/Animal?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Animal"
+      },
+      {
+        "pageid": 14505,
+        "ns": 0,
+        "title": "Monster",
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/OverWorld_Monsters.png/160px-OverWorld_Monsters.png?25459",
+          "width": 160,
+          "height": 90
+        },
+        "extract": "The term monster refers to a category of mobs that are mostly hostile to the player.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T04:55:29Z",
+        "lastrevid": 3817200,
+        "length": 16885,
+        "fullurl": "https://minecraft.wiki/w/Monster",
+        "editurl": "https://minecraft.wiki/w/Monster?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Monster"
+      },
+      {
+        "pageid": 33163,
+        "ns": 14,
+        "title": "Category:Boss mobs",
+        "extract": "Minecraft mobs classified as bosses.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-08-03T16:24:42Z",
+        "lastrevid": 2884571,
+        "length": 273,
+        "fullurl": "https://minecraft.wiki/w/Category:Boss_mobs",
+        "editurl": "https://minecraft.wiki/w/Category:Boss_mobs?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Category:Boss_mobs"
+      },
+      {
+        "pageid": 59070,
+        "ns": 0,
+        "title": "Armor Stand",
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Armor_Stand_JE5.png/160px-Armor_Stand_JE5.png?d662f",
+          "width": 160,
+          "height": 292
+        },
+        "extract": "An armor stand is an inanimate entity or mob‌[BE  only] that can wear armor. In Bedrock Edition, armor stands can also hold items and be posed without the use of commands.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T21:57:52Z",
+        "lastrevid": 3826742,
+        "length": 37095,
+        "fullurl": "https://minecraft.wiki/w/Armor_Stand",
+        "editurl": "https://minecraft.wiki/w/Armor_Stand?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Armor_Stand"
+      },
+      {
+        "pageid": 75972,
+        "ns": 0,
+        "title": "Mob",
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Minecraft_mobs_preview.png/160px-Minecraft_mobs_preview.png?3bd21",
+          "width": 160,
+          "height": 123
+        },
+        "extract": "A mob (short for mobile entity, or mobile object) is a game entity controlled by its own mob AI. All mobs can be attacked or hurt (from falling, attacked by a player or another mob, falling into the void, hit by an arrow, etc. with the exception of natural creakings), and have some form of voluntary movement.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-08T08:05:48Z",
+        "lastrevid": 3827951,
+        "length": 40342,
+        "fullurl": "https://minecraft.wiki/w/Mob",
+        "editurl": "https://minecraft.wiki/w/Mob?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Mob"
+      },
+      {
+        "pageid": 92899,
+        "ns": 14,
+        "title": "Category:End mobs",
+        "extract": "Minecraft mobs that are related to the End dimension.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-02-07T14:29:48Z",
+        "lastrevid": 3426677,
+        "length": 339,
+        "fullurl": "https://minecraft.wiki/w/Category:End_mobs",
+        "editurl": "https://minecraft.wiki/w/Category:End_mobs?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Category:End_mobs"
+      }
+    ]
+  },
+  "limits": {
+    "extracts": 20
+  }
+}
