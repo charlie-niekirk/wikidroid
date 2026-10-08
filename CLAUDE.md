@@ -50,3 +50,6 @@ The one approved exception is Detekt (2.0.0-alpha.6).
 - activity-compose 1.14 alpha deprecates `enableEdgeToEdge()`; use `WindowCompat.enableEdgeToEdge(window)`.
 - Metro 1.4.5 has no `checkMainMetroHiddenDependencies` task (see docs/PROGRESS.md open items).
 - Material icons are frozen at 1.7.8; ship Material Symbols as vector drawables in `:core:designsystem`.
+- Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
+- Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
+- Modules without `wikidroid.android.compose` that compile `@Composable` code (even in tests) must apply `org.jetbrains.kotlin.plugin.compose`.
