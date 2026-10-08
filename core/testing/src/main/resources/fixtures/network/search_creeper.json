@@ -1,0 +1,80 @@
+{
+  "batchcomplete": true,
+  "continue": {
+    "gsroffset": 3,
+    "continue": "gsroffset||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 628,
+        "ns": 0,
+        "title": "Creeper",
+        "index": 1,
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Creeper_JE3_BE1.png/160px-Creeper_JE3_BE1.png?40005",
+          "width": 160,
+          "height": 327
+        },
+        "extract": "A creeper is a common hostile mob that quietly approaches a player, hisses, and explodes if the player remains near. Creeper explosions can destroy blocks and deal massive amounts of damage, which can be completely blocked using a shield or blocks.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T04:54:51Z",
+        "lastrevid": 3822896,
+        "length": 40445,
+        "fullurl": "https://minecraft.wiki/w/Creeper",
+        "editurl": "https://minecraft.wiki/w/Creeper?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Creeper"
+      },
+      {
+        "pageid": 33238,
+        "ns": 0,
+        "title": "Creeper Head",
+        "index": 2,
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/Creeper_Head_%28S%29_JE1.png/160px-Creeper_Head_%28S%29_JE1.png?14d9d",
+          "width": 160,
+          "height": 160
+        },
+        "extract": "A creeper head is the head of a creeper in the form of a block. It can only be obtained by killing a creeper using a different charged creeper's explosion.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-04T23:05:27Z",
+        "lastrevid": 3818499,
+        "length": 12231,
+        "fullurl": "https://minecraft.wiki/w/Creeper_Head",
+        "editurl": "https://minecraft.wiki/w/Creeper_Head?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Creeper_Head"
+      },
+      {
+        "pageid": 58175,
+        "ns": 0,
+        "title": "Banner",
+        "index": 3,
+        "thumbnail": {
+          "source": "https://minecraft.wiki/images/thumb/White_Banner_JE2_BE2.gif/160px-White_Banner_JE2_BE2.gif?2287d",
+          "width": 160,
+          "height": 356
+        },
+        "extract": "A banner is a block that can be crafted in 16 different colors, customized in a loom using dyes and banner patterns, and applied to a shield. In Java Edition, banners can also be used to add markers to maps.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr",
+        "touched": "2026-10-07T17:10:16Z",
+        "lastrevid": 3818457,
+        "length": 37558,
+        "fullurl": "https://minecraft.wiki/w/Banner",
+        "editurl": "https://minecraft.wiki/w/Banner?action=edit",
+        "canonicalurl": "https://minecraft.wiki/w/Banner"
+      }
+    ]
+  },
+  "limits": {
+    "extracts": 20
+  }
+}
