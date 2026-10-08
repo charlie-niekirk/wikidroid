@@ -53,4 +53,9 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
 - Run `spotlessApply` as its own Gradle invocation, not alongside compile tasks (glob race on `build/`).
 - Modules without `wikidroid.android.compose` that compile `@Composable` code (even in tests) must apply `org.jetbrains.kotlin.plugin.compose`.
+- Metro provider containers are `@BindingContainer @ContributesTo(AppScope::class) object` (an interface with `@Provides` triggers a warning). Modules whose providers need `Application` or `@WikiBaseUrl HttpUrl` get them from the graph factory; test with a test-only `@DependencyGraph` (see `NetworkTestGraph`).
+- `BundledSQLiteDriver` can't load on the host JVM (Android-ABI natives only). It is bound through `SqliteDriverProviders`; Robolectric tests replace it with `AndroidSQLiteDriver` via `@ContributesTo(replaces = ...)`.
+- Room schemas are exported to `<module>/schemas` (set by `wikidroid.android.room`) and are committed. Bump `version` and add a migration when changing an entity.
+- DataStore allows one active instance per file; tests that reopen a file must cancel the first store's scope.
+- Network fixtures are trimmed real responses in `core/testing/src/main/resources/fixtures/network`; read them with `Fixtures.read("network/<name>.json")`.
 - Android Studio may offer "Set up Kotlin"/"Configure Kotlin". Dismiss it: it adds `org.jetbrains.kotlin.android` and `kotlinOptions`, and AGP 9 then fails the sync ("no longer required for Kotlin support since AGP 9.0").

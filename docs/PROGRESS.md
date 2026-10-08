@@ -4,7 +4,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 
 - [x] Session 1: Repo bootstrap and convention plugins
 - [x] Session 2: Foundation core modules
-- [ ] Session 3: Data sources (network, database, datastore)
+- [x] Session 3: Data sources (network, database, datastore)
 - [ ] Session 4: Article parser
 - [ ] Session 5: Repositories and shared UI
 - [ ] Session 6: App shell
@@ -52,5 +52,37 @@ Modules added: `:core:model`, `:core:common`, `:core:designsystem`, `:core:navig
 - **AGP downgraded from 9.5.0-alpha08 to 9.4.1 (latest stable).** The alpha broke Android Studio sync: it created Compose Preview tasks for the release variant while unit tests were disabled there ("Unit tests are disabled for this variant"), and Studio's "Set up Kotlin" prompt then added `org.jetbrains.kotlin.android`, which AGP 9 rejects. Nothing else needed downgrading: the full green suite, `:app:assembleRelease` and `tasks --all` pass unchanged on 9.4.1, including `compileSdk` 37.1, Robolectric SDK 37 and Metro 1.4.5. The `android.onlyEnableUnitTestForTheTestedBuildType` workaround was tried and then removed, as it is not needed. This is a deliberate exception to the pre-release policy for Google libraries; other AndroidX pre-releases (Compose beta, Nav3 alpha, etc.) are unchanged.
 
 ### Open TODOs
-- Session 3 still has to configure `room3 { schemaDirectory(...) }` (carried over from Session 1).
+- ~~Session 3 still has to configure `room3 { schemaDirectory(...) }`~~ Done in Session 3.
 - `:app:checkMainMetroHiddenDependencies` decision is still open for Session 6 (carried over).
+
+## Session 3 notes
+Verified: `./gradlew spotlessCheck detekt testDebugUnitTest assembleDebug` and `:core:model:test :core:common:test` pass. 80 new unit tests: 37 in `:core:network`, 22 in `:core:database`, 21 in `:core:datastore`. Not run on a device or emulator; nothing here changes launch behaviour because `:app` does not depend on the new modules yet (Session 6 wires them).
+
+Modules added: `:core:network`, `:core:database`, `:core:datastore`. Fixtures: `core/testing/src/main/resources/fixtures/network/*.json` (trimmed real responses captured from minecraft.wiki on 2026-10-08) and `Fixtures.read(path)` in `:core:testing`.
+
+What each module exposes (for Sessions 4-5):
+- `:core:network`: `WikiRemoteDataSource` (bound to `RetrofitWikiRemoteDataSource`) returns `Result<_, DataError>` and never throws. DTOs are public, in `...core.network.dto`. `@WikiBaseUrl` qualifier for the graph factory's `HttpUrl`. `NetworkProviders` needs `Application` and `@WikiBaseUrl HttpUrl` from the graph. `OkHttpClient` is a singleton binding in the graph so Session 5's Coil `ImageLoader` can share it.
+- `:core:database`: `WikiDatabase` v1 (schema exported to `core/database/schemas`), `BookmarkDao`, `HistoryDao`, `CachedArticleDao` (including `pruneUnbookmarked(keep)`). Timestamps are epoch millis; the repository converts to `kotlin.time.Instant`. `DatabaseProviders` needs `Application`.
+- `:core:datastore`: `PreferencesDataSource` (user preferences plus recent searches) backed by one JSON file, `files/datastore/user_data.json`. `DataStoreProviders` needs `Application`.
+
+### Deviations
+- **Category listings request 20 pages, not 50.** `exlimit` is capped at 20 by the server; with `gcmlimit=50` MediaWiki splits the response and continues the extracts separately (`excontinue`), so pages 21-50 arrive without their descriptions. Search uses 20 as well. The continuation token is nevertheless the whole `continue` object, so it keeps working if the server ever adds more continuation keys.
+- **`exintro`/`explaintext` are sent as `=1`** rather than as bare flags; equivalent, and avoids relying on valueless query parameters.
+- **`MediaWikiApi.parseArticle` and friends return DTOs; `WikiRemoteDataSource` is the layer that maps errors.** The plan did not name this layer. It is what Session 5 repositories should depend on, not the Retrofit interfaces. Only `latestVersions()` returns a domain type (`LatestVersions`), because parsing the `{{Version}}` wikitext is a wire-format concern.
+- **Recent searches share the preferences file** via a wrapper, `StoredUserData(preferences, recentSearches)`; `UserPreferences` itself is unchanged (resolves the Session 2 open point).
+- **`DataStoreFactory.create(...)` instead of `DataStore.Builder`.** In 1.3.0-alpha11 the builder takes a `Storage` and an `InterProcessCoordinator` that would have to be wired by hand, for no benefit here.
+- **`JsonSerializer` is lenient on read** (`ignoreUnknownKeys`, `coerceInputValues`) so a file from a newer or older app version loads; unreadable content raises `CorruptionException` and the file is replaced with defaults. `textScale` is clamped to `UserPreferences.MIN/MAX_TEXT_SCALE` on read and write.
+- **DAO tests use `AndroidSQLiteDriver`, not `BundledSQLiteDriver`.** The bundled library in the AAR only has Android-ABI natives, so it throws `UnsatisfiedLinkError` on the host JVM. The driver is an injectable binding (`SqliteDriverProviders`), and the tests replace it with `@ContributesTo(replaces = ...)`. The bundled driver is exercised by the instrumented tests in Session 10.
+- **Provider containers are `@BindingContainer object`s** (Metro 1.4.5 warns that interfaces with `@Provides` should be binding containers). `DispatcherProviders` in `:core:common` still uses the old interface style and prints that warning; left alone to keep Session 2 untouched.
+- **Each module has a test-only Metro graph** (`NetworkTestGraph`, `DatabaseTestGraph`, `DataStoreTestGraph`) built through `createGraphFactory`. This checks the providers and the `@WikiBaseUrl` binding without waiting for `:app` to depend on the modules in Session 6.
+- Android Studio left an uncommitted `org.gradle.tooling.parallel=true` in `gradle.properties` and a generated `gradle/gradle-daemon-jvm.properties` (JDK 25) in the working tree. Neither is part of this PR.
+
+### Workarounds
+- `AndroidRoomConventionPlugin` now sets `room3 { schemaDirectory("$projectDir/schemas") }` via the typed `androidx.room3.gradle.RoomExtension` (extension name `room3`).
+- DataStore allows one active instance per file. Tests that "restart" must cancel the first store's scope before opening the file again (see `PreferencesDataSourceTest`).
+
+### Open TODOs
+- **Category member order.** With a generator, MediaWiki returns each batch ordered by page id, not by sort key, and gives no `index`. Subcategories and pages are mixed within a batch. Session 5/7 should sort each batch (for example subcategories first, then by title) before showing it.
+- **Random article filtering** ("skip version/snapshot pages") is left to the Session 5 repository; `randomPages(count)` returns 5 by default so it can filter without a retry.
+- `latestRevision()` resolves redirects, so its `revisionId` is the target page's. The Session 5 article cache should key on the resolved title from `parseArticle` (`ParsedPageDto.title`) and compare against that.
+- Autocomplete responses are cached by OkHttp for 3 days (the server sends `max-age=259200`). Revisit if suggestions feel stale.
