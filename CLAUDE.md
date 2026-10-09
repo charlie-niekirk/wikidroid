@@ -14,9 +14,9 @@ Modules are enabled in `settings.gradle.kts` (commented out until their session 
 build-logic/convention      included build, plugin ids `wikidroid.*`
 app                         MainActivity, AppGraph (Metro), Nav3 host
 core:model | common | article-parser | network | database | datastore | data
-core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md)
+core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md); feature:seedmap has the ViewModel (UI is Session 14)
 core:designsystem | ui | navigation | testing
-feature:explore | search | article | library | settings     (never depend on each other; navigate via :core:navigation keys)
+feature:explore | search | article | library | settings | seedmap     (never depend on each other; navigate via :core:navigation keys)
 baselineprofile
 ```
 
@@ -93,3 +93,8 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - `libseedmap.so` loads only inside `NativeSeedMap`; it cannot load in JVM/Robolectric tests, so those use `SeedMapEngine` fakes and native behaviour is covered by `:core:seedmap:connectedDebugAndroidTest`.
 - JNI functions live on `internal object NativeSeedMap` as public `@JvmStatic external fun`s: an `internal` function would get a mangled JNI name. The C side returns primitives only and re-validates every argument.
 - cubiomes `Generator` keeps the overworld layer stack, Nether and End noise in one union, so `nativeApplySeed` calls `setupGenerator` again on every call. Never share a generator between threads.
+- cubiomes calls `exit()` for structure types it does not implement, which would kill the app. Only the whitelist in `seedmap_core.c` (`structure_listed`) reaches it, so a new `StructureType` needs both that line and the Kotlin enum entry; the contract tests fail if they disagree.
+- `seedmap_core.[ch]` has no JNI types, so a host `clang -fwrapv` build of it plus the cubiomes sources runs the exact code the app runs. The golden values in `core/seedmap/src/androidTest/.../WorldGoldens.kt` come from such a build; regenerate them (and `BiomeCatalog`, which `NativeContractTest` checks) when the submodule is bumped.
+- An Orbit ViewModel that reads `container` inside its own initializer (collectors over `container.stateFlow`) must declare `container: OrbitContainer<State, State, Effect>` explicitly, or the compiler reports a recursive type problem.
+- Seed map queries go through `GeneratorPool`: one native generator per worker, never shared. Anything that touches a generator handle outside `GeneratorPool.use` is a bug.
+

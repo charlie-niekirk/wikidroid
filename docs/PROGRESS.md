@@ -14,7 +14,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 10: Instrumented tests and baseline profile
 - [x] Session 11: CI and docs
 - [x] Session 12: Seed map, native groundwork (`seed-map-plan.md`)
-- [ ] Session 13: Seed map, engine API, tiles and ViewModel
+- [x] Session 13: Seed map, engine API, tiles and ViewModel
 - [ ] Session 14: Seed map, map UI and the tab
 - [ ] Session 15: Seed map, polish
 
@@ -398,3 +398,39 @@ Measured (release APK, NDK r30, `-O2`, stripped): `libseedmap.so` is 1,252,648 b
 - Only the arm64 emulator was run locally; `x86_64` (the CI emulator) is proved by CI only.
 - Single-point biome queries use scale 1; the native scale-4 path is checked only for rejection of other scales.
 - Downloading the NDK through `sdkmanager` stalled on a slow connection; if a fresh machine hits that, install it from Android Studio's SDK Manager.
+
+## Session 13 notes
+Verified locally: `spotlessCheck` (own invocation), then `detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies assembleDebug :app:assembleRelease` pass. `:core:seedmap:connectedDebugAndroidTest` passes (61 tests in 7 classes) on the `Pixel_10_Pro` AVD (API 37.1, arm64, 16 KB pages). The CI jobs themselves can only be proved on GitHub: see the PR body.
+
+What was added:
+- **Native:** `seedmap_core.[ch]` holds the logic (no JNI types) and `seedmap_jni.c` wraps it. New JNI functions: `nativeGenBiomes`, `nativeStructures`, `nativeStrongholds`, `nativeBiomeColors`, `nativeStructureSupported`, plus `nativeStructureName` and `nativeBiomeName` for the contract tests. Every argument is re-checked in C (scale in {1,4,16,64,256}, area and region budgets, world border, handle and dimension), and only a whitelist of structure types reaches cubiomes.
+- **`:core:seedmap` Kotlin:** `SeedMapEngine` now has `biomeTile`, `structuresIn`, `strongholds`, `biomeColors` next to `spawn`/`biomeAt`. `GeneratorPool` (size `availableProcessors - 1`, min 1; generators are created and seeded lazily, a free one already on the requested world is preferred) replaces the single locked generator in `JniSeedMapEngine`. `TileScale` (`CELL_4`..`CELL_256`), `TileKey(world, scale, tileX, tileZ)`, `BiomeTile`, `BlockArea`, `StructureType` (with the version/dimension table), `StructurePos`, `BiomePalette`, `TileRenderer`, `TileCache` (`LruCache` by bytes, 1/8 of `memoryClass`, provided by `TileCacheProviders`), `SeedParser`, `BiomeCatalog`, `BiomeWikiTitles`, `StructureWikiTitles`.
+- **Saved seeds:** `SavedSeed(seed, version, label)` in `:core:model`, `StoredUserData.savedSeeds`, `PreferencesDataSource.savedSeeds/saveSeed/removeSeed`, `SeedRepository` in `:core:data`, `FakeSeedRepository` in `:core:testing`. A seed is identified by seed + version; saving it again updates the label and moves it to the front.
+- **`:feature:seedmap`:** `SeedMapViewModel` (state, actions and effects in `SeedMapContract.kt`, `MapViewport` and the pin-search maths in `MapViewport.kt`). No screen, route or navigation key yet (Session 14).
+- **Testing:** `FakeSeedMapEngine` in `:core:testing`.
+- `AppGraph` exposes `SeedRepository` and `TileCache`, so Metro checks their wiring (including the `Application` the cache needs) at compile time.
+
+Measured on the host Mac (clang -O2, so only indicative; Session 15 measures a phone): a 256x256 biome tile takes 1-3 ms up to 1.17 and 60-170 ms from 1.18; 128 strongholds take about 15 ms up to 1.17 and 0.5-0.65 s from 1.18; a village search over 8192x8192 takes 2-4 ms, monuments 12 ms.
+
+### Deviations
+- **`seedmap_core.[ch]` is new.** Keeping the logic out of the JNI file lets a plain host program run exactly the code the app runs. The golden values in `WorldGoldens.kt` were generated that way (a throwaway program in the scratchpad, not committed, built with `clang -fwrapv`) and they match the device, which also cross-checks the NDK build against clang. As in Session 12 they were **not checked against Chunkbase**.
+- **cubiomes calls `exit()` for structure types it does not implement** (`getStructurePos`, `isViableFeatureBiome`), and would take the app with it. Only the types in `structure_listed()` reach it; `NativeInputValidationTest` and `NativeContractTest` cover the rest. A new `StructureType` therefore needs a line in `structure_listed()` as well as in the Kotlin enum.
+- **Structure set:** desert pyramid, jungle temple, swamp hut, igloo, village, ocean ruin, shipwreck, monument, mansion, outpost, both ruined portals, ancient city, buried treasure, trail ruins, trial chambers, abandoned camp, fortress, bastion, nether fossil, end city, end gateway, and `STRONGHOLD` (found by `strongholds()`, not by region). Mineshafts, desert wells, geodes and end islands are left out.
+- **Wiki titles follow the wiki as it is today**, checked against minecraft.wiki's API (118 titles; 3 misses fixed): "Swamp Hut" and "Jungle Pyramid" (the plan said "Witch Hut"; the old names redirect), "World spawn" for the spawn, and id 162 (`modified_gravelly_mountains`) opens "Windswept Gravelly Hills". Session 15's full pass still stands.
+- **`BiomeCatalog` is a table of id to cubiomes name** (the newest version's name for each of the 96 ids), and `BiomeWikiTitles` title-cases it. The plan said to title-case `biome2str`, which JVM code cannot call. `NativeContractTest` re-derives the table from the library for every version.
+- **`TileKey` holds a `MapWorld`** rather than loose seed/version/dimension fields; the scales are named `CELL_4`, `CELL_16`, `CELL_64`, `CELL_256` (blocks per cell).
+- **Viewport:** the canvas reports a `MapViewport(centerX, centerZ, blocksPerPixel, widthPx, heightPx)` and the ViewModel searches an area snapped outward to a 1024-block grid with 512 blocks of padding, so small pans reuse the last search. Views wider than the engine's 8192-block limit hide the pins (`pinsHidden`). "Go to spawn/coordinates" is a `CenterOn` side effect, not state.
+- **Pin searches wait 200 ms for the view to settle, but a new seed, version, dimension or toggle is answered at once.** Strongholds (128, once per world) and the spawn load independently of the view.
+- **Defaults:** seed 262, newest version, villages and strongholds toggled on. `SelectDimension` exists although the UI for it is Session 15.
+- **Detekt config:** `MagicNumber.ignoreEnums` and `CyclomaticComplexMethod.ignoreSimpleWhenEntries` are now on (enum tables and flat `when` mappings). `TooManyFunctions` is suppressed on `NativeSeedMap` and `SeedMapViewModel`.
+- **Emulator:** the `Pixel_API35` AVD from Session 12 no longer exists locally, so the run was on `Pixel_10_Pro` (API 37.1, 16 KB pages). The API 35 reference image is installed but was not booted.
+- **Saved seeds are not capped** (they are explicit user data, unlike recent searches).
+
+### Open TODOs
+- R8 is still not exercised for the native paths: no screen calls the engine, so the release build keeps only the natives the ViewModel reaches (`nativeCreate`, `nativeApplySeed`, `nativeDestroy`, `nativeGetSpawn`, `nativeStrongholds` are in the release dex; the tile and structure ones are shaken). Session 14 must run a real release build and render a tile.
+- `x86_64` (the CI emulator) is proved by CI only; the new pool and rendering tests have not run there.
+- `TileCache.load` does not de-duplicate two simultaneous loads of the same tile; the canvas in Session 14 decides which keys to ask for.
+- Tiles sample at sea level for every dimension (`SEA_LEVEL shr 2`); the Nether may want its own height.
+- Strongholds cost 0.5-0.65 s per world on the host from 1.18 on, so probably 1-2 s on a phone; they load in the background and only when toggled on.
+- Unchanged: ViewModel state (seed, toggles, selection) is lost when leaving the tab.
+
