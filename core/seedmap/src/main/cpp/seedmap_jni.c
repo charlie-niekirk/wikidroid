@@ -1,5 +1,6 @@
 /*
- * JNI bridge to cubiomes. This is the only C the app owns.
+ * JNI bridge to cubiomes. With seedmap_core.c (the logic behind these functions, free of JNI so a host
+ * program can run it) this is the only C the app owns.
  *
  * Rules that keep the native side simple and safe:
  *  - Results cross the boundary as primitives and primitive arrays only. No Kotlin object is built
@@ -12,8 +13,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "biomes.h"
 #include "finders.h"
 #include "generator.h"
+#include "seedmap_core.h"
 #include "util.h"
 
 #define JNI_FN(ret, name) JNIEXPORT ret JNICALL Java_dev_cniekirk_wikidroid_core_seedmap_NativeSeedMap_##name
@@ -25,15 +28,6 @@ static const uint32_t KNOWN_FLAGS = LARGE_BIOMES | NO_BETA_OCEAN | FORCE_OCEAN_V
 
 static Generator *generator_from(jlong handle) {
     return (Generator *)(intptr_t)handle;
-}
-
-static int dimension_supported(int mc, int dim) {
-    switch (dim) {
-        case DIM_OVERWORLD: return 1;
-        case DIM_NETHER: return mc >= MC_1_16_1;
-        case DIM_END: return mc >= MC_1_9;
-        default: return 0;
-    }
 }
 
 JNI_FN(jlong, nativeCreate)(JNIEnv *env, jclass clazz, jint version, jint flags) {
@@ -63,7 +57,7 @@ JNI_FN(jboolean, nativeApplySeed)(JNIEnv *env, jclass clazz, jlong handle, jint 
     (void)env;
     (void)clazz;
     Generator *g = generator_from(handle);
-    if (g == NULL || !dimension_supported(g->mc, dim)) return JNI_FALSE;
+    if (g == NULL || !sm_dimension_supported(g->mc, dim)) return JNI_FALSE;
 
     setupGenerator(g, g->mc, g->flags);
     applySeed(g, dim, (uint64_t)seed);
@@ -109,4 +103,90 @@ JNI_FN(jint, nativeNewestVersion)(JNIEnv *env, jclass clazz) {
     (void)env;
     (void)clazz;
     return MC_NEWEST;
+}
+
+/* Wraps `count` ints in a new Java array, or returns null (OutOfMemoryError pending) if it cannot. */
+static jintArray to_java(JNIEnv *env, const int *values, int count) {
+    jintArray result = (*env)->NewIntArray(env, count);
+    if (result == NULL) return NULL;
+    if (count > 0) (*env)->SetIntArrayRegion(env, result, 0, count, (const jint *)values);
+    return result;
+}
+
+/*
+ * Biome ids for a `w` x `h` area at `scale` (see sm_gen_biomes), row by row, or null if the arguments
+ * are invalid or the generator has no seed yet.
+ */
+JNI_FN(jintArray, nativeGenBiomes)(JNIEnv *env, jclass clazz, jlong handle, jint scale, jint x, jint z, jint w, jint h, jint y) {
+    (void)clazz;
+    if (w < 1 || h < 1 || w > SM_MAX_BIOME_SIDE || h > SM_MAX_BIOME_SIDE) return NULL;
+    if ((int64_t)w * h > SM_MAX_BIOME_CELLS) return NULL;
+    int *cells = (int *)malloc(sizeof(int) * (size_t)w * (size_t)h);
+    if (cells == NULL) return NULL;
+
+    jintArray result = NULL;
+    if (sm_gen_biomes(generator_from(handle), scale, x, z, w, h, y, cells) == 0) {
+        result = to_java(env, cells, w * h);
+    }
+    free(cells);
+    return result;
+}
+
+/*
+ * Positions of one structure type in [x0, x1) x [z0, z1), packed [x, z, x, z, ...]. An empty array means
+ * none were found; null means the arguments were invalid or the structure does not exist in this
+ * generator's version and dimension.
+ */
+JNI_FN(jintArray, nativeStructures)(JNIEnv *env, jclass clazz, jlong handle, jint type, jint x0, jint z0, jint x1, jint z1) {
+    (void)clazz;
+    int count = 0;
+    int *found = sm_structures(generator_from(handle), type, x0, z0, x1, z1, &count);
+    if (count < 0) return NULL;
+    jintArray result = to_java(env, found, count * 2);
+    free(found);
+    return result;
+}
+
+/* Up to `count` stronghold positions, packed [x, z, ...], or null for invalid arguments. */
+JNI_FN(jintArray, nativeStrongholds)(JNIEnv *env, jclass clazz, jlong handle, jint count) {
+    (void)clazz;
+    if (count < 1 || count > SM_MAX_STRONGHOLDS) return NULL;
+    int out[2 * SM_MAX_STRONGHOLDS];
+    int written = sm_strongholds(generator_from(handle), count, out);
+    if (written < 0) return NULL;
+    return to_java(env, out, written * 2);
+}
+
+/* cubiomes' biome colour table as 256 opaque 0xAARRGGBB ints, indexed by biome id. */
+JNI_FN(jintArray, nativeBiomeColors)(JNIEnv *env, jclass clazz) {
+    (void)clazz;
+    unsigned char colors[256][3];
+    int packed[256];
+    initBiomeColors(colors);
+    for (int i = 0; i < 256; i++) {
+        packed[i] = (int)(0xFF000000u | ((uint32_t)colors[i][0] << 16) | ((uint32_t)colors[i][1] << 8) | colors[i][2]);
+    }
+    return to_java(env, packed, 256);
+}
+
+JNI_FN(jboolean, nativeStructureSupported)(JNIEnv *env, jclass clazz, jint type, jint version, jint dim) {
+    (void)env;
+    (void)clazz;
+    return sm_structure_supported(type, version, dim) ? JNI_TRUE : JNI_FALSE;
+}
+
+/* cubiomes' name for a structure type (for example "village"), or null if it has none. */
+JNI_FN(jstring, nativeStructureName)(JNIEnv *env, jclass clazz, jint type) {
+    (void)clazz;
+    const char *name = struct2str(type);
+    return name == NULL ? NULL : (*env)->NewStringUTF(env, name);
+}
+
+/* The biome's resource name in that version, or null when the biome does not exist there. */
+JNI_FN(jstring, nativeBiomeName)(JNIEnv *env, jclass clazz, jint version, jint id) {
+    (void)clazz;
+    if (version < MC_B1_7 || version > MC_NEWEST || id < 0 || id > 255) return NULL;
+    if (!biomeExists(version, id)) return NULL;
+    const char *name = biome2str(version, id);
+    return name == NULL ? NULL : (*env)->NewStringUTF(env, name);
 }
