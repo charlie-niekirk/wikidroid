@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiTopAppBar
@@ -205,7 +206,7 @@ private fun MapChip(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.semantics(mergeDescendants = true) {},
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
         contentColor = MaterialTheme.colorScheme.onSurface,

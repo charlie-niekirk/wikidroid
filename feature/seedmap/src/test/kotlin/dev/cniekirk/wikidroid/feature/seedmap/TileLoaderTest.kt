@@ -12,6 +12,9 @@ import dev.cniekirk.wikidroid.core.seedmap.TileScale
 import dev.cniekirk.wikidroid.core.testing.RobolectricTest
 import dev.cniekirk.wikidroid.core.testing.fake.FakeSeedMapEngine
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -146,4 +149,20 @@ class TileLoaderTest : RobolectricTest() {
             assertThat(loader.pending).isEmpty()
             assertThat(loaded).isEqualTo(0)
         }
+
+    @Test
+    fun cancelAllIsSafeWhenCancelledJobsFinishImmediately() {
+        // Compose's main dispatcher runs a cancelled job's cleanup inside cancel(), like Unconfined does here.
+        val gate = CompletableDeferred<Unit>()
+        engine.tileHandler = { gate.await().let { _ -> BiomeTile(it, IntArray(TILE_CELLS * TILE_CELLS)) } }
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val loader = TileLoader(scope, cache, Dispatchers.Default) { loaded++ }
+        loader.request(listOf(key(0), key(1), key(2)))
+
+        loader.cancelAll()
+
+        assertThat(loader.pending).isEmpty()
+        gate.complete(Unit)
+        scope.cancel()
+    }
 }

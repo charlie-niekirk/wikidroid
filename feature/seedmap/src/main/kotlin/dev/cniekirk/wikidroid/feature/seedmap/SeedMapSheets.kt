@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -68,7 +68,8 @@ internal fun SelectionSheet(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Stacked, because "Open wiki article" does not fit beside the other button on a phone.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
                         scope.launch {
@@ -76,7 +77,7 @@ internal fun SelectionSheet(
                             copied = true
                         }
                     },
-                    modifier = Modifier.testTag(COPY_COORDINATES_TAG),
+                    modifier = Modifier.fillMaxWidth().testTag(COPY_COORDINATES_TAG),
                 ) {
                     WikiIcon(
                         icon = if (copied) WikiIcons.Check else WikiIcons.ContentCopy,
@@ -92,7 +93,7 @@ internal fun SelectionSheet(
                 if (selection.wikiTitle != null) {
                     Button(
                         onClick = { onAction(SeedMapAction.OpenWikiArticle) },
-                        modifier = Modifier.testTag(OPEN_ARTICLE_TAG),
+                        modifier = Modifier.fillMaxWidth().testTag(OPEN_ARTICLE_TAG),
                     ) {
                         WikiIcon(
                             icon = WikiIcons.OpenInNew,
