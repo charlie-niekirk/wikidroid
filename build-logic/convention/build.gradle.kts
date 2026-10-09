@@ -40,6 +40,10 @@ gradlePlugin {
             id = "wikidroid.android.feature"
             implementationClass = "AndroidFeatureConventionPlugin"
         }
+        register("androidNdk") {
+            id = "wikidroid.android.ndk"
+            implementationClass = "AndroidNdkConventionPlugin"
+        }
         register("androidRoom") {
             id = "wikidroid.android.room"
             implementationClass = "AndroidRoomConventionPlugin"

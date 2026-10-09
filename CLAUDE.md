@@ -14,6 +14,7 @@ Modules are enabled in `settings.gradle.kts` (commented out until their session 
 build-logic/convention      included build, plugin ids `wikidroid.*`
 app                         MainActivity, AppGraph (Metro), Nav3 host
 core:model | common | article-parser | network | database | datastore | data
+core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md)
 core:designsystem | ui | navigation | testing
 feature:explore | search | article | library | settings     (never depend on each other; navigate via :core:navigation keys)
 baselineprofile
@@ -24,7 +25,7 @@ baselineprofile
 - DI: Metro (compiler plugin, no KSP). Apply `wikidroid.metro` in every module with `@Inject`/`@Contributes*`.
 - MVI: Orbit 12. Stateful wrapper + stateless `XxxScreen(state, onAction)`.
 - Tests: JUnit 4 only. Robolectric for Compose UI tests on the JVM.
-- Convention plugins: `wikidroid.android.application|library|compose|feature|room`, `wikidroid.metro`, `wikidroid.jvm.library`, `wikidroid.detekt`, `wikidroid.spotless` (root only).
+- Convention plugins: `wikidroid.android.application|library|compose|feature|room|ndk`, `wikidroid.metro`, `wikidroid.jvm.library`, `wikidroid.detekt`, `wikidroid.spotless` (root only).
 - Do NOT apply `org.jetbrains.kotlin.android`: AGP 9 has built-in Kotlin.
 - Versions live only in `gradle/libs.versions.toml`.
 - Release signing reads `WIKIDROID_KEYSTORE_FILE/_PASSWORD`, `WIKIDROID_KEY_ALIAS/_PASSWORD` (env or Gradle properties); falls back to the debug key.
@@ -87,3 +88,8 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - A snackbar shown from a state field (`removed`, `message`) is acknowledged after `showSnackbar` returns; acknowledging first changes the effect key and cancels it.
 - Instrumented tests run in `TestWikiApp` (swapped in by `WikiDroidTestRunner`), which points the graph at a `MockWebServer` serving `core/testing` fixtures; debug builds allow cleartext to localhost for it. Use `createAndroidComposeRule` v1: the `v2` one hangs the app on its splash screen.
 - `WikiDroidApp.baseUrl()` is the seam for pointing the app at another server.
+- Clone with `--recurse-submodules` (or `git submodule update --init`): `core/seedmap/src/main/cpp/cubiomes` is the pinned xpple/cubiomes fork; CMake fails with a message if it is empty. CI checks out with `submodules: true`.
+- NDK and CMake versions live only in `gradle/libs.versions.toml` (`ndk`, `cmake`); `wikidroid.android.ndk` and the CI `setup-android` action both read them. Only `arm64-v8a` and `x86_64` are built.
+- `libseedmap.so` loads only inside `NativeSeedMap`; it cannot load in JVM/Robolectric tests, so those use `SeedMapEngine` fakes and native behaviour is covered by `:core:seedmap:connectedDebugAndroidTest`.
+- JNI functions live on `internal object NativeSeedMap` as public `@JvmStatic external fun`s: an `internal` function would get a mangled JNI name. The C side returns primitives only and re-validates every argument.
+- cubiomes `Generator` keeps the overworld layer stack, Nether and End noise in one union, so `nativeApplySeed` calls `setupGenerator` again on every call. Never share a generator between threads.
