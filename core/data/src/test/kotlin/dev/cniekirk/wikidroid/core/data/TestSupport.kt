@@ -13,6 +13,7 @@ import dev.cniekirk.wikidroid.core.model.ArticleSection
 import dev.cniekirk.wikidroid.core.model.ContentBlock
 import dev.cniekirk.wikidroid.core.model.LatestVersions
 import dev.cniekirk.wikidroid.core.model.RichText
+import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import dev.cniekirk.wikidroid.core.network.PageList
 import dev.cniekirk.wikidroid.core.network.PageRevision
@@ -93,9 +94,11 @@ class FakePreferencesDataSource(
 ) : PreferencesDataSource {
     private val preferences = MutableStateFlow(initial)
     private val recent = MutableStateFlow<List<String>>(emptyList())
+    private val seeds = MutableStateFlow<List<SavedSeed>>(emptyList())
 
     override val userPreferences: Flow<UserPreferences> get() = preferences
     override val recentSearches: Flow<List<String>> get() = recent
+    override val savedSeeds: Flow<List<SavedSeed>> get() = seeds
 
     override suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences) {
         preferences.update(transform)
@@ -111,6 +114,14 @@ class FakePreferencesDataSource(
 
     override suspend fun clearRecentSearches() {
         recent.value = emptyList()
+    }
+
+    override suspend fun saveSeed(seed: SavedSeed) {
+        seeds.update { listOf(seed) + it }
+    }
+
+    override suspend fun removeSeed(seed: SavedSeed) {
+        seeds.update { list -> list - seed }
     }
 }
 

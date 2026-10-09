@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.model.Edition
+import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.model.ThemeMode
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -178,4 +179,76 @@ class PreferencesDataSourceTest {
             source.clearRecentSearches()
             assertThat(source.userPreferences.first().saveHistory).isFalse()
         }
+
+    // region saved seeds
+
+    @Test
+    fun `saved seeds are listed most recently saved first`() =
+        runTest {
+            val source = dataSource()
+
+            source.saveSeed(SavedSeed(seed = 262, version = "1.21.4"))
+            source.saveSeed(SavedSeed(seed = -4172144997902289642, version = "1.12", label = "Ocean spawn"))
+
+            assertThat(source.savedSeeds.first())
+                .containsExactly(
+                    SavedSeed(seed = -4172144997902289642, version = "1.12", label = "Ocean spawn"),
+                    SavedSeed(seed = 262, version = "1.21.4"),
+                ).inOrder()
+        }
+
+    @Test
+    fun `saving a seed and version again updates its label and moves it to the front`() =
+        runTest {
+            val source = dataSource()
+            source.saveSeed(SavedSeed(seed = 262, version = "1.21.4"))
+            source.saveSeed(SavedSeed(seed = 1, version = "1.21.4"))
+
+            source.saveSeed(SavedSeed(seed = 262, version = "1.21.4", label = "Base"))
+
+            assertThat(source.savedSeeds.first())
+                .containsExactly(SavedSeed(262, "1.21.4", "Base"), SavedSeed(1, "1.21.4"))
+                .inOrder()
+        }
+
+    @Test
+    fun `the same seed in another version is a separate entry`() =
+        runTest {
+            val source = dataSource()
+
+            source.saveSeed(SavedSeed(seed = 262, version = "1.12"))
+            source.saveSeed(SavedSeed(seed = 262, version = "26.3"))
+            source.removeSeed(SavedSeed(seed = 262, version = "1.12", label = "ignored"))
+
+            assertThat(source.savedSeeds.first()).containsExactly(SavedSeed(262, "26.3"))
+        }
+
+    @Test
+    fun `saved seeds survive a restart with their full 64 bits`() =
+        runTest {
+            val firstRun = Job(backgroundScope.coroutineContext[Job])
+            val first = DataStorePreferencesDataSource(dataStore(firstRun))
+            first.saveSeed(SavedSeed(seed = Long.MIN_VALUE, version = "26.3", label = "Edge"))
+            first.saveSeed(SavedSeed(seed = Long.MAX_VALUE, version = "1.18"))
+
+            firstRun.cancel()
+            val restarted = DataStorePreferencesDataSource(dataStore())
+
+            assertThat(restarted.savedSeeds.first())
+                .containsExactly(SavedSeed(Long.MAX_VALUE, "1.18"), SavedSeed(Long.MIN_VALUE, "26.3", "Edge"))
+                .inOrder()
+        }
+
+    @Test
+    fun `a file from before saved seeds existed still reads`() =
+        runTest {
+            file.writeText("""{"preferences":{"themeMode":"Dark"},"recentSearches":["creeper"]}""")
+            val source = dataSource()
+
+            assertThat(source.savedSeeds.first()).isEmpty()
+            assertThat(source.recentSearches.first()).containsExactly("creeper")
+            assertThat(source.userPreferences.first().themeMode).isEqualTo(ThemeMode.Dark)
+        }
+
+    // endregion
 }

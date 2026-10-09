@@ -6,6 +6,7 @@ import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.common.getOrNull
 import dev.cniekirk.wikidroid.core.model.Category
 import dev.cniekirk.wikidroid.core.model.CategoryMember
+import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.network.PageList
 import dev.cniekirk.wikidroid.core.network.dto.PageQueryResponse
 import dev.cniekirk.wikidroid.core.network.dto.RestPageDto
@@ -157,5 +158,23 @@ class CategoryRepositoryTest {
             assertThat(
                 repository.getMembers(Category("Mobs")),
             ).isEqualTo(Result.Failure(DataError.Api("badtitle", null)))
+        }
+}
+
+class SeedRepositoryTest {
+    private val preferences = FakePreferencesDataSource()
+    private val repository = PreferencesSeedRepository(preferences)
+
+    @Test
+    fun `saved seeds go through the preferences store`() =
+        runTest {
+            repository.saveSeed(SavedSeed(262, "1.21.4"))
+            repository.saveSeed(SavedSeed(1, "1.12", "Spawn island"))
+            assertThat(repository.savedSeeds.first())
+                .containsExactly(SavedSeed(1, "1.12", "Spawn island"), SavedSeed(262, "1.21.4"))
+                .inOrder()
+
+            repository.removeSeed(SavedSeed(262, "1.21.4"))
+            assertThat(repository.savedSeeds.first()).containsExactly(SavedSeed(1, "1.12", "Spawn island"))
         }
 }

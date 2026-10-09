@@ -7,6 +7,8 @@ style:
       - 'Preview'
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
+    # An enum entry's arguments are named by the entry: ids, versions and block spans in tables.
+    ignoreEnums: true
   MaxLineLength:
     maxLineLength: 120
   ReturnCount:
@@ -32,6 +34,8 @@ complexity:
   CyclomaticComplexMethod:
     ignoreAnnotated:
       - 'Composable'
+    # A `when` that only maps each case to one expression (a title table, an action dispatcher) is flat.
+    ignoreSimpleWhenEntries: true
   TooManyFunctions:
     # Implementing a wide interface (a repository, a fake of it) shouldn't count against the class.
     ignoreOverridden: true

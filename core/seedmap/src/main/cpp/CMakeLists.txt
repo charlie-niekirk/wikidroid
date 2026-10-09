@@ -30,7 +30,7 @@ target_include_directories(cubiomes PUBLIC ${CUBIOMES})
 target_compile_options(cubiomes PRIVATE -fwrapv -O2 -ffunction-sections -fdata-sections -w)
 set_target_properties(cubiomes PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_library(seedmap SHARED seedmap_jni.c)
+add_library(seedmap SHARED seedmap_jni.c seedmap_core.c)
 target_compile_options(seedmap PRIVATE -fwrapv -O2 -ffunction-sections -fdata-sections -Wall -Wextra)
 target_link_libraries(seedmap PRIVATE cubiomes)
 # gc-sections drops the cubiomes code nothing calls; max-page-size keeps segments 16 KB aligned

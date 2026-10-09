@@ -63,5 +63,8 @@ enum class McVersion(
 
     companion object {
         val newest: McVersion = entries.last()
+
+        /** The version called [label], or null if this build does not know it (a seed saved by a newer app). */
+        fun fromLabel(label: String): McVersion? = entries.firstOrNull { it.label == label }
     }
 }

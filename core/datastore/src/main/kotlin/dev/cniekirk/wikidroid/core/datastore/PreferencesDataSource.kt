@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.core.datastore
 
 import androidx.datastore.core.DataStore
+import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -16,6 +17,9 @@ interface PreferencesDataSource {
     /** Most recent first, at most [MAX_RECENT_SEARCHES]. */
     val recentSearches: Flow<List<String>>
 
+    /** Most recently saved first. */
+    val savedSeeds: Flow<List<SavedSeed>>
+
     suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences)
 
     /** Moves an existing entry (compared ignoring case) to the front. Blank queries are ignored. */
@@ -24,6 +28,12 @@ interface PreferencesDataSource {
     suspend fun removeRecentSearch(query: String)
 
     suspend fun clearRecentSearches()
+
+    /** Saves [seed], or replaces the entry with the same seed and version (to change its label), at the front. */
+    suspend fun saveSeed(seed: SavedSeed)
+
+    /** Forgets the entry with [seed]'s seed and version, whatever its label. */
+    suspend fun removeSeed(seed: SavedSeed)
 
     companion object {
         const val MAX_RECENT_SEARCHES = 10
@@ -41,6 +51,9 @@ class DataStorePreferencesDataSource(
 
     override val recentSearches: Flow<List<String>> =
         dataStore.data.map { it.recentSearches }.distinctUntilChanged()
+
+    override val savedSeeds: Flow<List<SavedSeed>> =
+        dataStore.data.map { it.savedSeeds }.distinctUntilChanged()
 
     override suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences) {
         dataStore.updateData { it.copy(preferences = transform(it.preferences).sanitized()) }
@@ -64,7 +77,20 @@ class DataStorePreferencesDataSource(
     override suspend fun clearRecentSearches() {
         dataStore.updateData { it.copy(recentSearches = emptyList()) }
     }
+
+    override suspend fun saveSeed(seed: SavedSeed) {
+        dataStore.updateData { data ->
+            data.copy(savedSeeds = listOf(seed) + data.savedSeeds.filterNot { it.sameWorldAs(seed) })
+        }
+    }
+
+    override suspend fun removeSeed(seed: SavedSeed) {
+        dataStore.updateData { data -> data.copy(savedSeeds = data.savedSeeds.filterNot { it.sameWorldAs(seed) }) }
+    }
 }
+
+/** The same world: a seed is a different world in each Minecraft version. */
+private fun SavedSeed.sameWorldAs(other: SavedSeed): Boolean = seed == other.seed && version == other.version
 
 /** Keeps a hand-edited or out-of-range text scale from reaching the UI. */
 private fun UserPreferences.sanitized(): UserPreferences =

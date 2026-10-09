@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.core.datastore
 import androidx.datastore.core.CorruptionException
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.model.Edition
+import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.model.ThemeMode
 import dev.cniekirk.wikidroid.core.model.UserPreferences
 import kotlinx.coroutines.runBlocking
@@ -35,6 +36,7 @@ class JsonSerializerTest {
                             saveHistory = false,
                         ),
                     recentSearches = listOf("creeper", "Iron Golem"),
+                    savedSeeds = listOf(SavedSeed(Long.MIN_VALUE, "26.3", "Edge"), SavedSeed(262, "1.12")),
                 )
 
             assertThat(read(write(data))).isEqualTo(data)
