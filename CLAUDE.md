@@ -14,7 +14,7 @@ Modules are enabled in `settings.gradle.kts` (commented out until their session 
 build-logic/convention      included build, plugin ids `wikidroid.*`
 app                         MainActivity, AppGraph (Metro), Nav3 host
 core:model | common | article-parser | network | database | datastore | data
-core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md); feature:seedmap has the ViewModel (UI is Session 14)
+core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md); feature:seedmap has the ViewModel and the map UI (the fifth bottom-bar tab)
 core:designsystem | ui | navigation | testing
 feature:explore | search | article | library | settings | seedmap     (never depend on each other; navigate via :core:navigation keys)
 baselineprofile
@@ -97,4 +97,8 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - `seedmap_core.[ch]` has no JNI types, so a host `clang -fwrapv` build of it plus the cubiomes sources runs the exact code the app runs. The golden values in `core/seedmap/src/androidTest/.../WorldGoldens.kt` come from such a build; regenerate them (and `BiomeCatalog`, which `NativeContractTest` checks) when the submodule is bumped.
 - An Orbit ViewModel that reads `container` inside its own initializer (collectors over `container.stateFlow`) must declare `container: OrbitContainer<State, State, Effect>` explicitly, or the compiler reports a recursive type problem.
 - Seed map queries go through `GeneratorPool`: one native generator per worker, never shared. Anything that touches a generator handle outside `GeneratorPool.use` is a bug.
-
+- The seed map canvas keeps pan/zoom in `MapCamera` (UI state, `rememberSaveable`), not in `SeedMapState`; it reports a `MapViewport` to the ViewModel and tiles come from `TileCache` via `TileLoader`, never through state. `SeedMapEntryInstaller` takes `TileCache` from the graph and passes it to the route.
+- `detectTapGestures(onDoubleTap = ...)` delays every single tap by the double-tap window (about 300 ms). Compose tests that tap the map must advance `mainClock` past it before asserting.
+- `TileLoader.cancelAll` must copy its job map first: on Compose's immediate dispatcher a cancelled job removes itself before `cancel()` returns (this crashed the first instrumented run).
+- Marker shapes and colours come from `StructureType.markerStyle()` (unique per type, tested); the filter chips draw the same marker, so the sheet is the map's legend.
+- Instrumented tests can use any article title for tap-through: the mock server answers every `parse` request with the Diamond fixture.

@@ -15,7 +15,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 11: CI and docs
 - [x] Session 12: Seed map, native groundwork (`seed-map-plan.md`)
 - [x] Session 13: Seed map, engine API, tiles and ViewModel
-- [ ] Session 14: Seed map, map UI and the tab
+- [x] Session 14: Seed map, map UI and the tab
 - [ ] Session 15: Seed map, polish
 
 ## Session 1 notes
@@ -434,3 +434,35 @@ Measured on the host Mac (clang -O2, so only indicative; Session 15 measures a p
 - Strongholds cost 0.5-0.65 s per world on the host from 1.18 on, so probably 1-2 s on a phone; they load in the background and only when toggled on.
 - Unchanged: ViewModel state (seed, toggles, selection) is lost when leaving the tab.
 
+## Session 14 notes
+Verified locally: `spotlessCheck` (own invocation), then `detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies assembleDebug :app:assembleRelease` pass. `:app:connectedDebugAndroidTest :core:seedmap:connectedDebugAndroidTest` pass (76 tests, including the 8 new `SeedMapTest` ones) on the `Pixel_10_Pro` AVD (API 37.1, arm64). `:app:generateBaselineProfile` ran (5m43s) and the profile now has 437 `feature/seedmap` and 264 `core/seedmap` entries. The CI jobs themselves can only be proved on GitHub: see the PR body.
+
+Checked by hand on the emulator (debug and the R8-minified release APK):
+- **R8 / release:** the release build renders tiles, village pins, strongholds and spawn with no crash (Session 13's open TODO: the tile and structure natives are now reachable from the UI, and `consumer-rules.pro` plus the default `native` rule keep them).
+- Pan (a 600 px drag moved the centre 1800 blocks at 3 blocks per pixel), zoom buttons, tap on a village, "Open wiki article" opening "Village" from the live wiki.
+- **Tablet (2560x1600):** the map fills the list pane and the article opens in the detail pane beside it. This showed the selection sheet staying open over the article, so `OpenWikiArticle` now clears the selection as it posts the effect (unit-tested).
+- **Bug found by the instrumented run:** `TileLoader.cancelAll` iterated its map while cancelled jobs removed themselves (`ConcurrentModificationException` when the canvas left composition). Fixed, with a regression test, and the loader's maps are locked because Compose may dispose from another thread.
+
+
+What was added:
+- **Tab:** `SeedMapKey` (`TopLevelKeys` is now Explore, Search, Seed map, Library, Settings), `WikiIcons.Map` and six more Material Symbols vectors (`Add`, `Remove`, `MyLocation`, `Tune`, `PinDrop`, `ContentCopy`), `R.string.tab_seed_map`. `SeedMapEntryInstaller` registers the key with `WikiPanes.list()`, so an article opened from the map sits beside it on wide windows. It takes `TileCache` from the graph and hands it to `SeedMapRoute`.
+- **Canvas (`:feature:seedmap`):** `MapCamera` (centre as `Double`, blocks per pixel 0.25..256, pan, zoom around a focus point, projection both ways, `rememberSaveable` saver), `TileLoader` (loads the wanted tiles nearest-first, cancels tiles that left the view, skips tiles in flight or refused), `TileLayout` (`tileScaleFor`, `wantedTiles`), `TileDrawer` (draws cached tiles with `Canvas.drawBitmap`, no filtering; a missing tile is stood in for by the coarser tile that covers it, else by the finer tiles inside it), `MarkerHit` (nearest marker within 24 dp), `StructureMarkers` (a unique colour-and-shape per structure, a ring for strongholds, a star for spawn), `SeedMapCanvas` (pan/pinch with `detectTransformGestures`, tap and double-tap zoom, a crosshair at the centre).
+- **Screen:** `SeedMapScreen(state, tiles, onAction, camera)` and `SeedMapRoute`. Controls: seed field (`TextFieldState`; Go submits; a dice button asks for a random seed; text that parses to the current seed is never replaced), version picker (every `McVersion`, newest first), saved-seeds menu (save with an optional name, load, remove), structure filter sheet (a `FilterChip` per structure the selected version and dimension have, carrying the map's own marker, so it is also the legend), go-to-coordinates dialog, zoom buttons, go-to-spawn, a coordinate readout for the centre, and a hint while pins are hidden. A tap opens a bottom sheet with the name (the wiki title), the coordinates, "Copy coordinates" and "Open wiki article".
+- **Tests:** JVM `MapCameraTest`, `TileLayoutTest`, `MarkerHitTest`, `StructureMarkersTest`, `TileLoaderTest`; Robolectric `SeedMapScreenTest` (controls, canvas gestures, saved seeds, filter sheet, selection sheet, dialogs); `NavigatorTest` for the fifth tab; `AppGraphTest` builds `SeedMapViewModel` and the new installer. Instrumented `SeedMapTest` (8 tests on the real native engine: a tile renders, another version and a new seed render, drag, tap through to an article, spawn, saved seed, leaving and returning), and `TabNavigationTest` visits the new tab. `ResetAppStateRule` now clears saved seeds.
+- **Baseline profile:** the journey opens the Seed map tab and pans the map out and back; the profile was regenerated.
+
+### Deviations
+- **Tile scale rule:** `TileScale.forBlocksPerPixel` insists on cells no bigger than one pixel, which at 10 blocks per pixel would ask for about 250 tiles per screen. The canvas allows cells up to two pixels wide (`MAX_CELL_PIXELS`) and caps the request at 96 tiles, so a phone screen needs 20 to 50.
+- **Map zoom limits** are 0.25 blocks per pixel (four pixels per block) to 256 (one coarsest cell per pixel). Pins hide above roughly 4 to 5 blocks per pixel on a phone, because the ViewModel will not search more than 8192 blocks.
+- **`TileCache` reaches the screen through the entry installer**, not the ViewModel: the ViewModel and its tests stay as they were.
+- **A single tap waits for the double-tap window** (about 300 ms) because `detectTapGestures` has to rule out a double tap. The sheet therefore opens a little after the finger lifts.
+- **Pan and zoom state is not in `SeedMapState`.** The canvas reports a `MapViewport` and the ViewModel only reads it.
+- **No fling** after a pan; the plan did not ask for one.
+- **The marker shapes** (planned for Session 15's accessibility pass) are already unique per type, with a test, because the filter chips need them as a legend.
+- **Nether/End switch, biome legend and the performance pass are Session 15**, as planned. `SelectDimension` still has no UI.
+
+### Open TODOs
+- ViewModel state (seed, toggles, selection, version) is still lost when leaving the tab, and now so is the map position: the camera survives rotation (`rememberSaveable`) but a round trip through another tab brings it back at the origin (seen on the emulator). It is worth fixing for every tab at once in the nav display (saved-state and ViewModel decorators), which is outside this session.
+- `x86_64` is proved by CI only; the instrumented tests ran locally on the arm64 `Pixel_10_Pro` AVD.
+- Pins are drawn at the structure's generation position, near its chunk corner, not at its centre; at the zoom levels where pins show this is a few pixels.
+- Markers are not exposed to accessibility services (the canvas has a single description). Zoom buttons and the go-to dialog are the accessible way to move; Session 15's legend sheet can list the structures.
