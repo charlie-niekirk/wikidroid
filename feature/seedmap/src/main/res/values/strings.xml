@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="seedmap_title">Seed map</string>
+
+    <string name="seedmap_map_description">Map of seed %1$s in Java Edition %2$s. Drag to pan, pinch to zoom, tap for details.</string>
+    <string name="seedmap_coordinates">X %1$d, Z %2$d</string>
+    <string name="seedmap_pins_hidden">Zoom in to see structures</string>
+
+    <string name="seedmap_seed_label">Seed</string>
+    <string name="seedmap_random_seed">Random seed</string>
+    <string name="seedmap_version_button">Java Edition %1$s</string>
+
+    <string name="seedmap_zoom_in">Zoom in</string>
+    <string name="seedmap_zoom_out">Zoom out</string>
+    <string name="seedmap_go_to_spawn">Go to world spawn</string>
+    <string name="seedmap_go_to_coordinates">Go to coordinates</string>
+
+    <string name="seedmap_saved_seeds">Saved seeds</string>
+    <string name="seedmap_save_seed">Save this seed</string>
+    <string name="seedmap_seed_is_saved">This seed is saved</string>
+    <string name="seedmap_no_saved_seeds">No saved seeds yet</string>
+    <string name="seedmap_saved_seed_subtitle">Seed %1$s · Java %2$s</string>
+    <string name="seedmap_remove_saved_seed">Remove %1$s from saved seeds</string>
+
+    <string name="seedmap_save_dialog_title">Save seed</string>
+    <string name="seedmap_save_dialog_name">Name (optional)</string>
+    <string name="seedmap_save">Save</string>
+    <string name="seedmap_cancel">Cancel</string>
+
+    <string name="seedmap_goto_dialog_title">Go to coordinates</string>
+    <string name="seedmap_goto_x">X</string>
+    <string name="seedmap_goto_z">Z</string>
+    <string name="seedmap_goto_go">Go</string>
+
+    <string name="seedmap_filter_open">Structures</string>
+    <string name="seedmap_filter_title">Show on map</string>
+    <string name="seedmap_filter_none">This version has no structures to show.</string>
+
+    <string name="seedmap_unknown_biome">Unknown biome</string>
+    <string name="seedmap_copy_coordinates">Copy coordinates</string>
+    <string name="seedmap_coordinates_copied">Copied</string>
+    <string name="seedmap_open_article">Open wiki article</string>
+</resources>
