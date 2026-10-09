@@ -15,4 +15,7 @@ runs:
       shell: bash
       run: |
         yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.1" "build-tools;37.0.0"
+        # The NDK and CMake versions live only in gradle/libs.versions.toml.
+        ndk=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+        cmake=$(sed -n 's/^cmake = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.1" "build-tools;37.0.0" "ndk;$ndk" "cmake;$cmake"

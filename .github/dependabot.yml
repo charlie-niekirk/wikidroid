@@ -10,3 +10,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # Moves the pinned cubiomes commit. Review the diff and re-run the golden tests before merging.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly

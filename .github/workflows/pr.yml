@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/setup-android
       - name: Lint, detekt, unit tests
         run: ./gradlew spotlessCheck detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies
@@ -38,6 +40,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/setup-android
       - name: Enable KVM
         run: |
@@ -72,7 +76,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew :app:connectedDebugAndroidTest
+          script: ./gradlew :app:connectedDebugAndroidTest :core:seedmap:connectedDebugAndroidTest
       - name: Upload reports
         if: failure()
         uses: actions/upload-artifact@v7
@@ -81,6 +85,8 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            core/seedmap/build/reports/androidTests/
+            core/seedmap/build/outputs/androidTest-results/
           if-no-files-found: ignore
 
   release-apk:
@@ -99,6 +105,8 @@ jobs:
       WIKIDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/setup-android
       - name: Decode keystore
         id: signing
@@ -123,6 +131,38 @@ jobs:
           echo "code=$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<< "$badging" | head -1)" >> "$GITHUB_OUTPUT"
           echo "size=$(du -h "$apk" | cut -f1)" >> "$GITHUB_OUTPUT"
           echo "sha=$(echo "${{ github.event.pull_request.head.sha || github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      # Android 15+ devices use 16 KB pages, so every LOAD segment of our native library must be
+      # aligned to a multiple of 16 KB, or the library will not load there.
+      - name: Check native libraries
+        id: native
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          ndk=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          readelf="$ANDROID_HOME/ndk/$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          dir=$(mktemp -d)
+          unzip -q "$apk" 'lib/*/libseedmap.so' -d "$dir"
+          found=0
+          failed=0
+          table="| ABI | Size | LOAD alignment |"$'\n'"|---|---|---|"
+          for so in "$dir"/lib/*/libseedmap.so; do
+            found=$((found + 1))
+            abi=$(basename "$(dirname "$so")")
+            aligns=$("$readelf" -lW "$so" | awk '$1 == "LOAD" { print $NF }' | sort -u | tr '\n' ' ')
+            for align in $aligns; do
+              if (( align % 16384 != 0 )); then
+                echo "::error::$abi has a LOAD segment aligned to $align, not a multiple of 16 KB"
+                failed=1
+              fi
+            done
+            table+=$'\n'"| $abi | $(du -h "$so" | cut -f1) | $aligns|"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::error::libseedmap.so is missing from the APK"
+            failed=1
+          fi
+          echo "$table"
+          { echo "table<<EOF"; echo "$table"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          exit $failed
       - name: Upload APK
         id: upload
         uses: actions/upload-artifact@v7
@@ -151,3 +191,7 @@ jobs:
             | Commit | `${{ steps.apk.outputs.sha }}` |
             | Size | ${{ steps.apk.outputs.size }} |
             | Signed with | ${{ steps.signing.outputs.kind }} |
+
+            Native library (`libseedmap.so`, 16 KB page check passed):
+
+            ${{ steps.native.outputs.table }}
