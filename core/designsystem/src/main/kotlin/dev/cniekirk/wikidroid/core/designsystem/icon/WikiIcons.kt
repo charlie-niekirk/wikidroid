@@ -79,4 +79,25 @@ object WikiIcons {
 
     @DrawableRes
     val Image: Int = R.drawable.ic_image
+
+    @DrawableRes
+    val Map: Int = R.drawable.ic_map
+
+    @DrawableRes
+    val Add: Int = R.drawable.ic_add
+
+    @DrawableRes
+    val Remove: Int = R.drawable.ic_remove
+
+    @DrawableRes
+    val MyLocation: Int = R.drawable.ic_my_location
+
+    @DrawableRes
+    val Tune: Int = R.drawable.ic_tune
+
+    @DrawableRes
+    val PinDrop: Int = R.drawable.ic_pin_drop
+
+    @DrawableRes
+    val ContentCopy: Int = R.drawable.ic_content_copy
 }
