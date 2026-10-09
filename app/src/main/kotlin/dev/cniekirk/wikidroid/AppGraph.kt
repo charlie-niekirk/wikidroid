@@ -6,10 +6,12 @@ import dev.cniekirk.wikidroid.core.data.ArticleRepository
 import dev.cniekirk.wikidroid.core.data.CategoryRepository
 import dev.cniekirk.wikidroid.core.data.LibraryRepository
 import dev.cniekirk.wikidroid.core.data.SearchRepository
+import dev.cniekirk.wikidroid.core.data.SeedRepository
 import dev.cniekirk.wikidroid.core.data.SettingsRepository
 import dev.cniekirk.wikidroid.core.data.WikiInfoRepository
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.network.WikiBaseUrl
+import dev.cniekirk.wikidroid.core.seedmap.TileCache
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Multibinds
@@ -38,8 +40,12 @@ interface AppGraph : ViewModelGraph {
     val categoryRepository: CategoryRepository
     val libraryRepository: LibraryRepository
     val searchRepository: SearchRepository
+    val seedRepository: SeedRepository
     val settingsRepository: SettingsRepository
     val wikiInfoRepository: WikiInfoRepository
+
+    /** Resolves the seed map engine and renderer too, and the `Application` the cache sizes itself from. */
+    val tileCache: TileCache
 
     @DependencyGraph.Factory
     fun interface Factory {
