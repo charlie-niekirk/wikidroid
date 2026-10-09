@@ -25,6 +25,7 @@ import org.orbitmvi.orbit.test.Item
 import org.orbitmvi.orbit.test.OrbitTestContext
 import org.orbitmvi.orbit.test.test
 
+@Suppress("LargeClass") // One test class for one view model, grouped by region like the others.
 class SeedMapViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -704,6 +705,19 @@ class SeedMapViewModelTest {
                 act(SeedMapAction.OpenWikiArticle)
 
                 expectEffect(SeedMapEffect.OpenArticle("Village"))
+            }
+        }
+
+    @Test
+    fun `opening the article closes the selection sheet`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.SelectStructure(pin(StructureType.VILLAGE, 1, 1)))
+
+                act(SeedMapAction.OpenWikiArticle)
+                expectEffect(SeedMapEffect.OpenArticle("Village"))
+
+                assertThat(state.selection).isNull()
             }
         }
 
