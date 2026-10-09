@@ -6,13 +6,12 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 /**
- * One native generator behind a lock. Enough for single-point queries; the tile work in the next session
- * replaces the lock with a pool of generators.
+ * The engine over `libseedmap.so`. Queries run on a [GeneratorPool], so several tiles can be generated at
+ * once, each on its own native generator.
  *
  * The native library is loaded on the first call, so building the graph costs nothing.
  */
@@ -22,12 +21,13 @@ import kotlinx.coroutines.withContext
 internal class JniSeedMapEngine(
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : SeedMapEngine {
-    private val lock = Mutex()
-    private var current: Seeded? = null
+    private val pool = GeneratorPool(dispatcher)
+
+    @Volatile private var colors: IntArray? = null
 
     override suspend fun spawn(world: MapWorld): BlockPos {
         require(world.dimension == Dimension.OVERWORLD) { "Only the overworld has a spawn point" }
-        return withGenerator(world) { handle ->
+        return pool.use(world) { handle ->
             val spawn = checkNotNull(NativeSeedMap.nativeGetSpawn(handle)) { "Native spawn lookup failed" }
             BlockPos(spawn[0], spawn[1])
         }
@@ -42,56 +42,78 @@ internal class JniSeedMapEngine(
         val limit = SeedMapEngine.MAX_COORDINATE
         require(x in -limit..limit && z in -limit..limit) { "($x, $z) is outside the world border" }
         require(y in SeedMapEngine.MIN_Y..SeedMapEngine.MAX_Y) { "Height $y is outside the world" }
-        return withGenerator(world) { handle ->
+        return pool.use(world) { handle ->
             NativeSeedMap.nativeGetBiomeAt(handle, BLOCK_SCALE, x, y, z).takeIf { it != NO_BIOME }
         }
     }
 
-    private suspend fun <T> withGenerator(
+    override suspend fun biomeTile(key: TileKey): BiomeTile =
+        pool.use(key.world) { handle ->
+            val biomes =
+                NativeSeedMap.nativeGenBiomes(
+                    handle = handle,
+                    scale = key.scale.blocksPerCell,
+                    x = key.tileX * TILE_CELLS,
+                    z = key.tileZ * TILE_CELLS,
+                    width = TILE_CELLS,
+                    height = TILE_CELLS,
+                    y = SeedMapEngine.SEA_LEVEL shr QUART_SHIFT,
+                )
+            BiomeTile(key, checkNotNull(biomes) { "Native tile generation failed for $key" })
+        }
+
+    override suspend fun structuresIn(
         world: MapWorld,
-        block: (handle: Long) -> T,
-    ): T =
-        withContext(dispatcher) {
-            lock.withLock {
-                block(seeded(world))
-            }
+        type: StructureType,
+        area: BlockArea,
+    ): List<StructurePos> {
+        require(type.isRegionBased) { "$type is not found by region; use strongholds()" }
+        require(type.isAvailableIn(world)) {
+            "$type does not generate in the ${world.dimension} of Java Edition ${world.version.label}"
         }
-
-    /** The generator for [world], created or re-seeded only when it changed. Call with [lock] held. */
-    private fun seeded(world: MapWorld): Long {
-        val existing = current
-        if (existing != null && existing.world == world) return existing.handle
-
-        val reusable = existing?.takeIf { it.world.version == world.version }
-        val handle = reusable?.handle ?: create(world.version, replacing = existing)
-        if (!NativeSeedMap.nativeApplySeed(handle, world.dimension.nativeId, world.seed)) {
-            // MapWorld rules this combination out, so this is a mismatch with the native table.
-            if (reusable == null) NativeSeedMap.nativeDestroy(handle)
-            error("Native refused ${world.dimension} for ${world.version.label}")
+        val limit = SeedMapEngine.MAX_COORDINATE
+        require(listOf(area.minX, area.minZ, area.maxX, area.maxZ).all { abs(it) <= limit }) {
+            "$area is outside the world border"
         }
-        current = Seeded(handle, world)
-        return handle
+        val span = SeedMapEngine.MAX_STRUCTURE_SPAN
+        require(area.width <= span && area.height <= span) { "$area is wider than $span blocks" }
+
+        return pool.use(world) { handle ->
+            val packed =
+                checkNotNull(
+                    NativeSeedMap.nativeStructures(handle, type.nativeId, area.minX, area.minZ, area.maxX, area.maxZ),
+                ) { "Native structure search failed for $type in $area" }
+            List(packed.size / PAIR) { StructurePos(type, BlockPos(packed[it * PAIR], packed[it * PAIR + 1])) }
+        }
     }
 
-    private fun create(
-        version: McVersion,
-        replacing: Seeded?,
-    ): Long {
-        replacing?.let { NativeSeedMap.nativeDestroy(it.handle) }
-        current = null
-        val handle = NativeSeedMap.nativeCreate(version.nativeId, NO_FLAGS)
-        check(handle != 0L) { "Native generator for ${version.label} could not be created" }
-        return handle
+    override suspend fun strongholds(
+        world: MapWorld,
+        count: Int,
+    ): List<BlockPos> {
+        require(world.dimension == Dimension.OVERWORLD) { "Only the overworld has strongholds" }
+        require(count in 1..SeedMapEngine.MAX_STRONGHOLDS) {
+            "Ask for 1..${SeedMapEngine.MAX_STRONGHOLDS} strongholds, not $count"
+        }
+        return pool.use(world) { handle ->
+            val packed =
+                checkNotNull(NativeSeedMap.nativeStrongholds(handle, count)) { "Native stronghold search failed" }
+            List(packed.size / PAIR) { BlockPos(packed[it * PAIR], packed[it * PAIR + 1]) }
+        }
     }
 
-    private class Seeded(
-        val handle: Long,
-        val world: MapWorld,
-    )
+    override suspend fun biomeColors(): IntArray =
+        (colors ?: withContext(dispatcher) { NativeSeedMap.nativeBiomeColors() }.also { colors = it }).copyOf()
+
+    /** Frees the native generators once running queries finish. The app never calls this; tests do. */
+    suspend fun shutDown() = pool.shutDown()
 
     private companion object {
         const val BLOCK_SCALE = 1
         const val NO_BIOME = -1
-        const val NO_FLAGS = 0
+        const val PAIR = 2
+
+        /** Heights at scales above 1 are in 4-block units. */
+        const val QUART_SHIFT = 2
     }
 }
