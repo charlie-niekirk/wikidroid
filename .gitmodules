@@ -1,0 +1,3 @@
+[submodule "core/seedmap/src/main/cpp/cubiomes"]
+	path = core/seedmap/src/main/cpp/cubiomes
+	url = https://github.com/xpple/cubiomes
