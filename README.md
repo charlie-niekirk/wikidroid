@@ -21,7 +21,10 @@ Requirements:
 
 - JDK 21 (Gradle's toolchain resolver can download it).
 - A **stable** Android Studio release that supports AGP 9.4 (check the AGP/Studio compatibility table). A canary is not needed.
-- Android SDK packages `platforms;android-37.1` and `build-tools;37.0.0`.
+- Android SDK packages `platforms;android-37.1` and `build-tools;37.0.0`, plus the NDK and CMake whose versions are the
+  `ndk` and `cmake` entries in `gradle/libs.versions.toml` (`sdkmanager "ndk;<version>" "cmake;<version>"`, or let Android Studio install them).
+- The cubiomes submodule (the seed map's world generator). Clone with `git clone --recurse-submodules`, or in an existing
+  clone run `git submodule update --init`.
 - `local.properties` in the project root (it is gitignored), or `ANDROID_HOME` set:
   ```
   sdk.dir=/path/to/Android/sdk
@@ -116,7 +119,7 @@ Without the secrets, CI still produces a debug-signed APK.
 
 ```
 app                 MainActivity, Metro graph, Navigation 3 host
-core:*              model, common, article-parser, network, database, datastore, data, designsystem, ui, navigation, testing
+core:*              model, common, article-parser, network, database, datastore, data, designsystem, ui, navigation, seedmap, testing
 feature:*           explore, search, article, library, settings
 baselineprofile     baseline profile generator (run locally, not in CI)
 build-logic         Gradle convention plugins (wikidroid.*)

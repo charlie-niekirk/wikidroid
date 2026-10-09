@@ -13,6 +13,10 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 9: `:feature:library` and `:feature:settings`
 - [x] Session 10: Instrumented tests and baseline profile
 - [x] Session 11: CI and docs
+- [x] Session 12: Seed map, native groundwork (`seed-map-plan.md`)
+- [ ] Session 13: Seed map, engine API, tiles and ViewModel
+- [ ] Session 14: Seed map, map UI and the tab
+- [ ] Session 15: Seed map, polish
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -364,3 +368,33 @@ What was added:
 - Consider branch protection on `main` requiring `checks`, `instrumented` and `release-apk`.
 - Anyone with write access can read the signing secrets through a changed workflow on a branch; consider an environment with required reviewers if more people get access.
 - Unchanged from earlier sessions: `preferredEdition` has no effect, ViewModel state is lost when leaving a tab, first article load is slow on the emulator, no startup measurement for the baseline profile, tablet layout only checked by hand.
+
+## Session 12 notes
+Verified locally: `spotlessCheck` (own invocation), then `detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies assembleDebug :app:assembleRelease` pass. `:core:seedmap:connectedDebugAndroidTest` passes (10 tests: 5 `McVersionNativeTest`, 5 `SeedMapEngineGoldenTest`) on the local API 35 arm64 emulator (`Pixel_API35`). The CI jobs themselves can only be proved on GitHub: see the PR body.
+
+What was added:
+- `:core:seedmap` (`wikidroid.android.library`, `wikidroid.android.ndk`, `wikidroid.metro`), wired into `settings.gradle.kts` and `:app`. Nothing in the UI uses it yet.
+- Convention plugin `wikidroid.android.ndk`: reads `ndk` and `cmake` from `libs.versions.toml`, builds `arm64-v8a` and `x86_64`, and adds the androidTest runner and dependencies.
+- Submodule `core/seedmap/src/main/cpp/cubiomes` (xpple/cubiomes), pinned at **`4f04235f3e6e25491a02a830e4f500f68045be17`** ("Add INFER_POSTFIX option"). `MC_NEWEST` is `MC_26_3` (35).
+- `seedmap_jni.c` (`nativeCreate`, `nativeDestroy`, `nativeApplySeed`, `nativeGetBiomeAt`, `nativeGetSpawn`, `nativeVersionName`, `nativeNewestVersion`), `NativeSeedMap`, `SeedMapEngine` (`spawn`, `biomeAt`), `JniSeedMapEngine`, and the models `McVersion` (all 35 cubiomes versions), `Dimension`, `MapWorld`, `BlockPos`.
+- Tests: JVM `McVersionTest`; instrumented `McVersionNativeTest` (enum vs `mc2str`, newest version, dimension rules) and `SeedMapEngineGoldenTest` (3 seeds x 1.12 / 1.18 / 26.3: spawn and 5 biomes each).
+- CI: NDK and CMake installed from the TOML values, `submodules: true` on all three checkouts, `:core:seedmap:connectedDebugAndroidTest` in the `instrumented` job, a 16 KB alignment check plus `.so` sizes in the `release-apk` job and its PR comment, and a `gitsubmodule` Dependabot entry. README and `CLAUDE.md` updated.
+
+Measured (release APK, NDK r30, `-O2`, stripped): `libseedmap.so` is 1,252,648 bytes on arm64-v8a and 1,313,136 on x86_64; every `LOAD` segment is aligned to `0x4000`. `-Oz` was not tried (that is Session 15).
+
+### Deviations
+- **NDK r30 (`30.0.16248370`) and CMake 4.1.2**, not r28.2 / 3.22.1 as the plan assumed: they are the newest stable releases `sdkmanager` lists, which is what the version policy asks for.
+- **More cubiomes sources than the plan listed.** The static library also needs `biomenoise.c`, `terrainnoise.c`, `xradv.c` and `features/{abandoned_camp,end_city,fortress,stronghold}.c` (`generator.c` and `finders.c` reference them). `loot/`, `carver.c` and `features/ore.c` are still left out. cubiomes is compiled with `-w` so its own warnings do not flood the build.
+- **`-Wl,-z,max-page-size=16384`** is set explicitly as well as relying on the NDK default.
+- **`McVersion.nativeId` is `ordinal + 1`** rather than a literal per entry (detekt `MagicNumber`, and one fewer thing to keep in sync). `McVersionNativeTest` proves the order still matches cubiomes.
+- **`MapWorld(seed, version, dimension)` and `BlockPos`** are extra public models; `SeedMapEngine` takes a `MapWorld` instead of loose arguments, and `MapWorld` rejects a dimension its version lacks (Nether before 1.16.1, End before 1.9).
+- **`JniSeedMapEngine` keeps one generator behind a `Mutex`** and never frees it (it is a process-lifetime singleton). Session 13 replaces it with the pool.
+- **`nativeApplySeed` calls `setupGenerator` again every time**, because the layer stack, Nether and End noise share a union inside cubiomes' `Generator`.
+- **`docs/PLAN.md` was not extended** with Sessions 12-15; the merged docs PR only added `seed-map-plan.md`, which remains the source for these sessions. Only the checklist lines were added here.
+- The golden values come from a throwaway host build of the pinned commit (not committed). They were **not spot-checked against Chunkbase**, so they prove the JNI layer and build flags, not cubiomes itself.
+
+### Open TODOs
+- R8 has not been exercised on the native code: nothing in `:app` references `SeedMapEngine` yet, so the release build tree-shakes `JniSeedMapEngine`. Session 14 must run the real release build and a tile render.
+- Only the arm64 emulator was run locally; `x86_64` (the CI emulator) is proved by CI only.
+- Single-point biome queries use scale 1; the native scale-4 path is checked only for rejection of other scales.
+- Downloading the NDK through `sdkmanager` stalled on a slow connection; if a fresh machine hits that, install it from Android Studio's SDK Manager.
