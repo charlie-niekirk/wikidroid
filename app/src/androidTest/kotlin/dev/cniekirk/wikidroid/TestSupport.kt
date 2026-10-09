@@ -35,6 +35,9 @@ class ResetAppStateRule : ExternalResource() {
             graph.libraryRepository.clearHistory()
             graph.articleRepository.clearCache()
             graph.searchRepository.clearRecentSearches()
+            graph.seedRepository.savedSeeds
+                .first()
+                .forEach { graph.seedRepository.removeSeed(it) }
             graph.settingsRepository.apply {
                 setThemeMode(ThemeMode.System)
                 setDynamicColor(true)

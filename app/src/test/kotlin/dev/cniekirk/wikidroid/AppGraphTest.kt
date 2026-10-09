@@ -11,6 +11,7 @@ import dev.cniekirk.wikidroid.feature.explore.CategoryDetailViewModel
 import dev.cniekirk.wikidroid.feature.explore.ExploreViewModel
 import dev.cniekirk.wikidroid.feature.library.LibraryViewModel
 import dev.cniekirk.wikidroid.feature.search.SearchViewModel
+import dev.cniekirk.wikidroid.feature.seedmap.SeedMapViewModel
 import dev.cniekirk.wikidroid.feature.settings.SettingsViewModel
 import dev.zacsweers.metro.createGraphFactory
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -41,6 +42,7 @@ class AppGraphTest : RobolectricTest() {
                 "ExploreEntryInstaller",
                 "LibraryEntryInstaller",
                 "SearchEntryInstaller",
+                "SeedMapEntryInstaller",
                 "SettingsEntryInstaller",
             )
     }
@@ -61,6 +63,9 @@ class AppGraphTest : RobolectricTest() {
         assertThat(
             factory.create(SettingsViewModel::class, CreationExtras.Empty),
         ).isInstanceOf(SettingsViewModel::class.java)
+        assertThat(
+            factory.create(SeedMapViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(SeedMapViewModel::class.java)
     }
 
     @Test

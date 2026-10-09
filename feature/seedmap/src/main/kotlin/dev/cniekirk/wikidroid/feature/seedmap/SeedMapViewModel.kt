@@ -121,8 +121,14 @@ class SeedMapViewModel(
     private fun selectSpawn() =
         intent { reduce { state.spawn?.let { state.copy(selection = MapSelection.Spawn(it)) } ?: state } }
 
+    /** Opens the article and closes the sheet, which would otherwise sit over the article on a wide window. */
     private fun openWikiArticle() =
-        intent { state.selection?.wikiTitle?.let { postSideEffect(SeedMapEffect.OpenArticle(it)) } }
+        intent {
+            state.selection?.wikiTitle?.let { title ->
+                reduce { state.copy(selection = null) }
+                postSideEffect(SeedMapEffect.OpenArticle(title))
+            }
+        }
 
     private fun goToCoordinates(
         x: Int,

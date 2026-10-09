@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface WikiKey : NavKey
 
-/** The four bottom-bar destinations. Each owns a back stack. */
+/** The five bottom-bar destinations. Each owns a back stack. */
 @Serializable
 sealed interface TopLevelKey : WikiKey
 
@@ -20,6 +20,9 @@ data object ExploreKey : TopLevelKey
 
 @Serializable
 data object SearchKey : TopLevelKey
+
+@Serializable
+data object SeedMapKey : TopLevelKey
 
 @Serializable
 data object LibraryKey : TopLevelKey
@@ -45,4 +48,4 @@ data class ArticleKey(
 data object AboutKey : WikiKey
 
 /** The tabs in bottom-bar order. */
-val TopLevelKeys: List<TopLevelKey> = listOf(ExploreKey, SearchKey, LibraryKey, SettingsKey)
+val TopLevelKeys: List<TopLevelKey> = listOf(ExploreKey, SearchKey, SeedMapKey, LibraryKey, SettingsKey)

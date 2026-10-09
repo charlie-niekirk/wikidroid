@@ -4,6 +4,7 @@
 
   <string name="tab_explore">Explore</string>
   <string name="tab_search">Search</string>
+  <string name="tab_seed_map">Seed map</string>
   <string name="tab_library">Library</string>
   <string name="tab_settings">Settings</string>
 

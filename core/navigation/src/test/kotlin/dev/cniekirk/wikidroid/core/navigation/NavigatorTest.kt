@@ -139,4 +139,22 @@ class NavigatorTest {
 
         assertThat(navigator.backStack).containsExactly(SearchKey, diamond).inOrder()
     }
+
+    @Test
+    fun theSeedMapIsTheMiddleTab() {
+        assertThat(TopLevelKeys).containsExactly(ExploreKey, SearchKey, SeedMapKey, LibraryKey, SettingsKey).inOrder()
+    }
+
+    @Test
+    fun anArticleOpenedFromTheSeedMapStaysOnItsTab() {
+        val navigator = Navigator()
+        navigator.navigate(SeedMapKey)
+
+        navigator.navigate(ArticleKey("Village"))
+
+        assertThat(navigator.currentTab).isEqualTo(SeedMapKey)
+        assertThat(navigator.backStack).containsExactly(SeedMapKey, ArticleKey("Village")).inOrder()
+        navigator.switchTab(ExploreKey)
+        assertThat(navigator.backStack).containsExactly(ExploreKey)
+    }
 }

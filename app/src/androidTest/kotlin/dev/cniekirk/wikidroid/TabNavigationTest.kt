@@ -27,6 +27,10 @@ class TabNavigationTest {
         composeRule.waitForText("What are you looking for?")
         composeRule.tab("Search").assertIsSelected()
 
+        composeRule.openTab("Seed map")
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-canvas"), UI_TIMEOUT_MILLIS)
+        composeRule.tab("Seed map").assertIsSelected()
+
         composeRule.openTab("Library")
         composeRule.waitForText("No bookmarks yet")
         composeRule.tab("Library").assertIsSelected()
