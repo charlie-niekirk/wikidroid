@@ -122,7 +122,52 @@ Housekeeping: the working tree has unrelated uncommitted edits (`ExploreScreen.k
     - Dimension sheet: Overworld, Nether and End, with entries the selected version doesn't support disabled.
   - If a version change makes the current dimension invalid (for example End on Beta 1.7), fall back to the Overworld.
   - Tests: Robolectric screen tests that each chip opens its sheet, that choosing an item emits the right action and closes the sheet, and that unsupported dimensions are disabled.
-- **Legend:** a legend sheet listing biome colours and names, searchable. Pins use distinct shapes as well as colours, for colour accessibility.
+- **Legend:** a legend sheet listing biome colours and names, searchable. Structures are listed with their icons (see "Structure icons" below).
+- **Structure icons:** replace the coloured shapes from Session 14 with minecraft.wiki artwork for every structure the map can show: every `StructureType` entry, plus the world spawn.
+  - **Source:** the wiki's inventory sprites (`File:Invicon_<Name>.png`), not the article lead images. `prop=pageimages` returns 1000–5000 px screenshots (and nothing at all for "Ocean Ruins" and "World spawn"), which are useless at pin size. The sprites are 16 or 32 px pixel art and all exist today (checked live):
+
+    | Structure | Sprite |
+    |---|---|
+    | Desert pyramid | Chiseled Sandstone |
+    | Jungle temple | Mossy Cobblestone |
+    | Swamp hut | Dark Oak Log |
+    | Igloo | Snow Block |
+    | Village | Bell |
+    | Ocean ruin | Prismarine Bricks |
+    | Shipwreck | Oak Boat |
+    | Monument | Prismarine |
+    | Mansion | Dark Oak Log (or Red Bed if it reads too close to the swamp hut) |
+    | Outpost | Crossbow |
+    | Ruined portal (both dimensions) | Crying Obsidian |
+    | Ancient city | Reinforced Deepslate |
+    | Buried treasure | Chest |
+    | Trail ruins | Suspicious Gravel |
+    | Trial chambers | Trial Spawner |
+    | Abandoned camp | Cobweb |
+    | Fortress | Nether Bricks |
+    | Bastion | Polished Blackstone Bricks |
+    | Nether fossil | Bone Block |
+    | End city | Purpur Block |
+    | End gateway | End Gateway |
+    | Stronghold | Eye of Ender |
+    | World spawn | Red Bed (or any sprite the wiki shows for spawn) |
+
+    These are suggestions: if two read too much alike at pin size, swap one, but keep the type-to-sprite choice in one place. Confirm each filename with `action=query&prop=imageinfo&titles=File:…` before downloading.
+  - **Bundle, don't fetch at runtime.** A one-off scratchpad script (like the title check) downloads the sprites and checks that each file exists, and the PNGs are committed to `feature/seedmap/src/main/res/drawable-nodpi/` as `structure_<type>.png`, lowercase and snake case (for example `structure_village.png`). Reasons: the map must work offline, a pin must never wait on the network, and the canvas draws markers every frame.
+  - **Mapping:** `StructureType.markerStyle()` becomes `StructureType.icon(): StructureIcon`, a `@DrawableRes` wrapper in `StructureMarkers.kt`. A unit test requires one icon for every `StructureType` entry and the spawn, and that every resource resolves. Do this in a table next to `StructureWikiTitles`, so a new type fails the test until it gets an icon.
+  - **Drawing:**
+    - Decode each bitmap once into an `ImageBitmap` (`remember` in the canvas, keyed on nothing) and draw it with `drawImage(..., filterQuality = FilterQuality.None)`, so the pixels stay sharp. Do not use `Image` or `painterResource` per pin.
+    - Draw at 28–32 dp (a whole multiple of the source size where possible), on a small circular plate in the surface colour with a thin outline, so the sprite reads on any biome colour. Keep the tap target at least 48 dp.
+    - The old colour-and-shape marker stays as the fallback, and for markers too small to read when the map is zoomed far out. `MarkerShape` stays for it.
+  - **Reuse:** `MarkerIcon` (filter chips and the legend) draws the same sprite, so the filter sheet is still the map's legend. The selection sheet from a pin tap shows the icon beside the structure name.
+  - **Dimension icons:** "Grass Block", "Nether Wart" and "Ender Pearl" sprites also exist on the wiki. Use the same pipeline for them instead of hand-drawn vectors if they look better, and then drop the `WikiIcons.Dimension*` vector drawables from the controls bullet. Either way, don't do both.
+  - **Licence:** the sprites are Mojang artwork on a CC BY-NC-SA 3.0 wiki. Add a short "Icons from minecraft.wiki" credit, linking to the wiki and the licence, in About next to the existing disclaimer. Add a `NOTICE`-style line in `feature/seedmap` listing the sprite source and the date it was downloaded.
+  - **APK size:** 23 PNGs of 16–32 px are a few KB in total. Run `pngquant`/`zopflipng` only if the total goes past 50 KB.
+  - **Tests:**
+    - Unit: icon table completeness (above), and that `icon()` is stable per type.
+    - Robolectric: a filter chip and the selection sheet show the icon (by content description or test tag), and the fallback marker is used when no icon is given.
+    - Instrumented: one tile with villages on still renders, and tapping a pin still opens the sheet (hit testing must use the new size).
+    - Update the Session 14 `StructureMarkersTest` that required unique colours and shapes: keep it for the fallback, and add the icon checks beside it.
 - **Wiki titles, verified live:** a one-off scratchpad script queries `action=query&titles=…&redirects` against minecraft.wiki for every mapped title. Fix the misses and record the run in PROGRESS.md.
 - **Performance:** a pass on a real low-end arm64 phone (pool size, tile size, cache budget). Record ms per tile in PROGRESS.md.
 - **APK size:** compare `-O2` with `-Oz`, confirm the sources left out and the stripping, and record the per-ABI `.so` size.
@@ -141,6 +186,6 @@ Housekeeping: the working tree has unrelated uncommitted edits (`ExploreScreen.k
 - Manual check on the emulator and a phone:
   1. On the Seed map tab, enter seed `262` with version 26.3.
   2. Pan and zoom; tiles fill in progressively.
-  3. Toggle villages, then tap one; "Open wiki article" opens "Village".
+  3. Toggle villages, then tap one; "Open wiki article" opens "Village". The pin and the filter chip show the bell icon, sharp at every zoom level, and at least two other structure types show their own wiki icon rather than a coloured shape.
   4. Save the seed, restart the app, and confirm it's still listed.
   5. Use the version chip (bottom sheet) to switch to 1.12, and the dimension chip to switch to the Nether.
