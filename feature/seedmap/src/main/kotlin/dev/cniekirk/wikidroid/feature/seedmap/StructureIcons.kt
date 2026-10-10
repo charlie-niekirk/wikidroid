@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.Dp
@@ -106,30 +104,20 @@ internal class StructureSprites(
 /** The sprites are 16 or 32 px, so a pin is drawn at a whole multiple of 32 px near this size. */
 private val PinSpriteSize = 30.dp
 private const val SPRITE_GRID_PX = 32
-private val PlateMargin = 3.dp
-private val PlateOutline = 1.dp
 
 /** The size a sprite is drawn at, in pixels: a multiple of 32 so both 16 and 32 px art scale by a whole number. */
 internal fun pinSpritePx(densityPx: Float): Int =
     ((PinSpriteSize.value * densityPx / SPRITE_GRID_PX).roundToInt().coerceAtLeast(1)) * SPRITE_GRID_PX
 
-/** How far a pin reaches from its centre, plate included, in pixels. */
-internal fun pinReachPx(densityPx: Float): Float = pinSpritePx(densityPx) / 2f + (PlateMargin.value + 1) * densityPx
+/** How far a pin reaches from its centre, in pixels. */
+internal fun pinReachPx(densityPx: Float): Float = pinSpritePx(densityPx) / 2f
 
-/**
- * Draws [sprite] centred on [center], on a round plate so it reads on any biome colour, with its pixels
- * kept sharp. [density] is pixels per dp.
- */
+/** Draws [sprite] centred on [center], its pixels kept sharp. */
 internal fun DrawScope.drawSprite(
     sprite: ImageBitmap,
     center: Offset,
-    plate: Color,
-    outline: Color,
 ) {
     val size = pinSpritePx(density)
-    val plateRadius = size / 2f + PlateMargin.toPx()
-    drawCircle(plate, plateRadius, center)
-    drawCircle(outline, plateRadius, center, style = Stroke(PlateOutline.toPx()))
     // A whole number of pixels per sprite pixel, whatever the sprite's own size.
     drawImage(
         image = sprite,

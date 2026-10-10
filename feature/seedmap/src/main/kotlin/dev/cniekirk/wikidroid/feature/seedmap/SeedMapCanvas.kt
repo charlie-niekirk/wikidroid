@@ -40,7 +40,7 @@ import kotlinx.coroutines.flow.filterNotNull
 internal const val SEED_MAP_CANVAS_TAG = "seed-map-canvas"
 
 private val TapRadius = 24.dp
-private val SelectionRadius = 22.dp
+private val SelectionRadius = 20.dp
 private val CROSSHAIR_ARM = 8.dp
 
 /**
@@ -85,9 +85,7 @@ internal fun SeedMapCanvas(
     val markerPath = remember { Path() }
     val resources = LocalContext.current.resources
     val sprites = remember(resources) { StructureSprites.load(resources) }
-    val plate = MaterialTheme.colorScheme.surface
-    val plateOutline = MaterialTheme.colorScheme.outline
-    val pinPaint = remember(sprites, plate, plateOutline) { PinPaint(sprites, plate, plateOutline, markerPath) }
+    val pinPaint = remember(sprites) { PinPaint(sprites, markerPath) }
     val background = MaterialTheme.colorScheme.surfaceVariant
     val description = stringResource(R.string.seedmap_map_description, state.seed.toString(), state.version.label)
 
@@ -138,11 +136,9 @@ internal fun selectionAt(
         null -> SeedMapAction.SelectPoint(camera.blockAt(tap.x, tap.y))
     }
 
-/** What the pins are drawn with: the sprites, the plate they sit on, and scratch space for fallback shapes. */
+/** What the pins are drawn with: the sprites, and scratch space for fallback shapes. */
 private class PinPaint(
     val sprites: StructureSprites,
-    val plate: Color,
-    val outline: Color,
     val path: Path,
 )
 
@@ -154,7 +150,7 @@ private fun DrawScope.drawPin(
 ) {
     val sprite = paint.sprites[icon]
     if (sprite != null) {
-        drawSprite(sprite, center, paint.plate, paint.outline)
+        drawSprite(sprite, center)
     } else {
         drawMarker(style, center, MarkerRadius.toPx(), paint.path)
     }

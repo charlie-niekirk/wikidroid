@@ -87,7 +87,7 @@ class StructureIconsTest : ComposeTest() {
     }
 
     @Test
-    fun aPinReachesBeyondItsSpriteForThePlate() {
-        assertThat(pinReachPx(2.625f)).isGreaterThan(pinSpritePx(2.625f) / 2f)
+    fun aPinReachesHalfWayAcrossItsSprite() {
+        assertThat(pinReachPx(2.625f)).isEqualTo(pinSpritePx(2.625f) / 2f)
     }
 }
