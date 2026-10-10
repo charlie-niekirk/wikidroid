@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -39,7 +40,7 @@ import kotlinx.coroutines.flow.filterNotNull
 internal const val SEED_MAP_CANVAS_TAG = "seed-map-canvas"
 
 private val TapRadius = 24.dp
-private val SelectionRadius = 16.dp
+private val SelectionRadius = 22.dp
 private val CROSSHAIR_ARM = 8.dp
 
 /**
@@ -82,6 +83,11 @@ internal fun SeedMapCanvas(
     val currentState by rememberUpdatedState(state)
     val drawer = remember { TileDrawer() }
     val markerPath = remember { Path() }
+    val resources = LocalContext.current.resources
+    val sprites = remember(resources) { StructureSprites.load(resources) }
+    val plate = MaterialTheme.colorScheme.surface
+    val plateOutline = MaterialTheme.colorScheme.outline
+    val pinPaint = remember(sprites, plate, plateOutline) { PinPaint(sprites, plate, plateOutline, markerPath) }
     val background = MaterialTheme.colorScheme.surfaceVariant
     val description = stringResource(R.string.seedmap_map_description, state.seed.toString(), state.version.label)
 
@@ -110,7 +116,7 @@ internal fun SeedMapCanvas(
         tilesLoaded.intValue // Read here so the canvas redraws when a tile lands.
         drawRect(background)
         with(drawer) { drawTiles(camera, tiles, wanted.value) }
-        drawMarkers(camera, currentState, markerPath)
+        drawMarkers(camera, currentState, pinPaint)
         drawCrosshair()
     }
 }
@@ -132,13 +138,34 @@ internal fun selectionAt(
         null -> SeedMapAction.SelectPoint(camera.blockAt(tap.x, tap.y))
     }
 
+/** What the pins are drawn with: the sprites, the plate they sit on, and scratch space for fallback shapes. */
+private class PinPaint(
+    val sprites: StructureSprites,
+    val plate: Color,
+    val outline: Color,
+    val path: Path,
+)
+
+private fun DrawScope.drawPin(
+    paint: PinPaint,
+    icon: StructureIcon,
+    style: MarkerStyle,
+    center: Offset,
+) {
+    val sprite = paint.sprites[icon]
+    if (sprite != null) {
+        drawSprite(sprite, center, paint.plate, paint.outline)
+    } else {
+        drawMarker(style, center, MarkerRadius.toPx(), paint.path)
+    }
+}
+
 private fun DrawScope.drawMarkers(
     camera: MapCamera,
     state: SeedMapState,
-    path: Path,
+    paint: PinPaint,
 ) {
-    val radius = MarkerRadius.toPx()
-    val margin = radius * 2
+    val margin = pinReachPx(density) * 2
 
     fun visible(at: Offset) = at.x in -margin..size.width + margin && at.y in -margin..size.height + margin
 
@@ -149,13 +176,14 @@ private fun DrawScope.drawMarkers(
         if (visible(center)) drawSelection(center, SelectionRadius.toPx())
     }
     state.pins.forEach { pin ->
-        at(pin.pos).takeIf(::visible)?.let { drawMarker(pin.type.markerStyle(), it, radius, path) }
+        at(pin.pos).takeIf(::visible)?.let { drawPin(paint, pin.type.icon(), pin.type.markerStyle(), it) }
     }
+    val strongholdIcon = StructureType.STRONGHOLD.icon()
     val strongholdStyle = StructureType.STRONGHOLD.markerStyle()
     state.strongholds.forEach { pos ->
-        at(pos).takeIf(::visible)?.let { drawMarker(strongholdStyle, it, radius, path) }
+        at(pos).takeIf(::visible)?.let { drawPin(paint, strongholdIcon, strongholdStyle, it) }
     }
-    state.spawn?.let { pos -> at(pos).takeIf(::visible)?.let { drawMarker(SpawnMarkerStyle, it, radius, path) } }
+    state.spawn?.let { pos -> at(pos).takeIf(::visible)?.let { drawPin(paint, SpawnIcon, SpawnMarkerStyle, it) } }
 }
 
 /** A small plus at the middle of the canvas, which is the point the coordinate readout names. */

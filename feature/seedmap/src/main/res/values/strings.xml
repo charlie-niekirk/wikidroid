@@ -4,11 +4,19 @@
 
     <string name="seedmap_map_description">Map of seed %1$s in Java Edition %2$s. Drag to pan, pinch to zoom, tap for details.</string>
     <string name="seedmap_coordinates">X %1$d, Z %2$d</string>
+    <string name="seedmap_coordinates_overworld">Overworld X %1$d, Z %2$d</string>
     <string name="seedmap_pins_hidden">Zoom in to see structures</string>
 
     <string name="seedmap_seed_label">Seed</string>
     <string name="seedmap_random_seed">Random seed</string>
-    <string name="seedmap_version_button">Java Edition %1$s</string>
+    <string name="seedmap_version_chip_description">Java Edition version %1$s. Change version</string>
+    <string name="seedmap_dimension_chip_description">Dimension %1$s. Change dimension</string>
+    <string name="seedmap_version_sheet_title">Java Edition version</string>
+    <string name="seedmap_dimension_sheet_title">Dimension</string>
+    <string name="seedmap_dimension_overworld">Overworld</string>
+    <string name="seedmap_dimension_nether">Nether</string>
+    <string name="seedmap_dimension_end">End</string>
+    <string name="seedmap_dimension_from">Java Edition %1$s and newer</string>
 
     <string name="seedmap_zoom_in">Zoom in</string>
     <string name="seedmap_zoom_out">Zoom out</string>
@@ -35,6 +43,14 @@
     <string name="seedmap_filter_open">Structures</string>
     <string name="seedmap_filter_title">Show on map</string>
     <string name="seedmap_filter_none">This version has no structures to show.</string>
+
+    <string name="seedmap_legend_open">Legend</string>
+    <string name="seedmap_legend_title">Legend</string>
+    <string name="seedmap_legend_search">Search biomes and structures</string>
+    <string name="seedmap_legend_structures">Structures</string>
+    <string name="seedmap_legend_biomes">Biomes</string>
+    <string name="seedmap_legend_spawn">World spawn</string>
+    <string name="seedmap_legend_no_matches">Nothing matches that.</string>
 
     <string name="seedmap_unknown_biome">Unknown biome</string>
     <string name="seedmap_copy_coordinates">Copy coordinates</string>

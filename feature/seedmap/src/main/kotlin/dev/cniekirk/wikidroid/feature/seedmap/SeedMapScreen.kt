@@ -14,8 +14,10 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiTopAppBar
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.TileCache
 import kotlin.math.roundToInt
@@ -35,7 +38,7 @@ import kotlin.math.roundToInt
 internal const val GO_TO_SPAWN_TAG = "seed-map-go-to-spawn"
 
 /** The dialogs and sheets the screen can show. Kept as one value so only one is ever open. */
-private enum class Overlay { None, Filter, SaveSeed, GoToCoordinates }
+private enum class Overlay { None, Filter, Legend, Version, Dimension, SaveSeed, GoToCoordinates }
 
 /**
  * The Seed map tab: a pannable map of the seed with the seed field and version picker above it.
@@ -51,6 +54,7 @@ fun SeedMapScreen(
     camera: MapCamera = rememberMapCamera(),
 ) {
     var overlay by rememberSaveable { mutableStateOf(Overlay.None) }
+    KeepViewAcrossDimensions(state.dimension, camera)
 
     Scaffold(
         modifier = modifier,
@@ -58,6 +62,7 @@ fun SeedMapScreen(
             WikiTopAppBar(
                 title = stringResource(R.string.seedmap_title),
                 actions = {
+                    LegendButton(onClick = { overlay = Overlay.Legend })
                     SavedSeedsMenu(
                         saved = state.savedSeeds,
                         isCurrentSaved = state.isSaved,
@@ -73,6 +78,9 @@ fun SeedMapScreen(
             SeedControls(
                 seed = state.seed,
                 version = state.version,
+                dimension = state.dimension,
+                onVersionClick = { overlay = Overlay.Version },
+                onDimensionClick = { overlay = Overlay.Dimension },
                 onAction = onAction,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
@@ -97,6 +105,40 @@ fun SeedMapScreen(
             StructureFilterSheet(state = state, onAction = onAction, onDismiss = { overlay = Overlay.None })
         }
 
+        Overlay.Legend -> {
+            LegendSheet(
+                state = state,
+                onOpenArticle = { title ->
+                    onAction(SeedMapAction.OpenLegendArticle(title))
+                    overlay = Overlay.None
+                },
+                onDismiss = { overlay = Overlay.None },
+            )
+        }
+
+        Overlay.Version -> {
+            VersionSheet(
+                selected = state.version,
+                onSelect = { version ->
+                    onAction(SeedMapAction.SelectVersion(version))
+                    overlay = Overlay.None
+                },
+                onDismiss = { overlay = Overlay.None },
+            )
+        }
+
+        Overlay.Dimension -> {
+            DimensionSheet(
+                version = state.version,
+                selected = state.dimension,
+                onSelect = { dimension ->
+                    onAction(SeedMapAction.SelectDimension(dimension))
+                    overlay = Overlay.None
+                },
+                onDismiss = { overlay = Overlay.None },
+            )
+        }
+
         Overlay.SaveSeed -> {
             SaveSeedDialog(
                 onSave = { label ->
@@ -119,7 +161,22 @@ fun SeedMapScreen(
     }
 
     state.selection?.let { selection ->
-        SelectionSheet(selection = selection, onAction = onAction)
+        SelectionSheet(selection = selection, dimension = state.dimension, onAction = onAction)
+    }
+}
+
+/** Moves the camera with the player when the dimension changes (the Nether is 1:8), then remembers it. */
+@Composable
+private fun KeepViewAcrossDimensions(
+    dimension: Dimension,
+    camera: MapCamera,
+) {
+    var shown by remember { mutableStateOf(dimension) }
+    LaunchedEffect(dimension) {
+        if (dimension != shown) {
+            camera.convertDimension(shown, dimension)
+            shown = dimension
+        }
     }
 }
 
@@ -139,13 +196,9 @@ private fun MapOverlay(
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
             )
         }
+        val center = BlockPos(camera.centerX.roundToInt(), camera.centerZ.roundToInt())
         MapChip(
-            text =
-                stringResource(
-                    R.string.seedmap_coordinates,
-                    camera.centerX.roundToInt(),
-                    camera.centerZ.roundToInt(),
-                ),
+            text = coordinatesText(center, state.dimension),
             modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).testTag(CENTER_READOUT_TAG),
         )
         Column(
@@ -181,6 +234,17 @@ private fun MapOverlay(
 
 internal const val CENTER_READOUT_TAG = "seed-map-center"
 private const val ZOOM_STEP = 2f
+
+/** "X 12, Z -3", and under it the overworld position when the map is of the Nether. */
+@Composable
+internal fun coordinatesText(
+    pos: BlockPos,
+    dimension: Dimension,
+): String {
+    val own = stringResource(R.string.seedmap_coordinates, pos.x, pos.z)
+    val overworld = pos.overworldEquivalent(dimension) ?: return own
+    return own + "\n" + stringResource(R.string.seedmap_coordinates_overworld, overworld.x, overworld.z)
+}
 
 @Composable
 private fun MapButton(

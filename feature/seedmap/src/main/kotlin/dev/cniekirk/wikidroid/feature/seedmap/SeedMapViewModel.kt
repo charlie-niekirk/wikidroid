@@ -3,6 +3,8 @@ package dev.cniekirk.wikidroid.feature.seedmap
 import androidx.lifecycle.ViewModel
 import dev.cniekirk.wikidroid.core.data.SeedRepository
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.BiomePalette
+import dev.cniekirk.wikidroid.core.seedmap.BiomeWikiTitles
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
@@ -75,6 +77,12 @@ class SeedMapViewModel(
                         .collectLatest { world -> loadStrongholds(world) }
                 }
                 launch {
+                    container.stateFlow
+                        .map { it.version to it.dimension }
+                        .distinctUntilChanged()
+                        .collectLatest { (version, dimension) -> loadLegend(version, dimension) }
+                }
+                launch {
                     var previous: PinQuery? = null
                     container.stateFlow
                         .map { it.pinQuery() }
@@ -108,6 +116,7 @@ class SeedMapViewModel(
             SeedMapAction.SelectSpawn -> selectSpawn()
             SeedMapAction.DismissSelection -> intent { reduce { state.copy(selection = null) } }
             SeedMapAction.OpenWikiArticle -> openWikiArticle()
+            is SeedMapAction.OpenLegendArticle -> intent { postSideEffect(SeedMapEffect.OpenArticle(action.title)) }
             SeedMapAction.GoToSpawn -> goToSpawn()
             is SeedMapAction.GoToCoordinates -> goToCoordinates(action.x, action.z)
         }
@@ -201,6 +210,28 @@ class SeedMapViewModel(
         }
         val spawn = attempt { engine.spawn(world) }
         reduce { if (state.world == world) state.copy(spawn = spawn) else state }
+    }
+
+    private suspend fun Syntax<SeedMapState, SeedMapEffect>.loadLegend(
+        version: McVersion,
+        dimension: Dimension,
+    ) {
+        val ids = attempt { engine.biomesIn(version, dimension) }.orEmpty()
+        val colors = attempt { engine.biomeColors() }
+        val entries =
+            ids
+                .mapNotNull { id ->
+                    BiomeWikiTitles.titleFor(id)?.let { title ->
+                        BiomeLegendEntry(id, title, colors?.getOrNull(id) ?: BiomePalette.UNKNOWN)
+                    }
+                }.sortedBy { it.title }
+        reduce {
+            if (state.version == version && state.dimension == dimension) {
+                state.copy(biomeLegend = entries.toImmutableList())
+            } else {
+                state
+            }
+        }
     }
 
     private suspend fun Syntax<SeedMapState, SeedMapEffect>.loadStrongholds(world: MapWorld?) {

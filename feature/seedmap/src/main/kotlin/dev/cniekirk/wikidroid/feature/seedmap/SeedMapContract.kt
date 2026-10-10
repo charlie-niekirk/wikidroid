@@ -45,6 +45,15 @@ sealed interface MapSelection {
 
 private const val SPAWN_WIKI_TITLE = "World spawn"
 
+/** One row of the legend's biome list: the biome, the wiki article it opens and the colour the map paints it. */
+@Immutable
+data class BiomeLegendEntry(
+    val id: Int,
+    val title: String,
+    /** `0xAARRGGBB`, as in the tiles. */
+    val argb: Int,
+)
+
 /**
  * The seed map screen. Tiles are not part of the state: the canvas pulls them from the tile cache as it
  * draws. [pins] holds the region-based structures around [viewport] and [strongholds] the strongholds,
@@ -63,6 +72,8 @@ data class SeedMapState(
     val pins: ImmutableList<StructurePos> = persistentListOf(),
     val strongholds: ImmutableList<BlockPos> = persistentListOf(),
     val pinsHidden: Boolean = false,
+    /** The biomes the selected version and dimension generate, by name, for the legend sheet. */
+    val biomeLegend: ImmutableList<BiomeLegendEntry> = persistentListOf(),
     val selection: MapSelection? = null,
 ) {
     val world: MapWorld get() = MapWorld(seed, version, dimension)
@@ -130,6 +141,11 @@ sealed interface SeedMapAction {
 
     /** "Open wiki article" in the selection sheet. */
     data object OpenWikiArticle : SeedMapAction
+
+    /** A row of the legend sheet: opens that biome or structure's article. */
+    data class OpenLegendArticle(
+        val title: String,
+    ) : SeedMapAction
 
     data object GoToSpawn : SeedMapAction
 

@@ -12,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -84,6 +85,26 @@ class MapCamera(
     fun centerOn(pos: BlockPos) {
         centerX = pos.x.toDouble().coerceIn(-LIMIT, LIMIT)
         centerZ = pos.z.toDouble().coerceIn(-LIMIT, LIMIT)
+    }
+
+    /**
+     * Keeps the view on the same place when the map changes dimension: the Nether is eight times smaller
+     * than the overworld, so going in divides the centre and the scale by eight and coming out multiplies
+     * them. The End shares no coordinates with either, so the view stays where it is.
+     */
+    fun convertDimension(
+        from: Dimension,
+        to: Dimension,
+    ) {
+        val factor =
+            when {
+                from == Dimension.OVERWORLD && to == Dimension.NETHER -> 1.0 / NETHER_SCALE
+                from == Dimension.NETHER && to == Dimension.OVERWORLD -> NETHER_SCALE.toDouble()
+                else -> return
+            }
+        centerX = (centerX * factor).coerceIn(-LIMIT, LIMIT)
+        centerZ = (centerZ * factor).coerceIn(-LIMIT, LIMIT)
+        blocksPerPixel = (blocksPerPixel * factor).toFloat().coerceIn(MIN_BLOCKS_PER_PIXEL, MAX_BLOCKS_PER_PIXEL)
     }
 
     fun worldX(screenX: Float): Double = centerX + (screenX - widthPx / 2.0) * blocksPerPixel
