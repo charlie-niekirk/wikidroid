@@ -26,6 +26,7 @@ import kotlin.math.roundToInt
  * coordinates are pixels from the canvas's top-left corner; world coordinates are blocks, x east and z south.
  */
 @Stable
+@Suppress("TooManyFunctions") // Pan, zoom, projection both ways and the viewports: one small function each.
 class MapCamera(
     centerX: Double = 0.0,
     centerZ: Double = 0.0,
