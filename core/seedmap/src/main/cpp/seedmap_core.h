@@ -29,6 +29,9 @@ int sm_dimension_supported(int mc, int dim);
 /* Whether `type` is a structure the map knows, exists in `mc`, and generates in `dim`. */
 int sm_structure_supported(int type, int mc, int dim);
 
+/* Whether biome `id` can come out of the generator for `mc` in `dim` (not a variant that never generates). */
+int sm_biome_generates(int mc, int dim, int id);
+
 /*
  * Biome ids for an area of `w` x `h` cells at `scale` blocks per cell (1, 4, 16, 64 or 256), whose
  * north-west cell is (x, z) in units of that scale. `y` is in blocks when scale is 1 and in 4-block units

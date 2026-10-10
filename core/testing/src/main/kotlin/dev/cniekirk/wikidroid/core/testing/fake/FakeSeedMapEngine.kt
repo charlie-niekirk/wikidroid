@@ -3,7 +3,9 @@ package dev.cniekirk.wikidroid.core.testing.fake
 import dev.cniekirk.wikidroid.core.seedmap.BiomeTile
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
+import dev.cniekirk.wikidroid.core.seedmap.McVersion
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
@@ -31,6 +33,7 @@ class FakeSeedMapEngine : SeedMapEngine {
         BlockArea,
     ) -> List<StructurePos> = { _, _, _ -> emptyList() }
     var strongholdsHandler: suspend (MapWorld, count: Int) -> List<BlockPos> = { _, _ -> emptyList() }
+    var biomesHandler: suspend (McVersion, Dimension) -> List<Int> = { _, _ -> listOf(PLAINS) }
     var colors: IntArray = IntArray(PALETTE_SIZE) { OPAQUE_BLACK }
 
     val spawnRequests = mutableListOf<MapWorld>()
@@ -75,6 +78,11 @@ class FakeSeedMapEngine : SeedMapEngine {
         strongholdRequests += world to count
         return strongholdsHandler(world, count)
     }
+
+    override suspend fun biomesIn(
+        version: McVersion,
+        dimension: Dimension,
+    ): List<Int> = biomesHandler(version, dimension)
 
     override suspend fun biomeColors(): IntArray = colors.copyOf()
 

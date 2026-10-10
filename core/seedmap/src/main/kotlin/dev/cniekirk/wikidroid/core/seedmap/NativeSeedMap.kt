@@ -93,6 +93,13 @@ internal object NativeSeedMap {
         id: Int,
     ): String?
 
+    /** Whether biome [id] can be generated in [version]'s [dimension] (a cubiomes `Dimension` int). */
+    @JvmStatic external fun nativeBiomeGenerates(
+        version: Int,
+        dimension: Int,
+        id: Int,
+    ): Boolean
+
     @JvmStatic external fun nativeVersionName(version: Int): String?
 
     @JvmStatic external fun nativeNewestVersion(): Int

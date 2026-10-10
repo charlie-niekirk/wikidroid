@@ -190,3 +190,10 @@ JNI_FN(jstring, nativeBiomeName)(JNIEnv *env, jclass clazz, jint version, jint i
     const char *name = biome2str(version, id);
     return name == NULL ? NULL : (*env)->NewStringUTF(env, name);
 }
+
+/* Whether the biome can be generated in that version and dimension (see sm_biome_generates). */
+JNI_FN(jboolean, nativeBiomeGenerates)(JNIEnv *env, jclass clazz, jint version, jint dim, jint id) {
+    (void)env;
+    (void)clazz;
+    return sm_biome_generates(version, dim, id) ? JNI_TRUE : JNI_FALSE;
+}

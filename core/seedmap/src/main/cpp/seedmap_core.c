@@ -57,6 +57,13 @@ int sm_structure_supported(int type, int mc, int dim) {
     return config.dim == dim;
 }
 
+int sm_biome_generates(int mc, int dim, int id) {
+    if (mc < MC_B1_7 || mc > MC_NEWEST || id < 0 || id > 255) return 0;
+    if (!sm_dimension_supported(mc, dim) || !biomeExists(mc, id)) return 0;
+    if (dim == DIM_OVERWORLD) return isOverworld(mc, id);
+    return getDimension(id) == dim;
+}
+
 static int scale_valid(int scale) {
     return scale == 1 || scale == 4 || scale == 16 || scale == 64 || scale == 256;
 }

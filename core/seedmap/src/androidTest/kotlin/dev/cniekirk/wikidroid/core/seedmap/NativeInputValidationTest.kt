@@ -165,6 +165,12 @@ class NativeInputValidationTest {
         assertThat(NativeSeedMap.nativeBiomeName(McVersion.newest.nativeId, -1)).isNull()
         assertThat(NativeSeedMap.nativeBiomeName(McVersion.newest.nativeId, 256)).isNull()
         assertThat(NativeSeedMap.nativeBiomeName(McVersion.newest.nativeId, 100)).isNull()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(0, 0, 1)).isFalse()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(McVersion.newest.nativeId + 1, 0, 1)).isFalse()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(McVersion.newest.nativeId, 0, -1)).isFalse()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(McVersion.newest.nativeId, 0, 256)).isFalse()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(McVersion.newest.nativeId, 2, 1)).isFalse()
+        assertThat(NativeSeedMap.nativeBiomeGenerates(McVersion.newest.nativeId, -2, 1)).isFalse()
         assertThat(NativeSeedMap.nativeStructureName(-1)).isNull()
         assertThat(NativeSeedMap.nativeStructureName(1000)).isNull()
     }
