@@ -114,6 +114,14 @@ Housekeeping: the working tree has unrelated uncommitted edits (`ExploreScreen.k
 
 ## Session 15: Polish (`session-15-seedmap-polish`)
 - **Dimensions:** a Nether/End switch, with valid structure sets per dimension and version, and Nether coordinates shown at 1:8.
+- **Seed controls layout:** this replaces Session 14's version dropdown.
+  - The seed text field spans the full width of the screen.
+  - Under it, a row of two chips: version and dimension. Each chip shows its current value (for example "26.3" and "Overworld"). The dimension chip has a leading icon that follows the selected dimension: Overworld is a grass block, Nether is nether wart and End is an ender pearl. These are not Material Symbols, so draw them as vector drawables in `:core:designsystem` (for example `WikiIcons.DimensionOverworld|Nether|End`). Use the same icons beside the entries in the dimension sheet.
+  - Tapping a chip opens a `ModalBottomSheet` with the choices, and picking one applies it and closes the sheet.
+    - Version sheet: every `McVersion`, newest first, the current one marked as selected.
+    - Dimension sheet: Overworld, Nether and End, with entries the selected version doesn't support disabled.
+  - If a version change makes the current dimension invalid (for example End on Beta 1.7), fall back to the Overworld.
+  - Tests: Robolectric screen tests that each chip opens its sheet, that choosing an item emits the right action and closes the sheet, and that unsupported dimensions are disabled.
 - **Legend:** a legend sheet listing biome colours and names, searchable. Pins use distinct shapes as well as colours, for colour accessibility.
 - **Wiki titles, verified live:** a one-off scratchpad script queries `action=query&titles=…&redirects` against minecraft.wiki for every mapped title. Fix the misses and record the run in PROGRESS.md.
 - **Performance:** a pass on a real low-end arm64 phone (pool size, tile size, cache budget). Record ms per tile in PROGRESS.md.
@@ -135,4 +143,4 @@ Housekeeping: the working tree has unrelated uncommitted edits (`ExploreScreen.k
   2. Pan and zoom; tiles fill in progressively.
   3. Toggle villages, then tap one; "Open wiki article" opens "Village".
   4. Save the seed, restart the app, and confirm it's still listed.
-  5. Switch to version 1.12 and to the Nether.
+  5. Use the version chip (bottom sheet) to switch to 1.12, and the dimension chip to switch to the Nether.
