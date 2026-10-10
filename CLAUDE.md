@@ -102,3 +102,10 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - `TileLoader.cancelAll` must copy its job map first: on Compose's immediate dispatcher a cancelled job removes itself before `cancel()` returns (this crashed the first instrumented run).
 - Marker shapes and colours come from `StructureType.markerStyle()` (unique per type, tested); the filter chips draw the same marker, so the sheet is the map's legend.
 - Instrumented tests can use any article title for tap-through: the mock server answers every `parse` request with the Diamond fixture.
+- Structure and dimension icons are minecraft.wiki sprites in `feature/seedmap/src/main/res/drawable-nodpi/` (`nodpi` so they decode at 16/32 px; see `feature/seedmap/NOTICE.md` for sources). `StructureType.icon()` in `StructureIcons.kt` is an exhaustive `when`: a new `StructureType` needs a sprite there. Draw them with `FilterQuality.None` at a whole multiple of 32 px (`drawSprite`); never `painterResource` per pin.
+- The wiki's "Prismarine" and "Sea Lantern" sprites are animated GIFs; pick a static PNG sprite (check the mime with `prop=imageinfo`).
+- Sheet lists in Robolectric tests: tag the `LazyColumn` itself and use `performScrollToNode(hasTestTag(...))`; items below the fold are not composed, so `onNodeWithTag` finds nothing.
+- `connectedDebugAndroidTest` runs on every attached device, and `ResetAppStateRule` clears the app's data: with a real phone plugged in, set `ANDROID_SERIAL=<emulator>` first.
+- `TilePerformanceTest` (`:core:seedmap`, needs `-Pandroid.testInstrumentationRunnerArguments.perf=true`, logs under `SeedMapPerf`) measures tile, structure and stronghold times; it is skipped otherwise.
+- The Nether map is drawn in Nether coordinates; the readout adds the Overworld position (x8), and `MapCamera.convertDimension` keeps the view in place when the dimension changes.
+- A legend or version `ListItem` list uses `ListItem(selected, onClick, enabled) { }`; `SeedMapEngine.biomesIn` (native `sm_biome_generates`) lists the biomes a version and dimension can generate.

@@ -16,7 +16,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 12: Seed map, native groundwork (`seed-map-plan.md`)
 - [x] Session 13: Seed map, engine API, tiles and ViewModel
 - [x] Session 14: Seed map, map UI and the tab
-- [ ] Session 15: Seed map, polish
+- [x] Session 15: Seed map, polish
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -466,3 +466,47 @@ What was added:
 - `x86_64` is proved by CI only; the instrumented tests ran locally on the arm64 `Pixel_10_Pro` AVD.
 - Pins are drawn at the structure's generation position, near its chunk corner, not at its centre; at the zoom levels where pins show this is a few pixels.
 - Markers are not exposed to accessibility services (the canvas has a single description). Zoom buttons and the go-to dialog are the accessible way to move; Session 15's legend sheet can list the structures.
+
+## Session 15 notes
+Verified locally: `spotlessCheck` (own invocation), then `detekt lintDebug testDebugUnitTest :app:checkMainMetroHiddenDependencies assembleDebug :app:assembleRelease` pass. On the `Pixel_10_Pro` AVD (API 37.1, arm64), with `ANDROID_SERIAL` set so only the emulator ran: `:core:seedmap:connectedDebugAndroidTest` (68 tests, 7 new in `BiomeLegendNativeTest`) and `:app:connectedDebugAndroidTest` (19 tests; `SeedMapTest` is now 12, 4 of them new) pass. The R8-minified release APK was installed on the emulator and the legend, icons and article tap-through checked by hand. The CI jobs can only be proved on GitHub: see the PR body.
+
+What was added:
+- **Controls:** the seed field now spans the screen; under it a version chip and a dimension chip (grass block, nether wart or ender pearl beside the dimension). Each opens a `ModalBottomSheet`: every `McVersion` newest first with the current one ticked, and Overworld/Nether/End with the ones the version lacks disabled ("Java Edition 1.16.1 and newer"). Picking applies and closes. A version change that drops the current dimension still falls back to the Overworld (ViewModel behaviour from Session 13, now with a test for End to Beta 1.7).
+- **Nether:** the map is drawn in Nether coordinates. The readout and the selection sheet add an "Overworld X, Z" line (x8). `MapCamera.convertDimension` moves the view with the player: into the Nether divides the centre and the scale by 8, out of it multiplies by 8; the End leaves the view alone. `KeepViewAcrossDimensions` in the screen does it when `state.dimension` changes (so also on a saved-seed load that falls back).
+- **Legend:** a list icon in the top bar opens a sheet with a search field, the structures the world can show (with the sprite each pin wears, plus the world spawn in the Overworld) and the biomes it can paint (with their map colour). A row opens its wiki article. The biome list comes from the new `SeedMapEngine.biomesIn(version, dimension)` (native `sm_biome_generates`: cubiomes' `isOverworld`, or `getDimension` for the Nether and End), loaded by the ViewModel whenever version or dimension changes.
+- **Icons:** minecraft.wiki inventory sprites replace the coloured shapes: 23 structure sprites (`StructureType.icon()`, exhaustive `when`, so a new type does not compile without one), the spawn, and the three dimensions, all in `feature/seedmap/src/main/res/drawable-nodpi/` (12 KB in total; no `pngquant` needed). The canvas decodes them once into `ImageBitmap`s (`StructureSprites`) and draws them on a round surface-coloured plate at a whole multiple of 32 px with `FilterQuality.None`. Chips, the legend and the selection sheet show the same pixels. `MarkerIcon` keeps the old shape as the fallback when there is no icon (and the canvas does the same if a sprite fails to decode). Credits: `feature/seedmap/NOTICE.md` (sources and download date) and a line in About next to the content licence.
+- **Legal:** `cubiomes (Cubitect)` and `cubiomes (xpple fork)`, both MIT, in the About libraries list. The disclaimer is unchanged.
+
+### Wiki titles, verified live
+`scratchpad/check_titles.py` (a one-off, not committed) read every title the map can open (22 structure titles, "World spawn" and the title of each of the 96 biomes, 118 in all) and asked `action=query&titles=...&redirects=1` on minecraft.wiki on 2026-10-10: **0 missing, 0 redirects**, so no title changed. The sprites were checked and downloaded the same day with `action=query&prop=imageinfo` (`fetch_sprites.py`).
+
+### Performance
+Measured with `TilePerformanceTest` (`-Pandroid.testInstrumentationRunnerArguments.perf=true`, numbers in logcat under `SeedMapPerf`; it does nothing without that argument). The medians below are for a 256x256-cell tile, seed 262.
+
+| | 1.12 / 1.17 | 1.18 to 26.3, 4 b/cell | 16 b/cell | 64 b/cell | 256 b/cell |
+|---|---|---|---|---|---|
+| OPPO CPH2841 (Snapdragon 8 Elite Gen 5, 8 cores, Android 16) | 1.2 to 1.6 ms | 127 ms | 92 ms | 140 ms | 193 ms |
+| `Pixel_10_Pro` AVD (4 vCPUs) | 8 to 20 ms | 484 to 546 ms | 300 to 350 ms | 466 to 508 ms | 681 to 736 ms |
+
+Also on the phone: Nether tile 9.7 ms and End 1.0 ms; villages over 8192x8192 7.9 ms, monuments 19.8 ms, mansions 0.8 ms, ancient cities 3 ms; 128 strongholds 7 to 10 ms up to 1.17 and about 840 ms on 26.3 (3.3 s on the emulator). A screenful (28 tiles at 4 b/cell, 26.3) takes 3.5 s on one worker, 1.8 s on two, 1.5 s on four, 1.1 s on seven and 0.76 s on eight (1.12: 141, 83, 52, 30 and 33 ms).
+
+Decisions: the pool stays at `availableProcessors - 1` (one core is left for the UI thread, and a screenful still fills in about a second on a flagship; with tiles loaded nearest-first the middle of the screen is there after one tile's time), the tile stays at 256 cells (cost is per cell, so smaller tiles would only add overhead), and the cache stays at an eighth of `memoryClass` (this phone: 256 MB, so 32 MB, 128 tiles; a screen needs 28 to 50). **This was not a low-end phone**: the only physical device available was a flagship, so a low-end pass is still open. As a guide, the emulator's 4 vCPUs are about 4x slower than the phone for 1.18+ worlds, and a screenful there takes 4.7 s with four workers.
+
+### APK size
+`-O2` against `-Oz` (release APK, NDK r30, stripped, `--gc-sections`): `libseedmap.so` is 1,258,752 bytes (arm64-v8a) and 1,318,824 (x86_64) at `-O2`, and 1,219,816 and 1,245,632 at `-Oz`: 39 KB and 73 KB smaller, but a 26.3 tile takes about 40% longer (182 ms against 127 ms at 4 b/cell, a screenful 877 ms against 756 ms on eight workers). **`-O2` stays.** The libraries are stripped (`file` says so), only `arm64-v8a` and `x86_64` are packaged, and the fork's loot tables, carvers and ore finder are not compiled (see `CMakeLists.txt`). The APK is 12,112,251 bytes.
+
+### Deviations
+- **The pin's "too small to read" fallback is not needed:** pins are sized in dp, not in blocks, so they never shrink when the map is zoomed out. The shapes are used only when there is no sprite.
+- **Mansion is the Totem of Undying and monument the Dark Prismarine** (not Dark Oak Log and Prismarine, which the plan suggested): "Prismarine" and "Sea Lantern" are animated GIFs on the wiki, and the mansion would have looked like the swamp hut. The spawn is the Red Bed. Both ruined portals share one sprite, and the dimension icons are wiki sprites too, so there are no `WikiIcons.Dimension*` vectors.
+- **`SeedMapEngine.biomesIn` and a native function were added** so the legend only lists what the selected version and dimension generate (1.12 has 57 biomes, 1.20 has 53, with different names).
+- **A legend row opens its wiki article** (`SeedMapAction.OpenLegendArticle`), which the plan did not ask for but is the app's point.
+- **`AppGraph` exposes `SeedMapEngine`** so the instrumented village test can ask where a village is.
+- **The dimension chip's label is "End"** (not "The End"), as the plan said.
+
+### Open TODOs
+- A pass on a real low-end phone (see above).
+- The baseline profile was not regenerated: `LegendSheet`, the sheets and `StructureIcons` are not in it. Run `:app:generateBaselineProfile` on a device.
+- `x86_64` (the CI emulator) is proved by CI only.
+- Switching to the Nether or End leaves every structure toggle as it was, so no pins show until the player turns Nether structures on in the filter sheet (the villages and strongholds toggles are overworld only).
+- ViewModel state and the camera are still lost when leaving the tab (from Session 14).
+- The wiki sprites are 16 and 32 px; the cobweb (abandoned camp) is faint on the plate.
