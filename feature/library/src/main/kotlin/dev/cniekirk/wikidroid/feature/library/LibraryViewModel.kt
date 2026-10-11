@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.feature.library
 import androidx.lifecycle.ViewModel
 import dev.cniekirk.wikidroid.core.data.LibraryRepository
 import dev.cniekirk.wikidroid.core.data.SettingsRepository
+import dev.cniekirk.wikidroid.core.domain.library.ClearHistoryUseCase
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -26,6 +27,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 class LibraryViewModel(
     private val library: LibraryRepository,
     private val settings: SettingsRepository,
+    private val clearHistory: ClearHistoryUseCase,
 ) : ViewModel(),
     OrbitContainerHost<LibraryState, LibraryState, LibraryEffect> {
     override val container =
@@ -91,7 +93,7 @@ class LibraryViewModel(
             }
 
             LibraryAction.ClearHistoryConfirmed -> {
-                clearHistory()
+                confirmClearHistory()
             }
         }
     }
@@ -115,15 +117,9 @@ class LibraryViewModel(
             }
         }
 
-    private fun clearHistory() =
+    private fun confirmClearHistory() =
         intent {
-            reduce {
-                state.copy(
-                    isClearHistoryConfirmationVisible = false,
-                    // Undoing a single removal after the whole history was cleared would bring one entry back.
-                    removed = state.removed?.takeUnless { it.tab == LibraryTab.History },
-                )
-            }
-            library.clearHistory()
+            reduce { state.historyCleared() }
+            clearHistory()
         }
 }

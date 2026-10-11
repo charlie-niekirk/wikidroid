@@ -1,11 +1,9 @@
 package dev.cniekirk.wikidroid.feature.settings
 
 import androidx.lifecycle.ViewModel
-import dev.cniekirk.wikidroid.core.common.dataResultOf
-import dev.cniekirk.wikidroid.core.common.fold
-import dev.cniekirk.wikidroid.core.data.ArticleRepository
-import dev.cniekirk.wikidroid.core.data.LibraryRepository
 import dev.cniekirk.wikidroid.core.data.SettingsRepository
+import dev.cniekirk.wikidroid.core.domain.article.ClearArticleCacheUseCase
+import dev.cniekirk.wikidroid.core.domain.library.ClearHistoryUseCase
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -23,8 +21,8 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class SettingsViewModel(
     private val settings: SettingsRepository,
-    private val library: LibraryRepository,
-    private val articles: ArticleRepository,
+    private val clearHistory: ClearHistoryUseCase,
+    private val clearArticleCache: ClearArticleCacheUseCase,
 ) : ViewModel(),
     OrbitContainerHost<SettingsState, SettingsState, Nothing> {
     override val container =
@@ -52,22 +50,10 @@ class SettingsViewModel(
             val target = state.pendingClear ?: return@intent
             reduce { state.copy(pendingClear = null) }
             val outcome =
-                dataResultOf {
-                    when (target) {
-                        ClearTarget.History -> library.clearHistory()
-                        ClearTarget.ArticleCache -> articles.clearCache()
-                    }
+                when (target) {
+                    ClearTarget.History -> clearHistory()
+                    ClearTarget.ArticleCache -> clearArticleCache()
                 }
-            val message =
-                outcome.fold(
-                    onSuccess = {
-                        when (target) {
-                            ClearTarget.History -> SettingsMessage.HistoryCleared
-                            ClearTarget.ArticleCache -> SettingsMessage.CacheCleared
-                        }
-                    },
-                    onFailure = { SettingsMessage.ClearFailed },
-                )
-            reduce { state.copy(message = message) }
+            reduce { state.withClearOutcome(target, outcome) }
         }
 }
