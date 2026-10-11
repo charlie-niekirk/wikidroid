@@ -1,11 +1,8 @@
 package dev.cniekirk.wikidroid.feature.explore
 
 import androidx.lifecycle.ViewModel
-import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.data.CategoryRepository
 import dev.cniekirk.wikidroid.core.model.Category
-import dev.cniekirk.wikidroid.core.model.CategoryMember
-import dev.cniekirk.wikidroid.core.model.Paged
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -14,10 +11,8 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.sync.Mutex
 import org.orbitmvi.orbit.OrbitContainerHost
-import org.orbitmvi.orbit.syntax.Syntax
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
 /**
@@ -42,9 +37,9 @@ class CategoryDetailViewModel(
 
     fun onAction(action: CategoryDetailAction) {
         when (action) {
-            CategoryDetailAction.Retry -> retry()
+            CategoryDetailAction.Retry -> loadFirstBatch()
 
-            CategoryDetailAction.LoadMore -> loadMore()
+            CategoryDetailAction.LoadMore -> loadNextBatch()
 
             // Navigation is the route's job.
             is CategoryDetailAction.OpenArticle,
@@ -54,43 +49,32 @@ class CategoryDetailViewModel(
         }
     }
 
-    private fun retry() =
+    /** Loads the first batch when the screen opens, and again on retry after it failed. */
+    private fun loadFirstBatch() =
         intent {
-            if (state.phase is CategoryPhase.Failed) loadFirstBatch()
+            if (state.phase == CategoryPhase.Loaded || !batchLock.tryLock()) return@intent
+            try {
+                reduce { state.copy(phase = CategoryPhase.Loading) }
+                val result = categories.getMembers(category, continuation = null)
+                reduce { state.withFirstBatch(result) }
+            } finally {
+                batchLock.unlock()
+            }
         }
 
-    private fun loadMore() =
+    private fun loadNextBatch() =
         intent {
-            if (state.phase == CategoryPhase.Loaded) loadNextBatch()
-        }
-
-    private suspend fun Syntax<CategoryDetailState, Nothing>.loadFirstBatch() {
-        if (!batchLock.tryLock()) return
-        try {
-            reduce { state.copy(phase = CategoryPhase.Loading) }
-            when (val result = categories.getMembers(category, continuation = null)) {
-                is Result.Success -> reduce { state.withBatch(result.data).copy(phase = CategoryPhase.Loaded) }
-                is Result.Failure -> reduce { state.copy(phase = CategoryPhase.Failed(result.error)) }
+            if (state.phase != CategoryPhase.Loaded || !batchLock.tryLock()) return@intent
+            try {
+                // Read the token under the lock: a request that waited behind another one must not repeat its batch.
+                val token = state.continuation ?: return@intent
+                reduce { state.copy(isLoadingMore = true, loadMoreFailed = false) }
+                val result = categories.getMembers(category, token)
+                reduce { state.withNextBatch(result) }
+            } finally {
+                batchLock.unlock()
             }
-        } finally {
-            batchLock.unlock()
         }
-    }
-
-    private suspend fun Syntax<CategoryDetailState, Nothing>.loadNextBatch() {
-        if (!batchLock.tryLock()) return
-        try {
-            // Read the token under the lock: a request that waited behind another one must not repeat its batch.
-            val token = state.continuation ?: return
-            reduce { state.copy(isLoadingMore = true, loadMoreFailed = false) }
-            when (val result = categories.getMembers(category, token)) {
-                is Result.Success -> reduce { state.withBatch(result.data).copy(isLoadingMore = false) }
-                is Result.Failure -> reduce { state.copy(isLoadingMore = false, loadMoreFailed = true) }
-            }
-        } finally {
-            batchLock.unlock()
-        }
-    }
 
     @AssistedFactory
     @ManualViewModelAssistedFactoryKey(Factory::class)
@@ -98,15 +82,4 @@ class CategoryDetailViewModel(
     fun interface Factory : ManualViewModelAssistedFactory {
         fun create(title: String): CategoryDetailViewModel
     }
-}
-
-/** Appends [batch] and takes over its continuation token. Repeats of an earlier entry are dropped. */
-private fun CategoryDetailState.withBatch(batch: Paged<CategoryMember>): CategoryDetailState {
-    val newSubcategories = batch.items.filterIsInstance<CategoryMember.Subcategory>().map { it.category }
-    val newPages = batch.items.filterIsInstance<CategoryMember.Page>().map { it.summary }
-    return copy(
-        subcategories = (subcategories + newSubcategories).distinctBy { it.name }.toImmutableList(),
-        pages = (pages + newPages).distinctBy { it.title }.toImmutableList(),
-        continuation = batch.continuation,
-    )
 }
