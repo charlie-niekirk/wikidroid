@@ -17,6 +17,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 13: Seed map, engine API, tiles and ViewModel
 - [x] Session 14: Seed map, map UI and the tab
 - [x] Session 15: Seed map, polish
+- [x] Session 16: ViewModel use cases
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -510,3 +511,25 @@ Decisions: the pool stays at `availableProcessors - 1` (one core is left for the
 - Switching to the Nether or End leaves every structure toggle as it was, so no pins show until the player turns Nether structures on in the filter sheet (the villages and strongholds toggles are overworld only).
 - ViewModel state and the camera are still lost when leaving the tab (from Session 14).
 - The wiki sprites are 16 and 32 px; the cobweb (abandoned camp) is faint on pale biomes, since the sprites are drawn without a background.
+
+## Session 16 notes
+A refactor with no user-visible change. Verified locally: `spotlessApply` (own invocation), then `spotlessCheck detekt testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies lintDebug` pass. `:app:connectedDebugAndroidTest` (19 tests) passes on the `Pixel_10_Pro` AVD (API 37.2, arm64) with `ANDROID_SERIAL` set to the emulator; there is no API 35 image on this machine, so API 35 is proved by CI. The existing ViewModel tests pass with only their constructors changed, which is the evidence that behaviour is unchanged.
+
+What changed:
+- **`:core:domain`** (Android library + Metro, `api` on `:core:data` and `:core:seedmap`), added to the feature convention plugin and to `:app`. Nine use cases, each `@Inject class XxxUseCase { suspend operator fun invoke() }`:
+  - `article`: `ObserveArticleUseCase` (the repository's offline-first flow, recording the visit once the first copy has been handed to the collector, swallowing a failed history write) and `ClearArticleCacheUseCase`.
+  - `library`: `ClearHistoryUseCase`. `search`: `RunSearchUseCase` (saves the recent search, then fetches page 1).
+  - `seedmap`: `FindSpawnUseCase` (null outside the Overworld), `FindStrongholdsUseCase`, `FindStructuresUseCase` (one `async` per type), `GetBiomeLegendUseCase`, `BiomeAtUseCase`, plus the `attempt {}` engine-error guard that was private to the ViewModel.
+  - 23 tests over the `:core:testing` fakes.
+- **ViewModels:** the 11 `Syntax<S, E>` extension helpers are gone. Each load is one intent function that `onCreate` and the retry action call (Explore, CategoryDetail, Article, Search); the seed map's four `collectLatest` collectors keep their work inline so a newer world still cancels it. Detekt's `ForbiddenImport` now rejects `org.orbitmvi.orbit.syntax.Syntax`.
+- **State reducers are members** of the state classes (`ArticleState.withArticle(article, anchor)`, `SearchState.withResults(query, result)`, `SeedMapState.inWorld(...)`, `CategoryDetailState.withNextBatch(result)`, ...), with new plain tests (`ArticleStateTest`, `SearchStateTest`, `SeedMapStateTest`, `CategoryDetailStateTest`). `SeedMapState.spawnQuery`/`strongholdQuery`/`pinQuery` are `internal` properties and `PinQuery` is `internal`.
+- `BiomeLegendEntry` moved from `:feature:seedmap` to `:core:seedmap` so the legend use case can build it.
+
+### Deviations
+- **Pass-through calls stay on the repositories** (agreed scope): settings setters, recent-search edits, bookmarks, the random article, the latest versions and category members have no use case. Explore and CategoryDetail therefore have no use case at all; they only lost their `Syntax` helpers.
+- **Library's "clear history" goes through `ClearHistoryUseCase`, which returns a `Result`:** a failed clear used to throw inside the intent, now it is ignored (Settings shows `ClearFailed` for the same failure).
+- **The anchor from an `ArticleKey` is applied in the same reduce as the first copy of the page** (was a second reduce after the history write). Nothing on screen changes; the screen scrolls once the page is laid out either way.
+- `SearchAction.RetrySuggestions` repeats the collector's three lines rather than share a helper, since sharing would need a `Syntax` receiver or would lose `collectLatest` cancellation.
+
+### Open TODOs
+- None from this session.

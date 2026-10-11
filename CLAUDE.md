@@ -13,7 +13,7 @@ Modules are enabled in `settings.gradle.kts` (commented out until their session 
 ```
 build-logic/convention      included build, plugin ids `wikidroid.*`
 app                         MainActivity, AppGraph (Metro), Nav3 host
-core:model | common | article-parser | network | database | datastore | data
+core:model | common | article-parser | network | database | datastore | data | domain
 core:seedmap                native seed-map engine: cubiomes submodule + JNI + Kotlin API (Sessions 12-15, see seed-map-plan.md); feature:seedmap has the ViewModel and the map UI (the fifth bottom-bar tab)
 core:designsystem | ui | navigation | testing
 feature:explore | search | article | library | settings | seedmap     (never depend on each other; navigate via :core:navigation keys)
@@ -24,6 +24,8 @@ baselineprofile
 - Package root `dev.cniekirk.wikidroid`; app id `dev.cniekirk.wikidroid`; minSdk 29; compileSdk 37.1; targetSdk 37; JDK 21.
 - DI: Metro (compiler plugin, no KSP). Apply `wikidroid.metro` in every module with `@Inject`/`@Contributes*`.
 - MVI: Orbit 12. Stateful wrapper + stateless `XxxScreen(state, onAction)`.
+- ViewModels: one `intent { }` per action; suspend work is a use case or repository call that returns a value, then `reduce { state.withX(value) }` with a member of the state class. No `Syntax<S, E>` helpers (detekt `ForbiddenImport`). See "MVI (Orbit)" in `docs/PLAN.md`.
+- Use cases live in `:core:domain` (`@Inject class XxxUseCase { suspend operator fun invoke() }`), only where there is logic; pass-through calls go straight to the repository.
 - Tests: JUnit 4 only. Robolectric for Compose UI tests on the JVM.
 - Convention plugins: `wikidroid.android.application|library|compose|feature|room|ndk`, `wikidroid.metro`, `wikidroid.jvm.library`, `wikidroid.detekt`, `wikidroid.spotless` (root only).
 - Do NOT apply `org.jetbrains.kotlin.android`: AGP 9 has built-in Kotlin.
@@ -73,6 +75,8 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Article-parser HTML fixtures are in `core/article-parser/src/test/resources/fixtures` (the JVM module can't use `:core:testing`).
 - `:core:testing` depends on `:core:data` (it holds the repository fakes). Fakes are plain classes with scriptable `var` handlers; they carry no Metro annotations, so they never join a graph.
 - Repository implementations are `internal` (`@Inject @ContributesBinding @SingleIn`); feature modules see only the interfaces in `:core:data`.
+- Use cases are concrete classes with no Metro binding and no fakes: ViewModel tests construct them over the repository fakes (`ObserveArticleUseCase(articles, library)`).
+- A load that is also a retry is one intent function called from `onCreate` and from the retry action (an intent may start another). Keep `collectLatest`-driven work inside the collector, or a newer value no longer cancels it.
 - Coil tests: `FakeImageLoaderEngine` + `setSingletonImageLoaderFactory` (there is no `FakeImageLoader` in Coil 3). `PageThumbnail` uses the singleton loader, which the app must register from the graph's `ImageLoader`.
 - Feature screens read ViewModels through `LocalMetroViewModelFactory`, which `MainActivity` provides; a screen test that calls a `Route` needs the same.
 - List/detail panes: register list-like entries with `WikiPanes.list()` and article entries with `WikiPanes.detail()` (`:core:ui`); `ArticleEntryInstaller` registers `ArticleKey` that way (the `:app` placeholder is only a fallback).
