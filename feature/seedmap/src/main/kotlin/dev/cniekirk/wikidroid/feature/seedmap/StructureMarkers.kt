@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
@@ -150,15 +151,25 @@ private fun Path.addShape(
     close()
 }
 
-/** A marker as a small icon, for the filter chips, so the chip is the legend for the map. */
+internal const val MARKER_FALLBACK_TAG = "seed-map-marker-fallback"
+
+/**
+ * A marker as a small icon, for the filter chips and the legend, so the sheet is the legend for the map:
+ * the wiki sprite when there is an [icon], otherwise the coloured shape the map falls back to.
+ */
 @Composable
 internal fun MarkerIcon(
     style: MarkerStyle,
     modifier: Modifier = Modifier,
+    icon: StructureIcon? = null,
     size: Dp = 20.dp,
 ) {
+    if (icon != null) {
+        StructureIconImage(icon, modifier, size)
+        return
+    }
     val path = remember { Path() }
-    Canvas(modifier.size(size)) {
+    Canvas(modifier.size(size).testTag(MARKER_FALLBACK_TAG)) {
         drawMarker(style, center, this.size.minDimension / 2f * 0.62f, path)
     }
 }

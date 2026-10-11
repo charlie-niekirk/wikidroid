@@ -5,20 +5,29 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.center
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
@@ -76,7 +85,24 @@ class SeedMapScreenTest : ComposeTest() {
         setScreen(SeedMapState(seed = 262, version = McVersion.V1_21_1))
 
         composeRule.onNodeWithTag(SEED_FIELD_TAG).assertTextContains("262")
-        composeRule.onNodeWithTag(VERSION_PICKER_TAG).assertTextContains("Java Edition 1.21.1")
+        composeRule.onNodeWithTag(VERSION_CHIP_TAG).assertTextContains("1.21.1")
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("Overworld")
+    }
+
+    @Test
+    fun theSeedFieldSpansTheWidthAndTheChipsSitUnderIt() {
+        setScreen()
+
+        val field = composeRule.onNodeWithTag(SEED_FIELD_TAG).fetchSemanticsNode().boundsInRoot
+        val version = composeRule.onNodeWithTag(VERSION_CHIP_TAG).fetchSemanticsNode().boundsInRoot
+        val dimension = composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).fetchSemanticsNode().boundsInRoot
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+
+        // Nothing shares the field's row, and it runs from one gutter to the other.
+        assertThat(field.width).isGreaterThan(root.width - 2 * 16f * density - 1f)
+        assertThat(version.top).isAtLeast(field.bottom)
+        assertThat(dimension.top).isAtLeast(field.bottom)
+        assertThat(version.right).isAtMost(dimension.left)
     }
 
     @Test
@@ -131,23 +157,364 @@ class SeedMapScreenTest : ComposeTest() {
         composeRule.onNodeWithTag(SEED_FIELD_TAG).assertTextContains("glacier")
     }
 
+    // endregion
+
+    // region version and dimension sheets
+
+    private val density get() = composeRule.density.density
+
     @Test
-    fun theVersionPickerOffersEveryVersionAndSendsTheChoice() {
-        setScreen(SeedMapState(version = McVersion.newest))
+    fun theVersionChipOpensASheetOfEveryVersionNewestFirst() {
+        setScreen(SeedMapState(version = McVersion.V1_21_1))
+        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertDoesNotExist()
 
-        composeRule.onNodeWithTag(VERSION_PICKER_TAG).performClick()
-        composeRule.onNodeWithText("1.12").performScrollTo().performClick()
+        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
 
-        assertThat(userActions).containsExactly(SeedMapAction.SelectVersion(McVersion.V1_12))
+        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertIsDisplayed()
+        val newest = composeRule.onNodeWithTag(versionItemTag(McVersion.newest)).fetchSemanticsNode().boundsInRoot
+        val older = composeRule.onNodeWithTag(versionItemTag(McVersion.V1_21_11)).fetchSemanticsNode().boundsInRoot
+        assertThat(newest.top).isLessThan(older.top)
     }
 
     @Test
-    fun theVersionPickerListsTheOldestVersionToo() {
+    fun theVersionSheetMarksTheCurrentVersion() {
+        setScreen(SeedMapState(version = McVersion.V26_2))
+        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_2)).assertIsSelected()
+        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_3)).assertIsNotSelected()
+    }
+
+    @Test
+    fun choosingAVersionSendsItAndClosesTheSheet() {
+        setScreen(SeedMapState(version = McVersion.newest))
+        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_1)).performClick()
+        composeRule.waitForIdle()
+
+        assertThat(userActions).containsExactly(SeedMapAction.SelectVersion(McVersion.V26_1))
+        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun theVersionSheetReachesTheOldestVersionToo() {
         setScreen()
+        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
 
-        composeRule.onNodeWithTag(VERSION_PICKER_TAG).performClick()
+        composeRule.onNodeWithTag(VERSION_SHEET_TAG).performScrollToNode(hasTestTag(versionItemTag(McVersion.B1_7)))
+        composeRule.onNodeWithTag(versionItemTag(McVersion.B1_7)).performClick()
 
-        composeRule.onNodeWithText("Beta 1.7").assertExists()
+        assertThat(userActions).containsExactly(SeedMapAction.SelectVersion(McVersion.B1_7))
+    }
+
+    @Test
+    fun theDimensionChipOpensASheetOfAllThreeDimensions() {
+        setScreen()
+        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertIsDisplayed()
+        Dimension.entries.forEach { composeRule.onNodeWithTag(dimensionItemTag(it)).assertIsDisplayed() }
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsSelected()
+    }
+
+    @Test
+    fun choosingADimensionSendsItAndClosesTheSheet() {
+        setScreen(SeedMapState(version = McVersion.newest))
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).performClick()
+        composeRule.waitForIdle()
+
+        assertThat(userActions).containsExactly(SeedMapAction.SelectDimension(Dimension.NETHER))
+        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun dimensionsTheVersionLacksAreDisabledAndSayWhy() {
+        setScreen(SeedMapState(version = McVersion.V1_12))
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsEnabled()
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.END)).assertIsEnabled()
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).assertIsNotEnabled()
+        composeRule.onNodeWithText("Java Edition 1.16.1 and newer").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).performClick()
+
+        assertThat(userActions).isEmpty()
+        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun beforeBeta19OnlyTheOverworldCanBePicked() {
+        setScreen(SeedMapState(version = McVersion.B1_7))
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
+
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).assertIsNotEnabled()
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.END)).assertIsNotEnabled()
+        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsEnabled()
+    }
+
+    @Test
+    fun theDimensionChipWearsTheIconOfItsDimension() {
+        var state by mutableStateOf(SeedMapState(dimension = Dimension.OVERWORLD))
+        composeRule.setContent {
+            WikiDroidTheme(dynamicColor = false) {
+                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
+            }
+        }
+        composeRule.onNodeWithTag(dimensionIconTag(Dimension.OVERWORLD), useUnmergedTree = true).assertExists()
+
+        state = state.copy(dimension = Dimension.NETHER)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(dimensionIconTag(Dimension.NETHER), useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag(dimensionIconTag(Dimension.OVERWORLD), useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("Nether")
+
+        state = state.copy(dimension = Dimension.END)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(dimensionIconTag(Dimension.END), useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("End")
+    }
+
+    @Test
+    fun theDimensionSheetShowsTheSameIconsBesideItsEntries() {
+        setScreen(SeedMapState(version = McVersion.newest))
+        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
+
+        Dimension.entries.forEach {
+            composeRule.onAllNodesWithTag(dimensionIconTag(it), useUnmergedTree = true).onLast().assertIsDisplayed()
+        }
+    }
+
+    // endregion
+
+    // region nether
+
+    @Test
+    fun theNetherReadoutAddsTheOverworldPosition() {
+        camera.centerOn(BlockPos(100, -20))
+        setScreen(SeedMapState(dimension = Dimension.NETHER))
+
+        composeRule.onNodeWithTag(CENTER_READOUT_TAG).assertTextEquals("X 100, Z -20\nOverworld X 800, Z -160")
+    }
+
+    @Test
+    fun theOverworldReadoutHasNoSecondLine() {
+        camera.centerOn(BlockPos(100, -20))
+        setScreen(SeedMapState(dimension = Dimension.OVERWORLD))
+
+        composeRule.onNodeWithTag(CENTER_READOUT_TAG).assertTextEquals("X 100, Z -20")
+    }
+
+    @Test
+    fun aNetherSelectionAlsoSaysWhereItIsInTheOverworld() {
+        setScreen(
+            SeedMapState(
+                dimension = Dimension.NETHER,
+                selection = MapSelection.Structure(StructurePos(StructureType.FORTRESS, BlockPos(-12, 40))),
+            ),
+        )
+
+        composeRule.onNodeWithText("Overworld X -96, Z 320", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun changingDimensionKeepsTheViewOnTheSamePlace() {
+        var state by mutableStateOf(SeedMapState(dimension = Dimension.OVERWORLD))
+        camera.centerOn(BlockPos(800, -1600))
+        composeRule.setContent {
+            WikiDroidTheme(dynamicColor = false) {
+                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
+            }
+        }
+
+        state = state.copy(dimension = Dimension.NETHER)
+        composeRule.waitForIdle()
+        assertThat(camera.centerX).isEqualTo(100.0)
+        assertThat(camera.centerZ).isEqualTo(-200.0)
+        assertThat(camera.blocksPerPixel).isEqualTo(0.25f)
+
+        state = state.copy(dimension = Dimension.OVERWORLD)
+        composeRule.waitForIdle()
+        assertThat(camera.centerX).isEqualTo(800.0)
+        assertThat(camera.centerZ).isEqualTo(-1600.0)
+        assertThat(camera.blocksPerPixel).isEqualTo(2f)
+    }
+
+    // endregion
+
+    // region legend
+
+    private val legendState =
+        SeedMapState(
+            version = McVersion.newest,
+            biomeLegend =
+                persistentListOf(
+                    BiomeLegendEntry(id = 21, title = "Jungle", argb = 0xFF537B09.toInt()),
+                    BiomeLegendEntry(id = 1, title = "Plains", argb = 0xFF8DB360.toInt()),
+                    BiomeLegendEntry(id = 4, title = "Forest", argb = 0xFF056621.toInt()),
+                ),
+        )
+
+    private fun scrollLegendTo(tag: String) {
+        composeRule.onNodeWithTag(LEGEND_SHEET_TAG).performScrollToNode(hasTestTag(tag))
+    }
+
+    @Test
+    fun theLegendListsStructuresWithTheirIconsAndBiomesWithTheirColours() {
+        setScreen(legendState)
+
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(LEGEND_SHEET_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(legendStructureTag("World spawn")).assertIsDisplayed()
+        scrollLegendTo(legendStructureTag("Village"))
+        composeRule.onNodeWithTag(legendStructureTag("Village")).assertIsDisplayed()
+        composeRule.onNodeWithTag(structureIconTag(StructureType.VILLAGE.icon()), useUnmergedTree = true).assertExists()
+        scrollLegendTo(legendBiomeTag(1))
+        composeRule.onNodeWithTag(legendBiomeTag(1)).assertIsDisplayed()
+        composeRule.onNodeWithText("Plains").assertIsDisplayed()
+    }
+
+    @Test
+    fun theNetherLegendHasNoSpawnAndOnlyNetherStructures() {
+        setScreen(legendState.copy(dimension = Dimension.NETHER))
+
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(legendStructureTag("Nether Fortress")).assertIsDisplayed()
+        composeRule.onNodeWithTag(legendStructureTag("World spawn")).assertDoesNotExist()
+        composeRule.onNodeWithTag(legendStructureTag("Village")).assertDoesNotExist()
+    }
+
+    @Test
+    fun theLegendSearchNarrowsBothListsIgnoringCase() {
+        setScreen(legendState)
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(LEGEND_SEARCH_TAG).performTextInput("fOrE")
+
+        composeRule.onNodeWithTag(legendBiomeTag(4)).assertIsDisplayed()
+        composeRule.onNodeWithTag(legendBiomeTag(1)).assertDoesNotExist()
+        composeRule.onNodeWithTag(legendStructureTag("Village")).assertDoesNotExist()
+    }
+
+    @Test
+    fun theLegendSearchFindsStructures() {
+        setScreen(legendState)
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(LEGEND_SEARCH_TAG).performTextInput("pyramid")
+
+        composeRule.onNodeWithTag(legendStructureTag("Desert Pyramid")).assertIsDisplayed()
+        composeRule.onNodeWithTag(legendStructureTag("Jungle Pyramid")).assertIsDisplayed()
+        composeRule.onNodeWithTag(legendBiomeTag(1)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aSearchWithNoMatchSaysSo() {
+        setScreen(legendState)
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(LEGEND_SEARCH_TAG).performTextInput("zzzz")
+
+        composeRule.onNodeWithTag(LEGEND_EMPTY_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun aLegendRowOpensItsArticleAndClosesTheSheet() {
+        setScreen(legendState)
+        composeRule.onNodeWithTag(LEGEND_BUTTON_TAG).performClick()
+
+        scrollLegendTo(legendBiomeTag(21))
+        composeRule.onNodeWithTag(legendBiomeTag(21)).performClick()
+        composeRule.waitForIdle()
+
+        assertThat(userActions).containsExactly(SeedMapAction.OpenLegendArticle("Jungle"))
+        composeRule.onNodeWithTag(LEGEND_SHEET_TAG).assertDoesNotExist()
+    }
+
+    // endregion
+
+    // region icons
+
+    @Test
+    fun aFilterChipShowsTheWikiIconOfItsStructure() {
+        setScreen(SeedMapState(version = McVersion.newest))
+
+        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+
+        composeRule.onNodeWithTag(structureIconTag(StructureType.VILLAGE.icon()), useUnmergedTree = true).assertExists()
+        composeRule
+            .onNodeWithTag(structureIconTag(StructureType.TRIAL_CHAMBERS.icon()), useUnmergedTree = true)
+            .assertExists()
+        composeRule.onAllNodesWithTag(MARKER_FALLBACK_TAG, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun theSelectionSheetShowsTheIconBesideTheName() {
+        setScreen(SeedMapState(selection = MapSelection.Structure(village)))
+
+        composeRule
+            .onNodeWithTag(structureIconTag(StructureType.VILLAGE.icon()), useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun theSpawnSelectionShowsTheSpawnIcon() {
+        setScreen(SeedMapState(selection = MapSelection.Spawn(BlockPos(0, 0))))
+
+        composeRule.onNodeWithTag(structureIconTag(SpawnIcon), useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun aBiomeSelectionHasNoStructureIcon() {
+        setScreen(SeedMapState(selection = MapSelection.Biome(BlockPos(5, 6), biomeId = 1)))
+
+        AllStructureIcons.forEach {
+            composeRule.onNodeWithTag(structureIconTag(it), useUnmergedTree = true).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun aMarkerIconFallsBackToTheColouredShapeWhenThereIsNoIcon() {
+        composeRule.setContent {
+            WikiDroidTheme(dynamicColor = false) { MarkerIcon(StructureType.VILLAGE.markerStyle(), icon = null) }
+        }
+
+        composeRule.onNodeWithTag(MARKER_FALLBACK_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun aMarkerIconWithAnIconDrawsTheSprite() {
+        composeRule.setContent {
+            WikiDroidTheme(dynamicColor = false) {
+                MarkerIcon(StructureType.VILLAGE.markerStyle(), icon = StructureType.VILLAGE.icon())
+            }
+        }
+
+        composeRule.onNodeWithTag(structureIconTag(StructureType.VILLAGE.icon())).assertIsDisplayed()
+        composeRule.onNodeWithTag(MARKER_FALLBACK_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun pinsWithSpritesStillHitTestAtTheirCentre() {
+        // Pins are drawn bigger than the old shapes, but taps are matched by distance to the position, so a
+        // tap on the sprite's edge still selects it.
+        setScreen(SeedMapState(pins = persistentListOf(village)))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SEED_MAP_CANVAS_TAG).performTouchInput {
+            click(center + Offset(pinReachPx(density) * 0.8f, 0f))
+        }
+        composeRule.mainClock.advanceTimeBy(DOUBLE_TAP_WINDOW_MILLIS)
+        composeRule.waitForIdle()
+
+        assertThat(userActions).containsExactly(SeedMapAction.SelectStructure(village))
     }
 
     // endregion

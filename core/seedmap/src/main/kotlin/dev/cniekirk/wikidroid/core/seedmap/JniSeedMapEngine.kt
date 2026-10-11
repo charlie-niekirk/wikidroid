@@ -102,6 +102,14 @@ internal class JniSeedMapEngine(
         }
     }
 
+    override suspend fun biomesIn(
+        version: McVersion,
+        dimension: Dimension,
+    ): List<Int> =
+        withContext(dispatcher) {
+            (0..MAX_BIOME_ID).filter { NativeSeedMap.nativeBiomeGenerates(version.nativeId, dimension.nativeId, it) }
+        }
+
     override suspend fun biomeColors(): IntArray =
         (colors ?: withContext(dispatcher) { NativeSeedMap.nativeBiomeColors() }.also { colors = it }).copyOf()
 
@@ -112,6 +120,7 @@ internal class JniSeedMapEngine(
         const val BLOCK_SCALE = 1
         const val NO_BIOME = -1
         const val PAIR = 2
+        const val MAX_BIOME_ID = 255
 
         /** Heights at scales above 1 are in 4-block units. */
         const val QUART_SHIFT = 2

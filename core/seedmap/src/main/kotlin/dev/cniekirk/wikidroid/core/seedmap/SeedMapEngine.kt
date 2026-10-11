@@ -46,6 +46,15 @@ interface SeedMapEngine {
         count: Int = MAX_STRONGHOLDS,
     ): List<BlockPos>
 
+    /**
+     * The ids of the biomes [dimension] of [version] can generate, in ascending order, for the legend.
+     * Empty if the version has no such dimension.
+     */
+    suspend fun biomesIn(
+        version: McVersion,
+        dimension: Dimension,
+    ): List<Int>
+
     /** Cubiomes' biome colour table: 256 opaque `0xAARRGGBB` values indexed by biome id. */
     suspend fun biomeColors(): IntArray
 

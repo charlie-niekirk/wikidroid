@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.feature.seedmap
 import androidx.compose.runtime.saveable.SaverScope
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import org.junit.Test
 
@@ -180,5 +181,52 @@ class MapCameraTest {
         assertThat(restored.centerZ).isEqualTo(-99.0)
         assertThat(restored.blocksPerPixel).isEqualTo(16f)
         assertThat(restored.hasSize).isFalse()
+    }
+
+    @Test
+    fun goingIntoTheNetherDividesTheCentreAndTheScaleByEight() {
+        val camera = camera(centerX = 800.0, centerZ = -1600.0, blocksPerPixel = 16f)
+
+        camera.convertDimension(Dimension.OVERWORLD, Dimension.NETHER)
+
+        assertThat(camera.centerX).isEqualTo(100.0)
+        assertThat(camera.centerZ).isEqualTo(-200.0)
+        assertThat(camera.blocksPerPixel).isEqualTo(2f)
+    }
+
+    @Test
+    fun comingOutOfTheNetherMultipliesThemByEight() {
+        val camera = camera(centerX = 100.0, centerZ = -200.0, blocksPerPixel = 2f)
+
+        camera.convertDimension(Dimension.NETHER, Dimension.OVERWORLD)
+
+        assertThat(camera.centerX).isEqualTo(800.0)
+        assertThat(camera.centerZ).isEqualTo(-1600.0)
+        assertThat(camera.blocksPerPixel).isEqualTo(16f)
+    }
+
+    @Test
+    fun theConvertedScaleStaysWithinTheZoomLimits() {
+        val deep = camera(blocksPerPixel = 1f)
+        deep.convertDimension(Dimension.OVERWORLD, Dimension.NETHER)
+        assertThat(deep.blocksPerPixel).isEqualTo(MapCamera.MIN_BLOCKS_PER_PIXEL)
+
+        val wide = camera(blocksPerPixel = 200f)
+        wide.convertDimension(Dimension.NETHER, Dimension.OVERWORLD)
+        assertThat(wide.blocksPerPixel).isEqualTo(MapCamera.MAX_BLOCKS_PER_PIXEL)
+    }
+
+    @Test
+    fun theEndAndSameDimensionMovesLeaveTheViewAlone() {
+        val camera = camera(centerX = 800.0, centerZ = -1600.0, blocksPerPixel = 16f)
+
+        camera.convertDimension(Dimension.OVERWORLD, Dimension.END)
+        camera.convertDimension(Dimension.END, Dimension.OVERWORLD)
+        camera.convertDimension(Dimension.NETHER, Dimension.END)
+        camera.convertDimension(Dimension.OVERWORLD, Dimension.OVERWORLD)
+
+        assertThat(camera.centerX).isEqualTo(800.0)
+        assertThat(camera.centerZ).isEqualTo(-1600.0)
+        assertThat(camera.blocksPerPixel).isEqualTo(16f)
     }
 }

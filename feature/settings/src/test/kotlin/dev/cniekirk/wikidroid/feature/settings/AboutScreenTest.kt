@@ -2,6 +2,8 @@ package dev.cniekirk.wikidroid.feature.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -88,7 +90,18 @@ class AboutScreenTest : ComposeTest() {
             composeRule.onNodeWithText(library.name).assertIsDisplayed()
         }
         scrollTo("jsoup")
-        composeRule.onNodeWithText("MIT License").assertIsDisplayed()
+        composeRule.onAllNodesWithText("MIT License").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun creditsTheSeedMapEngineAndTheWikiIcons() {
+        setScreen()
+
+        composeRule.onNodeWithText("icons on the seed map", substring = true).assertIsDisplayed()
+        assertThat(OpenSourceLibraries.map { it.url }).containsAtLeast(
+            "https://github.com/Cubitect/cubiomes",
+            "https://github.com/xpple/cubiomes",
+        )
     }
 
     @Test

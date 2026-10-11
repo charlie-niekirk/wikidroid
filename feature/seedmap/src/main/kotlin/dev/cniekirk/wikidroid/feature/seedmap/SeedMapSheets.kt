@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -30,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
 import kotlinx.coroutines.launch
@@ -45,6 +48,7 @@ internal const val FILTER_SHEET_TAG = "seed-map-filter-sheet"
 @Composable
 internal fun SelectionSheet(
     selection: MapSelection,
+    dimension: Dimension,
     onAction: (SeedMapAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -58,13 +62,16 @@ internal fun SelectionSheet(
             modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp).testTag(SELECTION_SHEET_TAG),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                selection.icon()?.let { StructureIconImage(it, size = 40.dp) }
+                Text(
+                    text = selection.wikiTitle ?: stringResource(R.string.seedmap_unknown_biome),
+                    modifier = Modifier.testTag(SELECTION_TITLE_TAG),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            }
             Text(
-                text = selection.wikiTitle ?: stringResource(R.string.seedmap_unknown_biome),
-                modifier = Modifier.testTag(SELECTION_TITLE_TAG),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = stringResource(R.string.seedmap_coordinates, selection.pos.x, selection.pos.z),
+                text = coordinatesText(selection.pos, dimension),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -141,7 +148,7 @@ internal fun StructureFilterSheet(
                         selected = type in state.enabledStructures,
                         onClick = { onAction(SeedMapAction.ToggleStructure(type)) },
                         label = { Text(StructureWikiTitles.titleFor(type)) },
-                        leadingIcon = { MarkerIcon(type.markerStyle()) },
+                        leadingIcon = { MarkerIcon(type.markerStyle(), icon = type.icon()) },
                     )
                 }
             }

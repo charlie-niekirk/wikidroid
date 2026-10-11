@@ -100,4 +100,7 @@ object WikiIcons {
 
     @DrawableRes
     val ContentCopy: Int = R.drawable.ic_content_copy
+
+    @DrawableRes
+    val FormatListBulleted: Int = R.drawable.ic_format_list_bulleted
 }

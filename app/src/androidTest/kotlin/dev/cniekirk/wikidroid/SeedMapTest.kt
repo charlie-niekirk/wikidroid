@@ -2,6 +2,9 @@ package dev.cniekirk.wikidroid
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.center
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasTestTag
@@ -12,13 +15,16 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.seedmap.BlockArea
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
 import dev.cniekirk.wikidroid.core.seedmap.McVersion
+import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.TileKey
 import dev.cniekirk.wikidroid.core.seedmap.TileScale
 import kotlinx.coroutines.flow.first
@@ -57,7 +63,7 @@ class SeedMapTest {
         openSeedMap()
 
         composeRule.tab("Seed map").assertIsDisplayed()
-        composeRule.onNodeWithText("Java Edition 26.3").assertIsDisplayed()
+        composeRule.onNodeWithTag("seed-map-version-chip").assertTextContains("26.3")
         val tile = waitForTile(originTile(MapWorld(262, McVersion.newest)))
 
         val pixels =
@@ -74,11 +80,84 @@ class SeedMapTest {
         openSeedMap()
         waitForTile(originTile(MapWorld(262, McVersion.newest)))
 
-        composeRule.onNodeWithTag("seed-map-version").performClick()
-        composeRule.onNodeWithText("1.12").performScrollTo().performClick()
+        composeRule.onNodeWithTag("seed-map-version-chip").performClick()
+        composeRule.onNodeWithTag("seed-map-version-sheet").performScrollToNode(hasTestTag("seed-map-version-V1_12"))
+        composeRule.onNodeWithTag("seed-map-version-V1_12").performClick()
 
         waitForTile(originTile(MapWorld(262, McVersion.V1_12)))
-        composeRule.onNodeWithText("Java Edition 1.12").assertIsDisplayed()
+        composeRule.onNodeWithTag("seed-map-version-chip").assertTextContains("1.12")
+        composeRule.onNodeWithTag("seed-map-version-sheet").assertDoesNotExist()
+    }
+
+    @Test
+    fun theDimensionChipSwitchesToTheNetherAndRendersItsMap() {
+        openSeedMap()
+        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+
+        composeRule.onNodeWithTag("seed-map-dimension-chip").performClick()
+        composeRule.onNodeWithTag("seed-map-dimension-NETHER").performClick()
+
+        // Entering the Nether keeps the centre (the origin) and zooms in 8x, so the finest tile is on screen.
+        val nether = MapWorld(262, McVersion.newest, Dimension.NETHER)
+        val tile = waitForTile(TileKey(nether, TileScale.CELL_4, 0, 0))
+        val pixels =
+            IntArray(tile.width * tile.height).also {
+                tile.getPixels(it, 0, tile.width, 0, 0, tile.width, tile.height)
+            }
+        assertThat(pixels.toSet()).isNotEmpty()
+        composeRule.onNodeWithTag("seed-map-dimension-chip").assertTextContains("Nether")
+        composeRule.onNodeWithTag("seed-map-center").assertTextContains("Overworld X 0, Z 0", substring = true)
+    }
+
+    @Test
+    fun anOlderVersionCannotPickTheNether() {
+        openSeedMap()
+        composeRule.onNodeWithTag("seed-map-version-chip").performClick()
+        composeRule.onNodeWithTag("seed-map-version-sheet").performScrollToNode(hasTestTag("seed-map-version-V1_12"))
+        composeRule.onNodeWithTag("seed-map-version-V1_12").performClick()
+
+        composeRule.onNodeWithTag("seed-map-dimension-chip").performClick()
+
+        composeRule.onNodeWithTag("seed-map-dimension-NETHER").assertIsNotEnabled()
+    }
+
+    @Test
+    fun theLegendListsBiomesAndFindsThemBySearch() {
+        openSeedMap()
+
+        composeRule.onNodeWithTag("seed-map-legend").performClick()
+        composeRule.onNodeWithTag("seed-map-legend-search").performTextInput("cherry")
+
+        composeRule.onNodeWithText("Cherry Grove").assertIsDisplayed()
+        composeRule.onNodeWithText("Plains").assertDoesNotExist()
+    }
+
+    @Test
+    fun aVillagePinStillOpensItsSheetAndArticle() {
+        openSeedMap()
+        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+        val village =
+            runBlocking {
+                testApp.graph.seedMapEngine
+                    .structuresIn(
+                        MapWorld(262, McVersion.newest),
+                        StructureType.VILLAGE,
+                        BlockArea(-2048, -2048, 2048, 2048),
+                    ).first()
+            }
+
+        composeRule.onNodeWithContentDescription("Go to coordinates").performClick()
+        composeRule.onNodeWithTag("seed-map-goto-x").performTextInput(village.pos.x.toString())
+        composeRule.onNodeWithTag("seed-map-goto-z").performTextInput(village.pos.z.toString())
+        composeRule.onNodeWithTag("seed-map-goto-confirm").performClick()
+        // The pin search waits for the view to settle before it answers.
+        Thread.sleep(PIN_SETTLE_MILLIS)
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { click(center) }
+
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-selection"), UI_TIMEOUT_MILLIS)
+        composeRule.onNodeWithTag("seed-map-selection-title").assertTextEquals("Village")
+        composeRule.onNodeWithTag("seed-map-open-article").performClick()
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("article-list"), UI_TIMEOUT_MILLIS)
     }
 
     @Test
@@ -156,6 +235,8 @@ class SeedMapTest {
         composeRule.openTab("Seed map")
 
         composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-canvas"), UI_TIMEOUT_MILLIS)
-        composeRule.onNodeWithText("Java Edition 26.3").assertIsDisplayed()
+        composeRule.onNodeWithTag("seed-map-version-chip").assertTextContains("26.3")
     }
 }
+
+private const val PIN_SETTLE_MILLIS = 1_500L

@@ -13,11 +13,11 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -42,29 +44,35 @@ import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.McVersion
 import dev.cniekirk.wikidroid.core.seedmap.SeedParser
 import kotlinx.collections.immutable.ImmutableList
 
 internal const val SEED_FIELD_TAG = "seed-map-seed-field"
-internal const val VERSION_PICKER_TAG = "seed-map-version"
+internal const val VERSION_CHIP_TAG = "seed-map-version-chip"
+internal const val DIMENSION_CHIP_TAG = "seed-map-dimension-chip"
 internal const val SAVED_SEEDS_TAG = "seed-map-saved-seeds"
 internal const val FILTER_BUTTON_TAG = "seed-map-filter"
+internal const val LEGEND_BUTTON_TAG = "seed-map-legend"
 internal const val RANDOM_SEED_TAG = "seed-map-random"
 
-/** Newest first, which is the order a player looking for a current seed wants. */
-private val VersionsNewestFirst: List<McVersion> = McVersion.entries.reversed()
-
 /**
- * The seed field and the version picker. The text lives in a [TextFieldState] here, per the Search
- * screen's gotcha, and is only sent when submitted. When the seed changes from outside (a saved seed, the
- * random button) the field shows the new number; text that already parses to the current seed is left alone,
- * so a seed typed as words is not replaced by its hash.
+ * The seed field across the full width, with the version and dimension chips under it. The chips show
+ * their current value and ask the screen to open their sheets ([onVersionClick], [onDimensionClick]).
+ *
+ * The text lives in a [TextFieldState] here, per the Search screen's gotcha, and is only sent when
+ * submitted. When the seed changes from outside (a saved seed, the random button) the field shows the new
+ * number; text that already parses to the current seed is left alone, so a seed typed as words is not
+ * replaced by its hash.
  */
 @Composable
 internal fun SeedControls(
     seed: Long,
     version: McVersion,
+    dimension: Dimension,
+    onVersionClick: () -> Unit,
+    onDimensionClick: () -> Unit,
     onAction: (SeedMapAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -77,10 +85,10 @@ internal fun SeedControls(
         if (typed.isEmpty() || SeedParser.parse(typed) != seed) text.setTextAndPlaceCursorAtEnd(seed.toString())
     }
 
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             state = text,
-            modifier = Modifier.weight(1f).testTag(SEED_FIELD_TAG),
+            modifier = Modifier.fillMaxWidth().testTag(SEED_FIELD_TAG),
             label = { Text(stringResource(R.string.seedmap_seed_label)) },
             trailingIcon = {
                 WikiIconButton(
@@ -102,42 +110,24 @@ internal fun SeedControls(
                     onAction(SeedMapAction.SubmitSeed(text.text.toString()))
                 },
         )
-        VersionPicker(
-            selected = version,
-            onSelect = { onAction(SeedMapAction.SelectVersion(it)) },
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun VersionPicker(
-    selected: McVersion,
-    onSelect: (McVersion) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.testTag(VERSION_PICKER_TAG)) {
-            Text(stringResource(R.string.seedmap_version_button, selected.label))
-            WikiIcon(icon = WikiIcons.ExpandMore, contentDescription = null)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            VersionsNewestFirst.forEach { version ->
-                DropdownMenuItem(
-                    text = { Text(version.label) },
-                    onClick = {
-                        expanded = false
-                        onSelect(version)
-                    },
-                    trailingIcon =
-                        if (version == selected) {
-                            { WikiIcon(icon = WikiIcons.Check, contentDescription = null) }
-                        } else {
-                            null
-                        },
-                )
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val versionDescription = stringResource(R.string.seedmap_version_chip_description, version.label)
+            AssistChip(
+                onClick = onVersionClick,
+                label = { Text(version.label) },
+                modifier = Modifier.testTag(VERSION_CHIP_TAG).semantics { contentDescription = versionDescription },
+                trailingIcon = { WikiIcon(icon = WikiIcons.ExpandMore, contentDescription = null) },
+            )
+            val dimensionDescription =
+                stringResource(R.string.seedmap_dimension_chip_description, stringResource(dimension.labelRes()))
+            AssistChip(
+                onClick = onDimensionClick,
+                label = { Text(stringResource(dimension.labelRes())) },
+                modifier =
+                    Modifier.testTag(DIMENSION_CHIP_TAG).semantics { contentDescription = dimensionDescription },
+                leadingIcon = { DimensionIcon(dimension) },
+                trailingIcon = { WikiIcon(icon = WikiIcons.ExpandMore, contentDescription = null) },
+            )
         }
     }
 }
@@ -222,6 +212,19 @@ private fun SavedSeedItem(
                 onClick = onRemove,
             )
         },
+    )
+}
+
+@Composable
+internal fun LegendButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    WikiIconButton(
+        icon = WikiIcons.FormatListBulleted,
+        contentDescription = stringResource(R.string.seedmap_legend_open),
+        onClick = onClick,
+        modifier = modifier.testTag(LEGEND_BUTTON_TAG),
     )
 }
 

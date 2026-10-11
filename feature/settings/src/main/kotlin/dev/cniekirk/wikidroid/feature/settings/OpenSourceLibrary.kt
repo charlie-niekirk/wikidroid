@@ -28,5 +28,7 @@ val OpenSourceLibraries: ImmutableList<OpenSourceLibrary> =
         OpenSourceLibrary("OkHttp", APACHE_2, "https://github.com/square/okhttp"),
         OpenSourceLibrary("Coil", APACHE_2, "https://github.com/coil-kt/coil"),
         OpenSourceLibrary("jsoup", "MIT License", "https://github.com/jhy/jsoup"),
+        OpenSourceLibrary("cubiomes (Cubitect)", "MIT License", "https://github.com/Cubitect/cubiomes"),
+        OpenSourceLibrary("cubiomes (xpple fork)", "MIT License", "https://github.com/xpple/cubiomes"),
         OpenSourceLibrary("Material Icons", APACHE_2, "https://fonts.google.com/icons"),
     )

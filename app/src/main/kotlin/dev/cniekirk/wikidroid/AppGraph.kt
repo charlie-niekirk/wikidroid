@@ -11,6 +11,7 @@ import dev.cniekirk.wikidroid.core.data.SettingsRepository
 import dev.cniekirk.wikidroid.core.data.WikiInfoRepository
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.network.WikiBaseUrl
+import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import dev.cniekirk.wikidroid.core.seedmap.TileCache
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
@@ -46,6 +47,9 @@ interface AppGraph : ViewModelGraph {
 
     /** Resolves the seed map engine and renderer too, and the `Application` the cache sizes itself from. */
     val tileCache: TileCache
+
+    /** Lets instrumented tests ask the real engine where a structure is. */
+    val seedMapEngine: SeedMapEngine
 
     @DependencyGraph.Factory
     fun interface Factory {

@@ -810,6 +810,117 @@ class SeedMapViewModelTest {
 
     // endregion
 
+    // region dimensions and the legend
+
+    @Test
+    fun `falls back to the overworld when an older version has no End`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.SelectDimension(Dimension.END))
+
+                act(SeedMapAction.SelectVersion(McVersion.B1_7))
+
+                assertThat(state.dimension).isEqualTo(Dimension.OVERWORLD)
+                assertThat(state.version).isEqualTo(McVersion.B1_7)
+            }
+        }
+
+    @Test
+    fun `switching dimension drops the old pins and selection`() =
+        runTest {
+            engine.structuresHandler = { _, type, _ -> listOf(pin(type, 5, 5)) }
+            onMap {
+                act(SeedMapAction.ViewportChanged(viewport()))
+                settle()
+                act(SeedMapAction.SelectStructure(pin(StructureType.VILLAGE, 5, 5)))
+                assertThat(state.pins).isNotEmpty()
+
+                act(SeedMapAction.SelectDimension(Dimension.NETHER))
+
+                assertThat(state.pins).isEmpty()
+                assertThat(state.selection).isNull()
+                assertThat(state.spawn).isNull()
+            }
+        }
+
+    @Test
+    fun `lists the biomes of the world for the legend, by wiki title with their colours`() =
+        runTest {
+            engine.biomesHandler = { _, _ -> listOf(21, 1, 4) }
+            engine.colors = IntArray(256) { 0xFF000000.toInt() or it }
+
+            onMap {
+                assertThat(state.biomeLegend)
+                    .containsExactly(
+                        BiomeLegendEntry(4, "Forest", 0xFF000000.toInt() or 4),
+                        BiomeLegendEntry(21, "Jungle", 0xFF000000.toInt() or 21),
+                        BiomeLegendEntry(1, "Plains", 0xFF000000.toInt() or 1),
+                    ).inOrder()
+            }
+        }
+
+    @Test
+    fun `the legend follows the version and the dimension`() =
+        runTest {
+            engine.biomesHandler = { version, dimension ->
+                when {
+                    dimension == Dimension.NETHER -> listOf(8)
+                    version == McVersion.V1_12 -> listOf(1)
+                    else -> listOf(1, 4)
+                }
+            }
+
+            onMap {
+                assertThat(state.biomeLegend.map { it.id }).containsExactly(4, 1)
+
+                act(SeedMapAction.SelectVersion(McVersion.V1_12))
+                assertThat(state.biomeLegend.map { it.id }).containsExactly(1)
+
+                act(SeedMapAction.SelectVersion(McVersion.newest))
+                act(SeedMapAction.SelectDimension(Dimension.NETHER))
+                assertThat(state.biomeLegend.map { it.title }).containsExactly("Nether Wastes")
+            }
+        }
+
+    @Test
+    fun `a legend that arrives for an earlier world is discarded`() =
+        runTest {
+            val slow = CompletableDeferred<List<Int>>()
+            engine.biomesHandler = { version, _ -> if (version == McVersion.V1_12) slow.await() else listOf(4) }
+
+            onMap {
+                act(SeedMapAction.SelectVersion(McVersion.V1_12))
+                act(SeedMapAction.SelectVersion(McVersion.newest))
+                slow.complete(listOf(1))
+                runCurrent()
+
+                assertThat(state.biomeLegend.map { it.id }).containsExactly(4)
+            }
+        }
+
+    @Test
+    fun `a failing biome lookup leaves the legend empty rather than crashing`() =
+        runTest {
+            engine.biomesHandler = { _, _ -> error("boom") }
+
+            onMap { assertThat(state.biomeLegend).isEmpty() }
+        }
+
+    @Test
+    fun `a legend row opens its article without touching the selection`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.SelectStructure(pin(StructureType.VILLAGE, 1, 1)))
+
+                act(SeedMapAction.OpenLegendArticle("Jungle"))
+
+                expectEffect(SeedMapEffect.OpenArticle("Jungle"))
+                assertThat(state.selection).isNotNull()
+            }
+        }
+
+    // endregion
+
     private suspend fun suspendForever(): Nothing {
         CompletableDeferred<Nothing>().await()
     }
