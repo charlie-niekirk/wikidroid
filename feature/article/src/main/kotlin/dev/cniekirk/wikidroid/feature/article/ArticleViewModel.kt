@@ -2,11 +2,9 @@ package dev.cniekirk.wikidroid.feature.article
 
 import androidx.lifecycle.ViewModel
 import dev.cniekirk.wikidroid.core.common.Result
-import dev.cniekirk.wikidroid.core.common.dataResultOf
-import dev.cniekirk.wikidroid.core.data.ArticleRepository
 import dev.cniekirk.wikidroid.core.data.LibraryRepository
 import dev.cniekirk.wikidroid.core.data.SettingsRepository
-import dev.cniekirk.wikidroid.core.model.Article
+import dev.cniekirk.wikidroid.core.domain.article.ObserveArticleUseCase
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -15,7 +13,6 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
-import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import org.orbitmvi.orbit.OrbitContainerHost
-import org.orbitmvi.orbit.syntax.Syntax
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
 /**
@@ -41,7 +37,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 class ArticleViewModel(
     @Assisted title: String,
     @Assisted private val anchor: String?,
-    private val articles: ArticleRepository,
+    private val observeArticle: ObserveArticleUseCase,
     private val library: LibraryRepository,
     private val settings: SettingsRepository,
 ) : ViewModel(),
@@ -56,6 +52,7 @@ class ArticleViewModel(
 
     override val container =
         orbitContainer<ArticleState, Nothing>(ArticleState(title = requestedTitle)) {
+            load()
             coroutineScope {
                 launch {
                     settings.preferences
@@ -70,49 +67,24 @@ class ArticleViewModel(
                         .flatMapLatest { library.isBookmarked(it) }
                         .collect { bookmarked -> reduce { state.copy(isBookmarked = bookmarked) } }
                 }
-                launch { load() }
             }
         }
 
     fun onAction(action: ArticleAction) {
         when (action) {
-            ArticleAction.Retry -> {
-                retry()
-            }
+            ArticleAction.Retry -> load(onlyAfterFailure = true)
 
-            ArticleAction.ToggleBookmark -> {
-                toggleBookmark()
-            }
+            ArticleAction.ToggleBookmark -> toggleBookmark()
 
-            is ArticleAction.ToggleSection -> {
-                intent { reduce { state.toggleSection(action.index) } }
-            }
+            is ArticleAction.ToggleSection -> intent { reduce { state.toggleSection(action.index) } }
 
-            ArticleAction.ShowToc -> {
-                intent {
-                    reduce {
-                        if (state.article ==
-                            null
-                        ) {
-                            state
-                        } else {
-                            state.copy(isTocVisible = true)
-                        }
-                    }
-                }
-            }
+            ArticleAction.ShowToc -> intent { reduce { state.showToc() } }
 
-            ArticleAction.HideToc -> {
-                intent { reduce { state.copy(isTocVisible = false) } }
-            }
+            ArticleAction.HideToc -> intent { reduce { state.copy(isTocVisible = false) } }
 
-            is ArticleAction.GoToAnchor -> {
-                intent { reduce { state.goToAnchor(action.anchor) } }
-            }
+            is ArticleAction.GoToAnchor -> intent { reduce { state.goToAnchor(action.anchor) } }
 
-            ArticleAction.AnchorHandled -> {
-                intent { reduce { state.copy(pendingAnchor = null) } }
-            }
+            ArticleAction.AnchorHandled -> intent { reduce { state.copy(pendingAnchor = null) } }
 
             // Navigation, sharing and the browser are the route's job.
             is ArticleAction.OpenLink,
@@ -120,15 +92,33 @@ class ArticleViewModel(
             ArticleAction.OpenOnWiki,
             ArticleAction.Share,
             ArticleAction.Back,
-            -> {
-                // Nothing to do here.
-            }
+            -> Unit
         }
     }
 
-    private fun retry() =
+    /** Loads the page when the screen opens, and again on retry after it failed. */
+    private fun load(onlyAfterFailure: Boolean = false) =
         intent {
-            if (state.phase is ArticlePhase.Failed) load()
+            if (onlyAfterFailure && state.phase !is ArticlePhase.Failed) return@intent
+            if (!loadLock.tryLock()) return@intent
+            try {
+                reduce { state.copy(phase = ArticlePhase.Loading) }
+                observeArticle(requestedTitle).collect { result ->
+                    when (result) {
+                        is Result.Success -> {
+                            // The anchor is for the page as it first appears, not for a refreshed copy.
+                            reduce { state.withArticle(result.data, anchor.takeIf { state.article == null }) }
+                            shownTitle.value = result.data.title
+                        }
+
+                        is Result.Failure -> {
+                            reduce { state.withLoadFailure(result.error) }
+                        }
+                    }
+                }
+            } finally {
+                loadLock.unlock()
+            }
         }
 
     private fun toggleBookmark() =
@@ -141,49 +131,6 @@ class ArticleViewModel(
             }
         }
 
-    private suspend fun Syntax<ArticleState, Nothing>.load() {
-        if (!loadLock.tryLock()) return
-        try {
-            reduce { state.copy(phase = ArticlePhase.Loading) }
-            var firstArticle = true
-            articles.getArticle(requestedTitle).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        show(result.data, isFirst = firstArticle)
-                        firstArticle = false
-                    }
-
-                    // Once a page is on screen a failed refresh must not replace it.
-                    is Result.Failure -> {
-                        reduce {
-                            if (state.article !=
-                                null
-                            ) {
-                                state
-                            } else {
-                                state.copy(phase = ArticlePhase.Failed(result.error))
-                            }
-                        }
-                    }
-                }
-            }
-        } finally {
-            loadLock.unlock()
-        }
-    }
-
-    private suspend fun Syntax<ArticleState, Nothing>.show(
-        article: Article,
-        isFirst: Boolean,
-    ) {
-        reduce { state.withArticle(article) }
-        shownTitle.value = article.title
-        if (!isFirst) return
-        // A history write that fails must not take the page down with it.
-        dataResultOf { library.recordVisit(article.toSummary()) }
-        if (anchor != null) reduce { state.goToAnchor(anchor) }
-    }
-
     @AssistedFactory
     @ManualViewModelAssistedFactoryKey
     @ContributesIntoMap(AppScope::class, binding = binding<ManualViewModelAssistedFactory>())
@@ -193,35 +140,4 @@ class ArticleViewModel(
             @Assisted anchor: String?,
         ): ArticleViewModel
     }
-}
-
-/**
- * Shows [article]. Sections fold by default, so every headed section the reader has not seen before starts
- * folded; on a refreshed copy the reader's own choices for the sections they already had are kept.
- */
-private fun ArticleState.withArticle(article: Article): ArticleState {
-    val alreadyKnown = this.article?.sections?.size ?: 0
-    val added = article.sections.indices.filter { it >= alreadyKnown && article.sections[it].heading != null }
-    return copy(
-        phase = ArticlePhase.Loaded(article),
-        collapsedSections = (collapsedSections + added).toImmutableSet(),
-    )
-}
-
-private fun ArticleState.toggleSection(index: Int): ArticleState {
-    val section = article?.sections?.getOrNull(index)
-    // The lead has no heading to tap, and a section that doesn't exist can't fold.
-    if (section?.heading == null) return this
-    val folded = if (index in collapsedSections) collapsedSections - index else collapsedSections + index
-    return copy(collapsedSections = folded.toImmutableSet())
-}
-
-/** Unfolds the section holding [anchor] and asks the screen to scroll there. An unknown anchor is ignored. */
-private fun ArticleState.goToAnchor(anchor: String): ArticleState {
-    val location = article?.locate(anchor) ?: return this
-    return copy(
-        collapsedSections = (collapsedSections - location.sectionIndex).toImmutableSet(),
-        pendingAnchor = location.anchor,
-        isTocVisible = false,
-    )
 }
