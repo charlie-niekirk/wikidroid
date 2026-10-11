@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.feature.search
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.common.Result
+import dev.cniekirk.wikidroid.core.domain.search.RunSearchUseCase
 import dev.cniekirk.wikidroid.core.model.ArticleSummary
 import dev.cniekirk.wikidroid.core.model.Paged
 import dev.cniekirk.wikidroid.core.testing.MainDispatcherRule
@@ -30,7 +31,7 @@ class SearchViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeSearchRepository()
-    private val viewModel = SearchViewModel(repository)
+    private val viewModel = SearchViewModel(repository, RunSearchUseCase(repository))
 
     private val state get() = viewModel.container.stateFlow.value
 

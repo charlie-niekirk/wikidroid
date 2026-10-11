@@ -1,9 +1,8 @@
 package dev.cniekirk.wikidroid.feature.search
 
 import androidx.lifecycle.ViewModel
-import dev.cniekirk.wikidroid.core.common.Result
-import dev.cniekirk.wikidroid.core.common.fold
 import dev.cniekirk.wikidroid.core.data.SearchRepository
+import dev.cniekirk.wikidroid.core.domain.search.RunSearchUseCase
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import org.orbitmvi.orbit.OrbitContainerHost
-import org.orbitmvi.orbit.syntax.Syntax
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
 /**
@@ -36,6 +34,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class SearchViewModel(
     private val repository: SearchRepository,
+    private val runSearchUseCase: RunSearchUseCase,
 ) : ViewModel(),
     OrbitContainerHost<SearchState, SearchState, SearchEffect> {
     private val queries = MutableStateFlow("")
@@ -56,7 +55,12 @@ class SearchViewModel(
                         .debounce(AUTOCOMPLETE_DEBOUNCE_MILLIS)
                         .map { it.trim() }
                         .distinctUntilChanged()
-                        .collectLatest { query -> suggest(query) }
+                        .collectLatest { query ->
+                            reduce { state.awaitingSuggestions(query) }
+                            if (query.isEmpty()) return@collectLatest
+                            val result = repository.autocomplete(query)
+                            reduce { state.withSuggestions(query, result) }
+                        }
                 }
             }
         }
@@ -64,13 +68,13 @@ class SearchViewModel(
     fun onAction(action: SearchAction) {
         when (action) {
             is SearchAction.QueryChanged -> queryChanged(action.query)
-            SearchAction.Submit -> submit()
-            is SearchAction.SelectRecent -> selectRecent(action.query)
+            SearchAction.Submit -> intent { runSearch(state.query.trim()) }
+            is SearchAction.SelectRecent -> runSearch(action.query, replaceQuery = true)
             is SearchAction.RemoveRecent -> intent { repository.removeRecentSearch(action.query) }
             SearchAction.ClearRecents -> intent { repository.clearRecentSearches() }
             is SearchAction.SuggestionClicked -> suggestionClicked(action.title)
             is SearchAction.ResultClicked -> intent { postSideEffect(SearchEffect.OpenArticle(action.title)) }
-            SearchAction.RetrySuggestions -> intent { suggest(state.query.trim()) }
+            SearchAction.RetrySuggestions -> retrySuggestions()
             SearchAction.RetryResults -> retryResults()
             SearchAction.LoadMore -> loadMore()
         }
@@ -78,28 +82,29 @@ class SearchViewModel(
 
     private fun queryChanged(query: String) =
         intent {
-            reduce {
-                if (query == state.query) {
-                    state
-                } else {
-                    state.copy(
-                        query = query,
-                        // Editing a submitted query leaves its results behind.
-                        results = ResultsState.Idle,
-                        suggestions = if (query.isBlank()) SuggestionsState.Idle else state.suggestions,
-                    )
-                }
-            }
+            reduce { state.withQuery(query) }
             queries.value = query
         }
 
-    private fun submit() = intent { runSearch(state.query.trim()) }
-
-    private fun selectRecent(query: String) =
+    private fun retrySuggestions() =
         intent {
-            reduce { state.copy(query = query) }
-            runSearch(query)
+            val query = state.query.trim()
+            reduce { state.awaitingSuggestions(query) }
+            if (query.isEmpty()) return@intent
+            val result = repository.autocomplete(query)
+            reduce { state.withSuggestions(query, result) }
         }
+
+    /** Runs a full-text search for [query]; [replaceQuery] also puts it in the search field's state. */
+    private fun runSearch(
+        query: String,
+        replaceQuery: Boolean = false,
+    ) = intent {
+        if (query.isEmpty()) return@intent
+        reduce { state.searching(query, replaceQuery) }
+        val result = runSearchUseCase(query)
+        reduce { state.withResults(query, result) }
+    }
 
     private fun suggestionClicked(title: String) =
         intent {
@@ -120,112 +125,15 @@ class SearchViewModel(
                 // Read the token under the lock: a request that waited behind another one must not repeat its page.
                 val current = state.results as? ResultsState.Loaded ?: return@intent
                 val token = current.continuation ?: return@intent
-                reduce {
-                    state.withLoaded(
-                        current.query,
-                        token,
-                    ) { it.copy(isLoadingMore = true, loadMoreFailed = false) }
-                }
-                when (val result = repository.search(current.query, token)) {
-                    is Result.Success -> {
-                        reduce {
-                            state.withLoaded(current.query, token) {
-                                it.copy(
-                                    items =
-                                        (it.items + result.data.items)
-                                            .distinctBy { page ->
-                                                page.title
-                                            }.toImmutableList(),
-                                    continuation = result.data.continuation,
-                                    isLoadingMore = false,
-                                )
-                            }
-                        }
-                    }
-
-                    is Result.Failure -> {
-                        reduce {
-                            state.withLoaded(
-                                current.query,
-                                token,
-                            ) { it.copy(isLoadingMore = false, loadMoreFailed = true) }
-                        }
-                    }
-                }
+                reduce { state.loadingMore(current.query, token) }
+                val result = repository.search(current.query, token)
+                reduce { state.withNextPage(current.query, token, result) }
             } finally {
                 pageLock.unlock()
             }
         }
 
-    private suspend fun Syntax<SearchState, SearchEffect>.suggest(query: String) {
-        if (query.isEmpty()) {
-            reduce { state.copy(suggestions = SuggestionsState.Idle) }
-            return
-        }
-        // Keep showing the previous suggestions while the next ones load, rather than flashing a spinner.
-        reduce {
-            if (state.suggestions is SuggestionsState.Loaded) {
-                state
-            } else {
-                state.copy(
-                    suggestions = SuggestionsState.Loading,
-                )
-            }
-        }
-        val result = repository.autocomplete(query)
-        reduce {
-            if (state.query.trim() != query) {
-                // The user typed on while this was loading.
-                state
-            } else {
-                state.copy(
-                    suggestions =
-                        result.fold(
-                            onSuccess = { SuggestionsState.Loaded(it.toImmutableList()) },
-                            onFailure = { SuggestionsState.Failed(it) },
-                        ),
-                )
-            }
-        }
-    }
-
-    private suspend fun Syntax<SearchState, SearchEffect>.runSearch(query: String) {
-        if (query.isEmpty()) return
-        reduce { state.copy(results = ResultsState.Loading(query)) }
-        repository.saveRecentSearch(query)
-        val result = repository.search(query, continuation = null)
-        reduce {
-            val current = state.results
-            if (current !is ResultsState.Loading || current.query != query) {
-                // Edited or resubmitted while this was loading.
-                state
-            } else {
-                state.copy(
-                    results =
-                        result.fold(
-                            onSuccess = { ResultsState.Loaded(query, it.items, it.continuation) },
-                            onFailure = { ResultsState.Failed(query, it) },
-                        ),
-                )
-            }
-        }
-    }
-
     private companion object {
         const val AUTOCOMPLETE_DEBOUNCE_MILLIS = 250L
-    }
-}
-
-/** Applies [transform] only if the results are still the page of [query] that is waiting on [token]. */
-private inline fun SearchState.withLoaded(
-    query: String,
-    token: String?,
-    transform: (ResultsState.Loaded) -> ResultsState.Loaded,
-): SearchState {
-    val current = results
-    return if (current is ResultsState.Loaded && current.query == query && current.continuation == token) {
-        copy(results = transform(current))
-    } else {
-        this
     }
 }
