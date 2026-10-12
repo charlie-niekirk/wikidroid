@@ -11,6 +11,7 @@ import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.TILE_CELLS
 import dev.cniekirk.wikidroid.core.seedmap.TileKey
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** A structure search the engine was asked for. */
 data class StructureRequest(
@@ -21,7 +22,8 @@ data class StructureRequest(
 
 /**
  * Answers from the handlers, which tests replace to script results; every request is recorded. By default
- * the world is empty: spawn at the origin, plains everywhere, no structures.
+ * the world is empty: spawn at the origin, plains everywhere, no structures. The request lists are
+ * thread-safe because tiles and structure searches are requested from several workers at once.
  */
 class FakeSeedMapEngine : SeedMapEngine {
     var spawnHandler: suspend (MapWorld) -> BlockPos = { BlockPos(0, 0) }
@@ -36,11 +38,11 @@ class FakeSeedMapEngine : SeedMapEngine {
     var biomesHandler: suspend (McVersion, Dimension) -> List<Int> = { _, _ -> listOf(PLAINS) }
     var colors: IntArray = IntArray(PALETTE_SIZE) { OPAQUE_BLACK }
 
-    val spawnRequests = mutableListOf<MapWorld>()
-    val biomeRequests = mutableListOf<Triple<MapWorld, Int, Int>>()
-    val tileRequests = mutableListOf<TileKey>()
-    val structureRequests = mutableListOf<StructureRequest>()
-    val strongholdRequests = mutableListOf<Pair<MapWorld, Int>>()
+    val spawnRequests: MutableList<MapWorld> = CopyOnWriteArrayList()
+    val biomeRequests: MutableList<Triple<MapWorld, Int, Int>> = CopyOnWriteArrayList()
+    val tileRequests: MutableList<TileKey> = CopyOnWriteArrayList()
+    val structureRequests: MutableList<StructureRequest> = CopyOnWriteArrayList()
+    val strongholdRequests: MutableList<Pair<MapWorld, Int>> = CopyOnWriteArrayList()
 
     override suspend fun spawn(world: MapWorld): BlockPos {
         spawnRequests += world
