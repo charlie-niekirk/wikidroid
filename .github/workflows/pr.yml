@@ -163,12 +163,21 @@ jobs:
           echo "$table"
           { echo "table<<EOF"; echo "$table"; echo "EOF"; } >> "$GITHUB_OUTPUT"
           exit $failed
+      # Unzipped uploads (archive: false) ignore `name` and use the file name, so name the file instead.
+      - name: Stage APK
+        id: stage
+        run: |
+          file="wikidroid-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || format('run{0}', github.run_number) }}-${{ steps.apk.outputs.sha }}.apk"
+          mkdir -p "$RUNNER_TEMP/apk"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/apk/$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "path=$RUNNER_TEMP/apk/$file" >> "$GITHUB_OUTPUT"
       - name: Upload APK
         id: upload
         uses: actions/upload-artifact@v7
         with:
-          name: wikidroid-release-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || format('run{0}', github.run_number) }}
-          path: app/build/outputs/apk/release/app-release.apk
+          path: ${{ steps.stage.outputs.path }}
+          archive: false
           retention-days: 14
           if-no-files-found: error
       # Fork and Dependabot PRs get a read-only token, so they cannot comment.
@@ -183,7 +192,7 @@ jobs:
           message: |
             ### Release APK
 
-            [Download `app-release.apk`](${{ steps.upload.outputs.artifact-url }}) (needs a GitHub login; the link opens the workflow artifact)
+            [Download `${{ steps.stage.outputs.file }}`](${{ steps.upload.outputs.artifact-url }}) (needs a GitHub login)
 
             | | |
             |---|---|
