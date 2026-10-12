@@ -2,6 +2,8 @@ package dev.cniekirk.wikidroid.feature.explore
 
 import androidx.compose.runtime.Immutable
 import dev.cniekirk.wikidroid.core.common.DataError
+import dev.cniekirk.wikidroid.core.common.Result
+import dev.cniekirk.wikidroid.core.common.fold
 import dev.cniekirk.wikidroid.core.model.Category
 import dev.cniekirk.wikidroid.core.model.LatestVersions
 import kotlinx.collections.immutable.ImmutableList
@@ -11,7 +13,10 @@ data class ExploreState(
     val versions: VersionsState = VersionsState.Loading,
     val isLoadingRandom: Boolean = false,
     val categories: ImmutableList<Category> = ExploreCategories,
-)
+) {
+    fun withVersions(result: Result<LatestVersions, DataError>): ExploreState =
+        copy(versions = result.fold(onSuccess = VersionsState::Loaded, onFailure = VersionsState::Failed))
+}
 
 @Immutable
 sealed interface VersionsState {

@@ -1,6 +1,8 @@
 package dev.cniekirk.wikidroid.feature.settings
 
 import androidx.compose.runtime.Immutable
+import dev.cniekirk.wikidroid.core.common.DataError
+import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.model.Edition
 import dev.cniekirk.wikidroid.core.model.ThemeMode
 import dev.cniekirk.wikidroid.core.model.UserPreferences
@@ -20,7 +22,21 @@ data class SettingsState(
     val preferences: UserPreferences? = null,
     val pendingClear: ClearTarget? = null,
     val message: SettingsMessage? = null,
-)
+) {
+    /** The snackbar message for clearing [target], which ended with [outcome]. */
+    fun withClearOutcome(
+        target: ClearTarget,
+        outcome: Result<Unit, DataError>,
+    ): SettingsState {
+        val message =
+            when {
+                outcome is Result.Failure -> SettingsMessage.ClearFailed
+                target == ClearTarget.History -> SettingsMessage.HistoryCleared
+                else -> SettingsMessage.CacheCleared
+            }
+        return copy(message = message)
+    }
+}
 
 sealed interface SettingsAction {
     data class SetThemeMode(

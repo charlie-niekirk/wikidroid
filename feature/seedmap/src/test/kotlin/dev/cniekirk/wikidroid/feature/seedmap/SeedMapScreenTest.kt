@@ -36,6 +36,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.McVersion

@@ -10,7 +10,6 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import org.orbitmvi.orbit.OrbitContainerHost
-import org.orbitmvi.orbit.syntax.Syntax
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
 @Inject
@@ -25,7 +24,7 @@ class ExploreViewModel(
 
     fun onAction(action: ExploreAction) {
         when (action) {
-            ExploreAction.RetryVersions -> retryVersions()
+            ExploreAction.RetryVersions -> loadVersions()
 
             ExploreAction.OpenRandomArticle -> openRandomArticle()
 
@@ -34,10 +33,12 @@ class ExploreViewModel(
         }
     }
 
-    private fun retryVersions() =
+    /** Loads the versions when the screen opens, and again on retry. */
+    private fun loadVersions() =
         intent {
             reduce { state.copy(versions = VersionsState.Loading) }
-            loadVersions()
+            val result = wikiInfo.latestVersions()
+            reduce { state.withVersions(result) }
         }
 
     private fun openRandomArticle() =
@@ -50,11 +51,4 @@ class ExploreViewModel(
                 .onFailure { postSideEffect(ExploreEffect.RandomArticleFailed) }
             reduce { state.copy(isLoadingRandom = false) }
         }
-
-    private suspend fun Syntax<ExploreState, ExploreEffect>.loadVersions() {
-        wikiInfo
-            .latestVersions()
-            .onSuccess { versions -> reduce { state.copy(versions = VersionsState.Loaded(versions)) } }
-            .onFailure { error -> reduce { state.copy(versions = VersionsState.Failed(error)) } }
-    }
 }

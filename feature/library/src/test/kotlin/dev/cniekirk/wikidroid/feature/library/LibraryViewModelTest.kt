@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.library
 
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.domain.library.ClearHistoryUseCase
 import dev.cniekirk.wikidroid.core.model.ArticleSummary
 import dev.cniekirk.wikidroid.core.testing.MainDispatcherRule
 import dev.cniekirk.wikidroid.core.testing.fake.FakeLibraryRepository
@@ -20,7 +21,7 @@ class LibraryViewModelTest {
 
     private val library = FakeLibraryRepository()
     private val settings = FakeSettingsRepository()
-    private val viewModel = LibraryViewModel(library, settings)
+    private val viewModel = LibraryViewModel(library, settings, ClearHistoryUseCase(library))
 
     private val state get() = viewModel.container.stateFlow.value
 

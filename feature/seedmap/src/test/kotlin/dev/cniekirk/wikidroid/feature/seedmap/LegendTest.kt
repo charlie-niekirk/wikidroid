@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
 import dev.cniekirk.wikidroid.core.seedmap.McVersion

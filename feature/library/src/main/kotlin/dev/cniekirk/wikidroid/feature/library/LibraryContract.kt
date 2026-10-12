@@ -25,7 +25,15 @@ data class LibraryState(
     val saveHistory: Boolean = true,
     val removed: RemovedEntry? = null,
     val isClearHistoryConfirmationVisible: Boolean = false,
-)
+) {
+    /** Closes the confirmation once the whole history is going. */
+    fun historyCleared(): LibraryState =
+        copy(
+            isClearHistoryConfirmationVisible = false,
+            // Undoing a single removal after the whole history was cleared would bring one entry back.
+            removed = removed?.takeUnless { it.tab == LibraryTab.History },
+        )
+}
 
 sealed interface LibraryAction {
     data class SelectTab(

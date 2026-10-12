@@ -1,7 +1,13 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.domain.seedmap.BiomeAtUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindSpawnUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindStrongholdsUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindStructuresUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.GetBiomeLegendUseCase
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
@@ -32,7 +38,15 @@ class SeedMapViewModelTest {
 
     private val engine = FakeSeedMapEngine()
     private val seeds = FakeSeedRepository()
-    private val viewModel = SeedMapViewModel(engine, seeds)
+    private val viewModel =
+        SeedMapViewModel(
+            seeds,
+            FindSpawnUseCase(engine),
+            FindStrongholdsUseCase(engine),
+            FindStructuresUseCase(engine),
+            GetBiomeLegendUseCase(engine),
+            BiomeAtUseCase(engine),
+        )
 
     private val state get() = viewModel.container.stateFlow.value
 

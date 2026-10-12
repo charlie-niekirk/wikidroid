@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.data.ArticleRepository
+import dev.cniekirk.wikidroid.core.domain.article.ClearArticleCacheUseCase
+import dev.cniekirk.wikidroid.core.domain.library.ClearHistoryUseCase
 import dev.cniekirk.wikidroid.core.model.Article
 import dev.cniekirk.wikidroid.core.model.ArticleSummary
 import dev.cniekirk.wikidroid.core.model.Edition
@@ -39,7 +41,8 @@ class SettingsViewModelTest {
     private val library = FakeLibraryRepository()
     private val articles = FakeArticleRepository()
 
-    private fun viewModel(articles: ArticleRepository = this.articles) = SettingsViewModel(settings, library, articles)
+    private fun viewModel(articles: ArticleRepository = this.articles) =
+        SettingsViewModel(settings, ClearHistoryUseCase(library), ClearArticleCacheUseCase(articles))
 
     private suspend fun TestScope.inSettings(
         viewModel: SettingsViewModel = viewModel(),
@@ -77,7 +80,12 @@ class SettingsViewModelTest {
         runTest {
             val saved =
                 UserPreferences(themeMode = ThemeMode.Dark, textScale = 1.2f, preferredEdition = Edition.Bedrock)
-            val viewModel = SettingsViewModel(FakeSettingsRepository(saved), library, articles)
+            val viewModel =
+                SettingsViewModel(
+                    FakeSettingsRepository(saved),
+                    ClearHistoryUseCase(library),
+                    ClearArticleCacheUseCase(articles),
+                )
 
             inSettings(viewModel) { state ->
                 assertThat(state().preferences).isEqualTo(saved)

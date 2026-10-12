@@ -1,6 +1,11 @@
 # Layered on top of the detekt defaults (buildUponDefaultConfig = true).
 
 style:
+  ForbiddenImport:
+    active: true
+    forbiddenImports:
+      - value: 'org.orbitmvi.orbit.syntax.Syntax'
+        reason: 'Write each intent as one `intent { }` block that calls use cases; no `Syntax<S, E>` helpers.'
   MagicNumber:
     ignoreAnnotated:
       - 'Composable'

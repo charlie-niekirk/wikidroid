@@ -2,7 +2,9 @@ package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.compose.runtime.Immutable
 import dev.cniekirk.wikidroid.core.model.SavedSeed
+import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.BiomeWikiTitles
+import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
@@ -14,6 +16,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 
 /** What a tap on the map picked, for the bottom sheet. */
 sealed interface MapSelection {
@@ -45,15 +49,6 @@ sealed interface MapSelection {
 
 private const val SPAWN_WIKI_TITLE = "World spawn"
 
-/** One row of the legend's biome list: the biome, the wiki article it opens and the colour the map paints it. */
-@Immutable
-data class BiomeLegendEntry(
-    val id: Int,
-    val title: String,
-    /** `0xAARRGGBB`, as in the tiles. */
-    val argb: Int,
-)
-
 /**
  * The seed map screen. Tiles are not part of the state: the canvas pulls them from the tile cache as it
  * draws. [pins] holds the region-based structures around [viewport] and [strongholds] the strongholds,
@@ -80,6 +75,136 @@ data class SeedMapState(
 
     /** Whether this seed in this version is already in the saved list. */
     val isSaved: Boolean get() = savedSeeds.any { it.seed == seed && it.version == version.label }
+
+    /** The world to find the spawn of, or null when the dimension has none. */
+    internal val spawnQuery: MapWorld? get() = world.takeIf { it.dimension == Dimension.OVERWORLD }
+
+    /** The world to find strongholds in, or null when they are toggled off or do not exist there. */
+    internal val strongholdQuery: MapWorld?
+        get() =
+            world.takeIf { StructureType.STRONGHOLD in enabledStructures && StructureType.STRONGHOLD.isAvailableIn(it) }
+
+    /** Structures the current toggles and view ask for; equal queries are not searched twice. */
+    internal val pinQuery: PinQuery
+        get() {
+            val world = world
+            val types = enabledStructures.filter { it.isRegionBased && it.isAvailableIn(world) }.toSet()
+            val area = viewport?.let(::pinSearchArea)
+            return PinQuery(world, types, area, hidden = viewport != null && area == null)
+        }
+
+    /** The same state in another world; everything that belongs to the old world is dropped. */
+    fun inWorld(
+        seed: Long = this.seed,
+        version: McVersion = this.version,
+        dimension: Dimension = this.dimension,
+    ): SeedMapState =
+        if (seed == this.seed && version == this.version && dimension == this.dimension) {
+            this
+        } else {
+            copy(
+                seed = seed,
+                version = version,
+                dimension = dimension,
+                spawn = null,
+                pins = persistentListOf(),
+                strongholds = persistentListOf(),
+                pinsHidden = false,
+                selection = null,
+            )
+        }
+
+    /**
+     * [version] (and [seed]). The Nether and End are missing from older versions; fall back to the Overworld
+     * rather than hold an impossible world.
+     */
+    fun withVersion(
+        version: McVersion,
+        seed: Long = this.seed,
+    ): SeedMapState =
+        inWorld(
+            seed = seed,
+            version = version,
+            dimension = dimension.takeIf { version.supports(it) } ?: Dimension.OVERWORLD,
+        )
+
+    /** [dimension], if this version has it. */
+    fun withDimension(dimension: Dimension): SeedMapState =
+        if (version.supports(dimension)) inWorld(dimension = dimension) else this
+
+    fun toggled(type: StructureType): SeedMapState =
+        if (type in enabledStructures) {
+            copy(
+                enabledStructures = (enabledStructures - type).toImmutableSet(),
+                pins = pins.filterNot { it.type == type }.toImmutableList(),
+                strongholds = if (type == StructureType.STRONGHOLD) persistentListOf() else strongholds,
+                selection = selection?.takeUnless { it is MapSelection.Structure && it.structure.type == type },
+            )
+        } else {
+            copy(enabledStructures = (enabledStructures + type).toImmutableSet())
+        }
+
+    /** The spawn found for [world] (null: there is none), unless the map has moved to another world since. */
+    fun withSpawn(
+        world: MapWorld?,
+        spawn: BlockPos?,
+    ): SeedMapState = if (world == null || world == this.world) copy(spawn = spawn) else this
+
+    /**
+     * The strongholds found for [world] (null: they are off or don't exist there), unless the world changed
+     * or strongholds were switched off while they were found.
+     */
+    fun withStrongholds(
+        world: MapWorld?,
+        found: List<BlockPos>,
+    ): SeedMapState =
+        when {
+            world == null -> {
+                copy(strongholds = persistentListOf())
+            }
+
+            world == this.world && StructureType.STRONGHOLD in enabledStructures -> {
+                copy(
+                    strongholds = found.toImmutableList(),
+                )
+            }
+
+            else -> {
+                this
+            }
+        }
+
+    /** The legend for [version] and [dimension], unless another one was picked while it loaded. */
+    fun withLegend(
+        version: McVersion,
+        dimension: Dimension,
+        legend: List<BiomeLegendEntry>,
+    ): SeedMapState =
+        if (version == this.version &&
+            dimension == this.dimension
+        ) {
+            copy(biomeLegend = legend.toImmutableList())
+        } else {
+            this
+        }
+
+    /** The pins [query] found, unless the world changed. A type switched off while it ran does not come back. */
+    internal fun withPins(
+        query: PinQuery,
+        found: List<StructurePos>,
+    ): SeedMapState =
+        when {
+            query.world != world -> this
+            query.searchArea == null -> copy(pins = persistentListOf(), pinsHidden = query.hidden)
+            else -> copy(pins = found.filter { it.type in enabledStructures }.toImmutableList(), pinsHidden = false)
+        }
+
+    /** Selects the biome tapped at [pos], unless the world changed while it was looked up. */
+    fun withBiomeSelection(
+        world: MapWorld,
+        pos: BlockPos,
+        biome: Int,
+    ): SeedMapState = if (world == this.world) copy(selection = MapSelection.Biome(pos, biome)) else this
 
     companion object {
         const val DEFAULT_SEED = 262L
@@ -164,4 +289,16 @@ sealed interface SeedMapEffect {
     data class CenterOn(
         val pos: BlockPos,
     ) : SeedMapEffect
+}
+
+/** Structures the current toggles and view ask for; equal queries are not searched twice. */
+internal data class PinQuery(
+    val world: MapWorld,
+    val types: Set<StructureType>,
+    val area: BlockArea?,
+    /** The view is too wide to search. */
+    val hidden: Boolean,
+) {
+    /** Where to search, or null when there is nothing to search: the view is too wide, unknown or nothing is on. */
+    val searchArea: BlockArea? get() = area.takeUnless { hidden || types.isEmpty() }
 }

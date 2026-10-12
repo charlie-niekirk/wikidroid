@@ -117,6 +117,7 @@ core:network                Retrofit MediaWikiApi (api.php) + WikiRestApi (rest.
 core:database               Room 3: bookmarks, history, cached_articles (HTML + revid), DAOs, BundledSQLiteDriver
 core:datastore              JSON DataStore<UserPreferences> with a kotlinx-serialization Serializer, plus recent searches
 core:data                   Repositories: Search, Article (offline-first), Category, Library, Settings, WikiInfo
+core:domain                 Use cases: the business logic view models call (open an article, run a search, clear data, seed map queries)
 core:designsystem           M3 theme (dynamic color + Minecraft-inspired fallback scheme), typography, Symbols icons, base components
 core:ui                     Shared composables: ArticleCard, PageThumbnail (pixel-art aware), Loading/Error/Empty states, AttributionFooter
 core:navigation             @Serializable NavKeys, Navigator (top-level back stacks), EntryProviderInstaller contract
@@ -138,7 +139,7 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 - **`wikidroid.android.library`:** library defaults, `unitTests.isIncludeAndroidResources = true` for Robolectric, and the shared test dependencies (junit, truth, turbine, coroutines-test).
 - **`wikidroid.android.compose`:** the compose compiler plugin, `compose-bom-alpha`, ui-tooling for debug, and Robolectric and compose ui-test-junit4 for tests. Used by both app and library.
 - **`wikidroid.android.feature`:** applies the library, compose, metro and serialization plugins.
-  - Adds `core:designsystem`, `ui`, `navigation`, `model` and `data`.
+  - Adds `core:designsystem`, `ui`, `navigation`, `model`, `data` and `domain`.
   - Adds orbit-viewmodel/compose, `metrox-viewmodel-compose`, lifecycle and Nav3 runtime.
   - Adds `core:testing` and orbit-test for tests.
 - **`wikidroid.android.room`:** room3 plugin, KSP, schema dir `$projectDir/schemas`, room3 and sqlite-bundled deps.
@@ -175,6 +176,12 @@ Feature modules never depend on each other. They navigate only through NavKeys i
 - Every ViewModel is `OrbitContainerHost<UiState, UiState, SideEffect>` with an `@Immutable` state using immutable collections.
 - Screens are split into a stateful wrapper that calls `collectAsState()` / `collectSideEffect`, and a stateless `XxxScreen(state, onAction)` used by previews and tests.
 - Pagination is manual: the MediaWiki `continue` token is stored in state, with `intent { loadMore() }` guarded against concurrent loads. Paging 3 isn't used because manual paging is simpler with Orbit.
+- ViewModel shape (from Session 16):
+  - Each action is one `intent { }` block. There are no `Syntax<S, E>` helper extensions; detekt's `ForbiddenImport` rejects `org.orbitmvi.orbit.syntax.Syntax`.
+  - Suspend work is a use case (`:core:domain`) or repository call that returns a value; the intent then reduces with a member function of the state class (`state.withResults(query, result)`). Staleness checks live in those members.
+  - A load that is also a retry (or runs on open) is one intent function that `onCreate` and the retry action both call; its guard (`Mutex.tryLock`, a phase check) is inside it.
+  - Work driven by a `collectLatest` pipeline in `onCreate` stays in the collector, so a newer value still cancels it.
+- Use cases (`:core:domain`) exist only where there is logic: `@Inject class XxxUseCase(...) { suspend operator fun invoke(...) }`, concrete and unscoped. Pass-through calls (a setter, a repository flow) go straight to the repository. Tests build use cases over the `:core:testing` fakes.
 
 ### Network (`:core:network`)
 - `Json { ignoreUnknownKeys = true; explicitNulls = false }`.
@@ -243,7 +250,8 @@ Feature modules never depend on each other. They navigate only through NavKeys i
   - Network tests with MockWebServer and JSON fixtures.
   - Repository tests with fake DAOs and services.
   - DataStore serializer round-trip tests.
-  - ViewModel tests with orbit-test (`testWithExternalState`).
+  - ViewModel tests with orbit-test (`testWithExternalState`), with real use cases over the repository fakes.
+  - Use case tests in `:core:domain`, and plain tests of the state classes' reducer members.
   - Room DAO tests under Robolectric with an in-memory DB and `BundledSQLiteDriver`.
 - **Robolectric Compose UI tests:** in each feature's `src/test`, using `createComposeRule()` against the stateless screens (loading, error, content, interactions).
 - **Instrumented (emulator):** in `app/src/androidTest`.
@@ -401,6 +409,11 @@ Each session is one branch and one pull request into `main`. The user's request 
   - README covering setup, the Android Studio version requirement, secret generation (`keytool` + `base64`), attribution and the disclaimer.
   - Run `actionlint` locally if available.
 - **Done when:** a test PR shows all three jobs green, the sticky comment carries the APK artifact link, and a fork-style run with no secrets still produces a debug-signed APK.
+
+### Session 16: ViewModel use cases
+- **Status:** done (refactor; no user-visible change).
+- **Build:** add `:core:domain` with the use cases; rewrite every `Syntax<S, E>` helper as an intent or a use case call; move the pure state helpers into the state classes; forbid the `Syntax` import in detekt.
+- **Done when:** green, `lintDebug` and `:app:checkMainMetroHiddenDependencies` pass, the existing ViewModel tests pass with only their constructors changed, and `:app:connectedDebugAndroidTest` passes.
 
 ## Final end-to-end verification (after Session 11)
 - `./gradlew spotlessCheck detekt lintDebug testDebugUnitTest assembleRelease` passes, and so does `:app:connectedDebugAndroidTest`.

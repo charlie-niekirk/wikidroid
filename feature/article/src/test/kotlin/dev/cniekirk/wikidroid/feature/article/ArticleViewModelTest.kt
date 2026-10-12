@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.data.ArticleRepository
+import dev.cniekirk.wikidroid.core.domain.article.ObserveArticleUseCase
 import dev.cniekirk.wikidroid.core.model.Article
 import dev.cniekirk.wikidroid.core.model.ArticleSection
 import dev.cniekirk.wikidroid.core.model.UserPreferences
@@ -55,7 +56,7 @@ class ArticleViewModelTest {
         articles: ArticleRepository,
         title: String = "Diamond",
         anchor: String? = null,
-    ) = ArticleViewModel(title, anchor, articles, library, settings)
+    ) = ArticleViewModel(title, anchor, ObserveArticleUseCase(articles, library), library, settings)
 
     private suspend fun TestScope.article(
         viewModel: ArticleViewModel,
