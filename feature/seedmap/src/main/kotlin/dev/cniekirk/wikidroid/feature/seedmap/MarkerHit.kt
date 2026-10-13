@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.compose.ui.geometry.Offset
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
@@ -12,12 +13,16 @@ internal sealed interface MarkerHit {
     ) : MarkerHit
 
     data object Spawn : MarkerHit
+
+    data class Poi(
+        val point: PointOfInterest,
+    ) : MarkerHit
 }
 
 /**
- * The marker nearest [tap] within [radiusPx], or null if the tap was on bare map. Spawn, strongholds
- * and structure pins compete on distance alone; on a tie the one listed first (spawn, then strongholds,
- * then pins) wins.
+ * The marker nearest [tap] within [radiusPx], or null if the tap was on bare map. The player's points, spawn,
+ * strongholds and structure pins compete on distance alone; on a tie the one listed first (points, spawn,
+ * strongholds, then pins) wins, so a base marked on a village is the base.
  */
 internal fun hitTest(
     camera: MapCamera,
@@ -26,6 +31,7 @@ internal fun hitTest(
     strongholds: List<BlockPos>,
     pins: List<StructurePos>,
     radiusPx: Float,
+    pois: List<PointOfInterest> = emptyList(),
 ): MarkerHit? {
     var best: MarkerHit? = null
     var bestDistance = radiusPx * radiusPx
@@ -43,6 +49,7 @@ internal fun hitTest(
         }
     }
 
+    pois.forEach { point -> consider(point.pos) { MarkerHit.Poi(point) } }
     spawn?.let { consider(it) { MarkerHit.Spawn } }
     strongholds.forEach { pos -> consider(pos) { MarkerHit.Structure(StructurePos(StructureType.STRONGHOLD, pos)) } }
     pins.forEach { pin -> consider(pin.pos) { MarkerHit.Structure(pin) } }

@@ -20,6 +20,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 16: ViewModel use cases
 - [x] Session 17: Immersive seed map
 - [x] Session 18: Seed search that finds structures
+- [x] Session 19: Slime chunks and points of interest
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -605,3 +606,48 @@ What changed:
 
 ### Open TODOs
 - None from this session.
+
+## Session 19 notes
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- `:core:database:connectedDebugAndroidTest` (the 1 to 2 migration) and `:app:connectedDebugAndroidTest` (21 tests, including the new long-press flow) pass on the `Pixel_10_Pro` AVD (API 37). There is no API 35 AVD locally; CI runs the reference one.
+- Checked by hand on the emulator (seed 262):
+  - Slime chunks line up with the chunk grid and fade in with zoom. In the Nether the switch is disabled and says "Overworld only".
+  - A long press opens the editor at that block. A saved point draws with its name and survives the app being reinstalled and relaunched.
+  - The Points chip lists the point and going to it opens its sheet.
+  - A portal at X -70, Z 2 says it links to X -9, Z 0 in the Nether. "Add linked portal" shows the snackbar, and the Nether map has the pin there.
+
+What changed:
+- **Slime chunks:**
+  - `SlimeChunks` (`:core:seedmap`) is cubiomes' `isSlimeChunk` in Kotlin, with Java's LCG written out so a region allocates nothing. `SlimeChunksTest` holds windows of chunks printed by a host `clang -fwrapv` build of cubiomes, including the world border and `Int` overflow.
+  - `SlimeLayer` builds one 32 by 32 bitmap per 512-block region on first sight (LRU of 512, about 2 MB). It draws them unsmoothed, with region edges rounded like `TileDrawer`'s, between the tiles and the grid. It fades in from 4 to 8 px per chunk, so it is full strength at the default zoom.
+  - The layers sheet has a Slime chunks switch (`SetSlimeChunks`), disabled outside the Overworld. A tapped biome in a slime chunk says "Slime chunk (chunk x, z)".
+- **Points of interest, storage:**
+  - `PointOfInterest`, `PoiCategory` (base, Nether portal, farm, mine, landmark, other; each has a default colour) and `PoiColor` (8) are in `:core:model`. The dimension is stored by name, like `SavedSeed.version`.
+  - `points_of_interest` is a new table, and `WikiDatabase` is version 2 with an auto-migration.
+  - `PointOfInterestRepository` has `observe`, `save`, `delete` and `restore`. `save` inserts when the id is 0 and updates otherwise. `restore` re-inserts with the old id, for undo.
+  - `FakePointOfInterestRepository` is in `:core:testing`.
+- **Points of interest, map:**
+  - A long press on bare map opens the editor there (`StartAddPoi`); on a point it edits that point. `detectLongPressOnly` gives up on a second finger, on a move past slop, or on a move another detector consumed, so pinches never add points.
+  - Points draw on top of everything: a round marker in their colour with the kind's glyph, and the name under it at 4 blocks per pixel or closer. Labels are measured once per list of points. A tap selects a point (`SelectPoi`), and points win ties in the hit test.
+  - The editor sheet has a name (blank shows the kind's name), the kind, a colour (follows the kind until picked), X, Y (optional), Z and a note. Save waits for whole-number coordinates.
+  - The point's sheet shows Y, the note, Copy (with Y it copies `x y z`), Edit and Delete. Delete has an Undo snackbar. A portal also says where it leads (`BlockPos.linkedPortal`: Overworld to Nether rounds down, Nether to Overworld is kept inside the border), and "Add linked portal" saves that point in the other dimension.
+  - A Points chip opens the list of this seed and dimension's points, with each one's distance from the middle of the map. The seed search offers "Go to <point>" rows after the "Nearest" rows.
+  - Points belong to a seed and dimension, not a version, so `inWorld` keeps them when only the version changes.
+- New Material Icons glyphs (home, portal, eco, diamond, landscape, location, bubble chart, edit), hand-written like the others.
+- The snackbars (nearest missing, deleted point, linked portal) moved to `SeedMapSnackbars.kt`.
+- CI's instrumented job also runs `:core:database:connectedDebugAndroidTest`.
+
+### Deviations
+- **Action names:** the point actions are named `...Poi` (`SelectPoi`, `SavePoi` and so on), because `SelectPoint` already means a tap on bare map.
+- **`restore`:** the repository gained a `restore` call, which the plan did not list. Undo after a delete needs the row back with its id, and `save` with an id only updates.
+- **Linked portal closes the sheet:** adding a linked portal also closes the point's sheet. Found on the emulator: the modal sheet covered the snackbar.
+- **No per-frame cap on slime regions:** they are built on the draw thread with no limit per frame. The worst first view is about 340 regions (350k LCG steps, a few milliseconds, once).
+- **New points default to Base.**
+- **Suppressions:** `SeedMapState` and `SeedMapViewModel` suppress `TooManyFunctions`, with a reason: one member or intent per state change.
+
+### Open TODOs
+- Adding a linked portal twice saves two points; nothing removes duplicates.
+- The grid and slime switches are still not persisted (open since Session 17).
+- Point markers, like structure markers, are not exposed to accessibility services (open since Session 14). The list sheet and search rows are accessible.
+

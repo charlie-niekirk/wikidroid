@@ -1,7 +1,9 @@
 package dev.cniekirk.wikidroid.core.database
 
 import androidx.room3.Dao
+import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Update
 import androidx.room3.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -86,4 +88,24 @@ interface CachedArticleDao {
         """,
     )
     suspend fun pruneUnbookmarked(keep: Int)
+}
+
+@Dao
+interface PointOfInterestDao {
+    /** The points of one seed in one dimension, oldest first, so a new point lands at the end of a list. */
+    @Query("SELECT * FROM points_of_interest WHERE seed = :seed AND dimension = :dimension ORDER BY createdAt, id")
+    fun observe(
+        seed: Long,
+        dimension: String,
+    ): Flow<List<PointOfInterestEntity>>
+
+    /** Returns the new row's id. */
+    @Insert
+    suspend fun insert(point: PointOfInterestEntity): Long
+
+    @Update
+    suspend fun update(point: PointOfInterestEntity)
+
+    @Query("DELETE FROM points_of_interest WHERE id = :id")
+    suspend fun delete(id: Long)
 }

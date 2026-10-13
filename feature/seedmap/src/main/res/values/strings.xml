@@ -32,6 +32,10 @@
     <string name="seedmap_layers_grid_summary">Chunk and region lines</string>
     <string name="seedmap_layers_crosshair">Crosshair</string>
     <string name="seedmap_layers_crosshair_summary">Marks the point the coordinates name</string>
+    <string name="seedmap_layers_slime">Slime chunks</string>
+    <string name="seedmap_layers_slime_summary">Chunks where slimes spawn below Y 40</string>
+    <string name="seedmap_slime_overworld_only">Overworld only</string>
+    <string name="seedmap_slime_chunk">Slime chunk (chunk %1$d, %2$d)</string>
     <string name="seedmap_dimension_overworld">Overworld</string>
     <string name="seedmap_dimension_nether">Nether</string>
     <string name="seedmap_dimension_end">End</string>
@@ -62,6 +66,47 @@
     <string name="seedmap_legend_biomes">Biomes</string>
     <string name="seedmap_legend_spawn">World spawn</string>
     <string name="seedmap_legend_no_matches">Nothing matches that.</string>
+
+    <string name="seedmap_pois_chip">Points · %1$d</string>
+    <string name="seedmap_pois_title">Your points</string>
+    <string name="seedmap_pois_empty">Long-press the map to mark a base, a portal or anything else you want to find again.</string>
+    <string name="seedmap_poi_distance">%1$s blocks from the middle of the map</string>
+    <string name="seedmap_suggest_poi">Go to %1$s</string>
+
+    <string name="seedmap_poi_base">Base</string>
+    <string name="seedmap_poi_portal">Nether portal</string>
+    <string name="seedmap_poi_farm">Farm</string>
+    <string name="seedmap_poi_mine">Mine</string>
+    <string name="seedmap_poi_landmark">Landmark</string>
+    <string name="seedmap_poi_other">Other</string>
+
+    <string name="seedmap_poi_color_red">Red</string>
+    <string name="seedmap_poi_color_orange">Orange</string>
+    <string name="seedmap_poi_color_yellow">Yellow</string>
+    <string name="seedmap_poi_color_green">Green</string>
+    <string name="seedmap_poi_color_cyan">Cyan</string>
+    <string name="seedmap_poi_color_blue">Blue</string>
+    <string name="seedmap_poi_color_purple">Purple</string>
+    <string name="seedmap_poi_color_pink">Pink</string>
+
+    <string name="seedmap_poi_add_title">New point</string>
+    <string name="seedmap_poi_edit_title">Edit point</string>
+    <string name="seedmap_poi_name">Name</string>
+    <string name="seedmap_poi_name_hint">%1$s, if left empty</string>
+    <string name="seedmap_poi_category">Kind</string>
+    <string name="seedmap_poi_color">Colour</string>
+    <string name="seedmap_poi_x">X</string>
+    <string name="seedmap_poi_y">Y</string>
+    <string name="seedmap_poi_z">Z</string>
+    <string name="seedmap_poi_note">Note</string>
+    <string name="seedmap_poi_edit">Edit</string>
+    <string name="seedmap_poi_delete">Delete</string>
+    <string name="seedmap_poi_deleted">Deleted %1$s</string>
+    <string name="seedmap_undo">Undo</string>
+    <string name="seedmap_poi_height">Y %1$d</string>
+    <string name="seedmap_poi_links_to">Links to X %1$d, Z %2$d in the %3$s</string>
+    <string name="seedmap_poi_add_linked">Add linked portal</string>
+    <string name="seedmap_poi_linked_added">Linked portal added to the %1$s</string>
 
     <string name="seedmap_unknown_biome">Unknown biome</string>
     <string name="seedmap_copy_coordinates">Copy coordinates</string>

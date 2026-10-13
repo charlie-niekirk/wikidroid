@@ -59,6 +59,7 @@ internal const val VERSION_FIELD_TAG = "seed-map-version-field"
 internal const val VERSION_MENU_TAG = "seed-map-version-menu"
 internal const val GRID_SWITCH_TAG = "seed-map-grid"
 internal const val CROSSHAIR_SWITCH_TAG = "seed-map-crosshair"
+internal const val SLIME_SWITCH_TAG = "seed-map-slime"
 
 internal fun versionItemTag(version: McVersion): String = "seed-map-version-${version.name}"
 
@@ -129,6 +130,17 @@ internal fun LayersSheet(
                 checked = state.showCrosshair,
                 onCheckedChange = { onAction(SeedMapAction.SetCrosshair(it)) },
                 tag = CROSSHAIR_SWITCH_TAG,
+            )
+            val overworld = state.dimension == Dimension.OVERWORLD
+            DisplaySwitch(
+                title = R.string.seedmap_layers_slime,
+                summary =
+                    if (overworld) R.string.seedmap_layers_slime_summary else R.string.seedmap_slime_overworld_only,
+                icon = WikiIcons.BubbleChart,
+                checked = state.showSlimeChunks && overworld,
+                onCheckedChange = { onAction(SeedMapAction.SetSlimeChunks(it)) },
+                tag = SLIME_SWITCH_TAG,
+                enabled = overworld,
             )
         }
     }
@@ -258,14 +270,16 @@ private fun DisplaySwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     tag: String,
+    enabled: Boolean = true,
 ) {
     ListItem(
         checked = checked,
         onCheckedChange = onCheckedChange,
+        enabled = enabled,
         modifier = Modifier.padding(horizontal = 8.dp).testTag(tag),
         leadingContent = { WikiIcon(icon = icon, contentDescription = null) },
         supportingContent = { Text(stringResource(summary)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
     ) {
         Text(stringResource(title))
     }

@@ -104,4 +104,28 @@ object WikiIcons {
     @DrawableRes
     val FormatListBulleted: Int = R.drawable.ic_format_list_bulleted
     val Grid: Int = R.drawable.ic_grid_4x4
+
+    @DrawableRes
+    val Edit: Int = R.drawable.ic_edit
+
+    @DrawableRes
+    val Home: Int = R.drawable.ic_home
+
+    @DrawableRes
+    val Eco: Int = R.drawable.ic_eco
+
+    @DrawableRes
+    val Diamond: Int = R.drawable.ic_diamond
+
+    @DrawableRes
+    val Landscape: Int = R.drawable.ic_landscape
+
+    @DrawableRes
+    val Portal: Int = R.drawable.ic_portal
+
+    @DrawableRes
+    val LocationOn: Int = R.drawable.ic_location_on
+
+    @DrawableRes
+    val BubbleChart: Int = R.drawable.ic_bubble_chart
 }

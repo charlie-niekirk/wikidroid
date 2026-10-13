@@ -68,6 +68,7 @@ internal fun MapSelection.icon(): StructureIcon? =
         is MapSelection.Structure -> structure.type.icon()
         is MapSelection.Spawn -> SpawnIcon
         is MapSelection.Biome -> null
+        is MapSelection.Poi -> null // Drawn as its marker, not a sprite.
     }
 
 internal fun structureIconTag(icon: StructureIcon): String = "seed-map-icon-${icon.resId}"

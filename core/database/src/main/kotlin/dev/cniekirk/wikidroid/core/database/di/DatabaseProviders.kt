@@ -8,6 +8,7 @@ import dev.cniekirk.wikidroid.core.common.IoDispatcher
 import dev.cniekirk.wikidroid.core.database.BookmarkDao
 import dev.cniekirk.wikidroid.core.database.CachedArticleDao
 import dev.cniekirk.wikidroid.core.database.HistoryDao
+import dev.cniekirk.wikidroid.core.database.PointOfInterestDao
 import dev.cniekirk.wikidroid.core.database.WikiDatabase
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
@@ -52,4 +53,7 @@ object DatabaseProviders {
 
     @Provides
     fun provideCachedArticleDao(database: WikiDatabase): CachedArticleDao = database.cachedArticleDao()
+
+    @Provides
+    fun providePointOfInterestDao(database: WikiDatabase): PointOfInterestDao = database.pointOfInterestDao()
 }

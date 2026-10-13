@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.lifecycle.ViewModel
+import dev.cniekirk.wikidroid.core.data.PointOfInterestRepository
 import dev.cniekirk.wikidroid.core.data.SeedRepository
 import dev.cniekirk.wikidroid.core.domain.seedmap.BiomeAtUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindNearestStructureUseCase
@@ -8,8 +9,10 @@ import dev.cniekirk.wikidroid.core.domain.seedmap.FindSpawnUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStrongholdsUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStructuresUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.GetBiomeLegendUseCase
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.McVersion
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import dev.cniekirk.wikidroid.core.seedmap.SeedParser
@@ -26,6 +29,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
@@ -43,11 +47,13 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
  * is never shown over the new one, and any answer that arrives for an earlier world is discarded.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("TooManyFunctions") // One intent per action that does more than reduce.
 @Inject
 @ViewModelKey
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class SeedMapViewModel(
     private val seeds: SeedRepository,
+    private val pois: PointOfInterestRepository,
     private val findSpawn: FindSpawnUseCase,
     private val findStrongholds: FindStrongholdsUseCase,
     private val findStructures: FindStructuresUseCase,
@@ -62,6 +68,14 @@ class SeedMapViewModel(
             coroutineScope {
                 launch {
                     seeds.savedSeeds.collect { saved -> reduce { state.copy(savedSeeds = saved.toImmutableList()) } }
+                }
+                launch {
+                    container.stateFlow
+                        .map { it.seed to it.dimension }
+                        .distinctUntilChanged()
+                        .flatMapLatest { (seed, dimension) ->
+                            pois.observe(seed, dimension.name).map { Triple(seed, dimension, it) }
+                        }.collect { (seed, dimension, found) -> reduce { state.withPois(seed, dimension, found) } }
                 }
                 launch {
                     container.stateFlow
@@ -140,8 +154,68 @@ class SeedMapViewModel(
             SeedMapAction.NearestMissingShown -> intent { reduce { state.copy(nearestMissing = null) } }
             is SeedMapAction.SetGrid -> intent { reduce { state.copy(showGrid = action.show) } }
             is SeedMapAction.SetCrosshair -> intent { reduce { state.copy(showCrosshair = action.show) } }
+            is SeedMapAction.SetSlimeChunks -> intent { reduce { state.copy(showSlimeChunks = action.show) } }
+            else -> onPoiAction(action)
         }
     }
+
+    /** The actions about the player's own points. */
+    private fun onPoiAction(action: SeedMapAction) {
+        when (action) {
+            is SeedMapAction.StartAddPoi -> intent { reduce { state.copy(poiEditor = PoiDraft(action.pos)) } }
+            is SeedMapAction.EditPoi -> intent { reduce { state.withPoiEditor(action.point) } }
+            SeedMapAction.DismissPoiEditor -> intent { reduce { state.copy(poiEditor = null) } }
+            is SeedMapAction.SavePoi -> savePoi(action)
+            is SeedMapAction.SelectPoi -> intent { reduce { state.copy(selection = MapSelection.Poi(action.point)) } }
+            is SeedMapAction.GoToPoi -> goToPoi(action.point)
+            is SeedMapAction.DeletePoi -> deletePoi(action.point)
+            SeedMapAction.UndoDeletePoi -> undoDeletePoi()
+            SeedMapAction.RemovedPoiShown -> intent { reduce { state.copy(removedPoi = null) } }
+            is SeedMapAction.AddLinkedPortal -> addLinkedPortal(action.point)
+            SeedMapAction.LinkedPortalShown -> intent { reduce { state.copy(linkedPortalAddedTo = null) } }
+            else -> error("Not a point action: $action")
+        }
+    }
+
+    /** Saves what the editor holds, as a new point in this world or over the one being edited, and closes it. */
+    private fun savePoi(input: SeedMapAction.SavePoi) =
+        intent {
+            val draft = state.poiEditor ?: return@intent
+            val base =
+                draft.existing ?: PointOfInterest(seed = state.seed, dimension = state.dimension.name, x = 0, z = 0)
+            pois.save(base.edited(input))
+            reduce { state.copy(poiEditor = null) }
+        }
+
+    private fun goToPoi(point: PointOfInterest) =
+        intent {
+            reduce { state.copy(selection = MapSelection.Poi(point)) }
+            postSideEffect(SeedMapEffect.CenterOn(point.pos))
+        }
+
+    private fun deletePoi(point: PointOfInterest) =
+        intent {
+            pois.delete(point)
+            reduce { state.withoutPoi(point) }
+        }
+
+    private fun undoDeletePoi() =
+        intent {
+            val removed = state.removedPoi ?: return@intent
+            pois.restore(removed)
+            reduce { state.copy(removedPoi = null) }
+        }
+
+    /**
+     * Adds the portal [point] leads to, in the other dimension of the same seed, and says where it went. The
+     * point's sheet closes, or it would cover the snackbar saying so.
+     */
+    private fun addLinkedPortal(point: PointOfInterest) =
+        intent {
+            val linked = point.linkedPortal() ?: return@intent
+            pois.save(linked)
+            reduce { state.copy(linkedPortalAddedTo = Dimension.valueOf(linked.dimension), selection = null) }
+        }
 
     private fun selectStructure(structure: StructurePos) =
         intent { reduce { state.copy(selection = MapSelection.Structure(structure)) } }

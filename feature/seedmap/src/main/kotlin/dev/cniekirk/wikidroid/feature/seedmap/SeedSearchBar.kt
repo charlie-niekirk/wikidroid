@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.SeedParser
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
@@ -58,6 +59,8 @@ internal const val USE_SEED_SUGGESTION_TAG = "seed-map-suggest-seed"
 internal fun savedSeedTag(saved: SavedSeed): String = "seed-map-saved-${saved.seed}-${saved.version}"
 
 internal fun nearestSuggestionTag(type: StructureType): String = "seed-map-suggest-nearest-${type.name}"
+
+internal fun poiSuggestionTag(point: PointOfInterest): String = "seed-map-suggest-poi-${point.id}"
 
 /**
  * The floating seed pill at the top of the map. Collapsed, it shows the seed (and its saved name) with save and
@@ -96,7 +99,12 @@ internal fun SeedSearchBar(
 
     val typed = text.text.toString()
     val suggestions =
-        seedSuggestions(query = if (typed == shown) "" else typed, saved = state.savedSeeds, world = state.world)
+        seedSuggestions(
+            query = if (typed == shown) "" else typed,
+            saved = state.savedSeeds,
+            world = state.world,
+            pois = state.pois,
+        )
 
     fun run(suggestion: SeedSuggestion?) {
         when (suggestion) {
@@ -106,6 +114,10 @@ internal fun SeedSearchBar(
 
             is SeedSuggestion.Nearest -> {
                 onAction(SeedMapAction.GoToNearestStructure(suggestion.type))
+            }
+
+            is SeedSuggestion.Poi -> {
+                onAction(SeedMapAction.GoToPoi(suggestion.point))
             }
 
             is SeedSuggestion.UseSeed -> {
@@ -291,6 +303,29 @@ private fun SuggestionList(
                     }
                 }
 
+                is SeedSuggestion.Poi -> {
+                    ListItem(
+                        onClick = { onClick(suggestion) },
+                        modifier = Modifier.testTag(poiSuggestionTag(suggestion.point)),
+                        leadingContent = {
+                            PoiMarker(
+                                suggestion.point.category.icon,
+                                suggestion.point.color,
+                                size = 24.dp,
+                            )
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.seedmap_coordinates, suggestion.point.x, suggestion.point.z))
+                        },
+                    ) {
+                        Text(
+                            stringResource(R.string.seedmap_suggest_poi, suggestion.point.displayName()),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
                 is SeedSuggestion.UseSeed -> {
                     SuggestionRow(
                         icon = WikiIcons.Map,
@@ -331,6 +366,7 @@ private fun SeedSuggestion.key(): String =
     when (this) {
         is SeedSuggestion.GoTo -> "goto"
         is SeedSuggestion.Nearest -> "nearest-${type.name}"
+        is SeedSuggestion.Poi -> "poi-${point.id}"
         is SeedSuggestion.UseSeed -> "seed"
         SeedSuggestion.Random -> "random"
         is SeedSuggestion.Saved -> savedSeedTag(saved)

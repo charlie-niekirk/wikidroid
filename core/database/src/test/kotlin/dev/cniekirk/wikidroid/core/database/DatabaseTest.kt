@@ -20,6 +20,7 @@ abstract class DatabaseTest : RobolectricTest() {
     protected val bookmarks get() = database.bookmarkDao()
     protected val history get() = database.historyDao()
     protected val articles get() = database.cachedArticleDao()
+    protected val points get() = database.pointOfInterestDao()
 
     @Before
     fun createDatabase() {
@@ -47,6 +48,24 @@ abstract class DatabaseTest : RobolectricTest() {
         title: String,
         viewedAt: Long = 0,
     ) = HistoryEntity(title, displayTitle = title.replace('_', ' '), thumbnailUrl = null, viewedAt = viewedAt)
+
+    protected fun point(
+        seed: Long = 262,
+        dimension: String = "OVERWORLD",
+        name: String? = "Base",
+        createdAt: Long = 0,
+    ) = PointOfInterestEntity(
+        seed = seed,
+        dimension = dimension,
+        x = 10,
+        z = -20,
+        y = 64,
+        name = name,
+        category = "BASE",
+        color = "BLUE",
+        note = null,
+        createdAt = createdAt,
+    )
 
     protected fun cached(
         title: String,

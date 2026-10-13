@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -82,11 +84,14 @@ internal fun SeedMapCanvas(
 
     val currentState by rememberUpdatedState(state)
     val drawer = remember { TileDrawer() }
+    val slime = remember { SlimeLayer() }
     val markerPath = remember { Path() }
     val resources = LocalContext.current.resources
     val sprites = remember(resources) { StructureSprites.load(resources) }
     val pinPaint = remember(sprites) { PinPaint(sprites, markerPath) }
     val background = MaterialTheme.colorScheme.surfaceVariant
+    val poiPaint = rememberPoiPaint(state.pois)
+    val haptics = LocalHapticFeedback.current
     val description = stringResource(R.string.seedmap_map_description, state.seed.toString(), state.version.label)
 
     Canvas(
@@ -109,13 +114,19 @@ internal fun SeedMapCanvas(
                             currentOnAction(selectionAt(camera, tap, currentState, TapRadius.toPx()))
                         },
                     )
+                }.pointerInput(camera) {
+                    detectLongPressOnly { press ->
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnAction(longPressAt(camera, press, currentState, TapRadius.toPx()))
+                    }
                 },
     ) {
         tilesLoaded.intValue // Read here so the canvas redraws when a tile lands.
         drawRect(background)
         with(drawer) { drawTiles(camera, tiles, wanted.value) }
+        if (currentState.slimeChunksShown) with(slime) { drawSlimeChunks(camera, currentState.seed) }
         if (currentState.showGrid) drawGrid(camera)
-        drawMarkers(camera, currentState, pinPaint)
+        drawMarkers(camera, currentState, pinPaint, poiPaint)
         if (currentState.showCrosshair) drawCrosshair()
     }
 }
@@ -130,11 +141,24 @@ internal fun selectionAt(
     radiusPx: Float,
 ): SeedMapAction =
     when (
-        val hit = hitTest(camera, tap, state.spawn, state.strongholds, state.pins, radiusPx)
+        val hit = hitTest(camera, tap, state.spawn, state.strongholds, state.pins, radiusPx, state.pois)
     ) {
         is MarkerHit.Structure -> SeedMapAction.SelectStructure(hit.structure)
         MarkerHit.Spawn -> SeedMapAction.SelectSpawn
+        is MarkerHit.Poi -> SeedMapAction.SelectPoi(hit.point)
         null -> SeedMapAction.SelectPoint(camera.blockAt(tap.x, tap.y))
+    }
+
+/** What a long press at [press] does: edit the player's point under the finger, otherwise add one there. */
+internal fun longPressAt(
+    camera: MapCamera,
+    press: Offset,
+    state: SeedMapState,
+    radiusPx: Float,
+): SeedMapAction =
+    when (val hit = hitTest(camera, press, null, emptyList(), emptyList(), radiusPx, state.pois)) {
+        is MarkerHit.Poi -> SeedMapAction.EditPoi(hit.point)
+        else -> SeedMapAction.StartAddPoi(camera.blockAt(press.x, press.y))
     }
 
 /** What the pins are drawn with: the sprites, and scratch space for fallback shapes. */
@@ -161,8 +185,9 @@ private fun DrawScope.drawMarkers(
     camera: MapCamera,
     state: SeedMapState,
     paint: PinPaint,
+    poiPaint: PoiPaint,
 ) {
-    val margin = pinReachPx(density) * 2
+    val margin = maxOf(pinReachPx(density) * 2, poiPaint.labelReach + PoiMarkerRadius.toPx())
 
     fun visible(at: Offset) = at.x in -margin..size.width + margin && at.y in -margin..size.height + margin
 
@@ -181,6 +206,9 @@ private fun DrawScope.drawMarkers(
         at(pos).takeIf(::visible)?.let { drawPin(paint, strongholdIcon, strongholdStyle, it) }
     }
     state.spawn?.let { pos -> at(pos).takeIf(::visible)?.let { drawPin(paint, SpawnIcon, SpawnMarkerStyle, it) } }
+    // The player's own points go on top: they matter more than anything the generator placed.
+    val labels = camera.blocksPerPixel <= POI_LABEL_MAX_BLOCKS_PER_PIXEL
+    state.pois.forEach { point -> at(point.pos).takeIf(::visible)?.let { drawPoi(poiPaint, point, it, labels) } }
 }
 
 /** A small plus at the middle of the canvas, which is the point the coordinate readout names. */

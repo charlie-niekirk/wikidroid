@@ -436,6 +436,27 @@ Each session is one branch and one pull request into `main`. The user's request 
   - `SeedSuggestion` gains a `Nearest(type)` row between the coordinates and "use seed".
 - **Done when:** the build is green, unit tests cover the use case (fake engine), the suggestions and the ViewModel intent (found and not found), and `:app:connectedDebugAndroidTest` passes.
 
+### Session 19: Slime chunks and points of interest
+- **Status:** done.
+- **Build:**
+  - A Slime chunks switch in the layers sheet shades the Overworld's slime chunks. `SlimeChunks` is cubiomes' `isSlimeChunk` in Kotlin, checked against host-built goldens. A tapped biome says whether it is a slime chunk.
+  - Points of interest, per seed and dimension, are stored in Room (database version 2, auto-migrated):
+    - A long press adds one: name, kind (base, Nether portal, farm, mine, landmark, other), colour, optional Y and a note.
+    - Points draw on the map with their names. Their sheet has edit, delete (undo) and, for a portal, the linked position in the other dimension with a button to add it.
+    - A Points chip lists them, and the seed search finds them by name.
+- **Done when:** the build is green, unit tests cover the slime goldens, the repository, the ViewModel, the hit test and the sheets, the migration test passes on a device, and `:app:connectedDebugAndroidTest` passes.
+
+### Session 20: Measure distance and My worlds
+- **Depends on:** Session 19.
+- **Build:**
+  - A ruler button in the map toolbar starts measuring. Map taps then set the start and move the end, and a dashed line joins them. A chip shows the distance in blocks and the Nether equivalent (Overworld distance / 8, or Nether distance x 8), with a close button. A point's or structure's sheet offers "Measure from here".
+  - A My worlds sheet, opened from the seed pill, lists saved seeds with their version and number of points:
+    - Tapping a seed switches to it.
+    - Rename reuses the save dialog's field.
+    - Delete keeps the points, which belong to the seed; the confirmation says so.
+    - Counts come from a new `PointOfInterestDao.countBySeed()` through `PointOfInterestRepository.countsBySeed()`.
+- **Done when:** the build is green, unit tests cover the measurement maths, the ViewModel actions and the sheet, and `:app:connectedDebugAndroidTest` passes.
+
 ## Final end-to-end verification (after Session 11)
 - `./gradlew spotlessCheck detekt lintDebug testDebugUnitTest assembleRelease` passes, and so does `:app:connectedDebugAndroidTest`.
 - Emulator walkthrough:

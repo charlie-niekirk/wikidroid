@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
@@ -129,5 +130,31 @@ class SeedSuggestionTest {
         assertThat(shownSeed("glacier".hashCode().toLong(), "glacier")).isEqualTo("glacier")
         assertThat(shownSeed(7, "glacier")).isEqualTo("7")
         assertThat(shownSeed(7, "  ")).isEqualTo("7")
+    }
+
+    private val home = PointOfInterest(id = 1, seed = 262, dimension = "OVERWORLD", x = 5, z = 6, name = "Village home")
+    private val farm = PointOfInterest(id = 2, seed = 262, dimension = "OVERWORLD", x = 7, z = 8, name = "Iron farm")
+    private val unnamed = PointOfInterest(id = 3, seed = 262, dimension = "OVERWORLD", x = 9, z = 0)
+
+    @Test
+    fun aPointsNameOffersGoingToItAfterStructuresAndBeforeTheSeed() {
+        assertThat(seedSuggestions("village", emptyList(), world, listOf(home, farm, unnamed)))
+            .containsExactly(
+                SeedSuggestion.Nearest(StructureType.VILLAGE),
+                SeedSuggestion.Poi(home),
+                SeedSuggestion.UseSeed("village"),
+                SeedSuggestion.Random,
+            ).inOrder()
+    }
+
+    @Test
+    fun pointsMatchAnywhereInTheirNameButNotOnOneLetter() {
+        assertThat(poisMatching("FARM", listOf(home, farm, unnamed))).containsExactly(farm)
+        assertThat(poisMatching("o", listOf(home, farm, unnamed))).isEmpty()
+    }
+
+    @Test
+    fun aPointRunsFromTheSearchKey() {
+        assertThat(SeedSuggestion.Poi(home).isForTypedText).isTrue()
     }
 }
