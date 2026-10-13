@@ -18,6 +18,8 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 14: Seed map, map UI and the tab
 - [x] Session 15: Seed map, polish
 - [x] Session 16: ViewModel use cases
+- [x] Session 17: Immersive seed map
+- [ ] Session 18: Seed search that finds structures
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -533,3 +535,45 @@ What changed:
 
 ### Open TODOs
 - None from this session.
+
+## Session 17 notes
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- `:app:connectedDebugAndroidTest` (19 tests) passes on the `Pixel_10_Pro` AVD (API 37) with `ANDROID_SERIAL` set. API 35 is proved by CI.
+- Checked by hand on that emulator with screenshots: portrait, landscape (the map is the list pane beside "Select a page"), the expanded search ("120 -340", then the search key on "x1000 z1000"), the layers sheet, the grid zoomed in, and saving and unsaving a named seed.
+
+What changed (all in `:feature:seedmap`, plus `WikiIcons.Grid`):
+- **`SeedMapScreen`** is a `Box`, not a `Scaffold`. The canvas fills it, a `StatusBarScrim` fades from the surface colour behind the status bar, and the top column (pill, chips, the "zoom in" hint) and the bottom overlay (readout, toolbar) take `WindowInsets.safeDrawing`.
+  - `NavigationSuiteScaffold` has already consumed the bottom inset (bar) or the start inset (rail) for its content, so nothing is padded twice.
+  - `Overlay` is now `None, Filter, Legend, Layers, SaveSeed`.
+- **`SeedSearchBar`** is an M3 `SearchBar` + `ExpandedFullScreenSearchBar` sharing one `SearchBarDefaults.InputField`.
+  - Collapsed, it shows the seed (as typed, while that still parses to the seed) and the saved name as a suffix.
+  - The bookmark (save / unsave) and the legend button are `PillActions` drawn over the end of the pill.
+  - Opening the search selects the seed, so the first key replaces it. The search key runs the first "go to" or "use seed" row.
+  - The rows come from the pure `seedSuggestions(query, saved)` and `parseCoordinates(text)` in `SeedSuggestion.kt`:
+    - `x z`, `x, z`, `x… z…`, or `x y z` with the height dropped.
+    - A single number is always a seed.
+- **`MapChipRow`:** an elevated World chip (dimension sprite, `26.3 · Overworld`) and a "Structures · N" chip, in a row that scrolls sideways.
+- **`LayersSheet`** (was `SeedMapChoiceSheets.kt`). Dimension helpers moved to `DimensionUi.kt`.
+  - Three dimension cards on grass, netherrack and end-stone colours. A card is disabled, with "Java Edition X and newer", when the version lacks that dimension.
+  - An `ExposedDropdownMenuBox` of versions, newest first.
+  - `Grid` and `Crosshair` switch rows.
+  - Picking applies at once and leaves the sheet open.
+- **State:** `showGrid` (false) and `showCrosshair` (true), with `SetGrid` and `SetCrosshair` actions, and `savedEntry`. They are in-memory like the rest of the state.
+  - `GridLevel.kt` draws chunk lines (16 blocks) and region lines (512). Each fades in between `6..16` px and `12..32` px apart, with the line maths in pure `gridLevels`/`gridLines`.
+- **Map toolbar:** `VerticalFloatingToolbar` with spawn (Overworld only), zoom in and zoom out. It becomes a `HorizontalFloatingToolbar` when the map is under 480 dp tall (a phone on its side), where the vertical one reached the chips.
+- **Tests:** `SeedMapControlsTest` was split out of `SeedMapScreenTest` (detekt `LargeClass`). New `SeedSuggestionTest` and `GridLinesTest`, plus a ViewModel test for the switches. The instrumented `SeedMapTest` drives the search and the layers sheet.
+
+### Deviations
+- **"Go to coordinates" moved into the search in this session, not Session 18.** The dialog is gone, and the instrumented village test needs a way to move the map.
+- **Default zoom is 2 blocks per pixel, not 3.** The map now fills a tall phone, and at 3 the Pixel 10 Pro's view (with the pin padding) passed `MAX_STRUCTURE_SPAN`, so pins started hidden.
+- **The Structures chip has the filter (Tune) icon, not a structure sprite.** A village sprite there duplicated the village icon that the legend and selection tests look for, and a filter icon reads better.
+- **The pill's buttons are drawn over the field, not in its `trailingIcon` slot.** A press there also focused the field, which opened the search on top of the save dialog. The slot holds a `Spacer` so the text stops short of them.
+- **The saved-name suffix is always a lambda (empty when there is no name).** M3's text field decides once, on first composition, whether it has a prefix or suffix: `remember { derivedStateOf { affixAlpha } }` has no key. A suffix that appeared after saving never showed. The Robolectric test had the saved seed from the start and missed it; the instrumented test caught it.
+- `LegendSheet` and the layers sheet use `rememberBottomSheetState(Hidden, setOf(Hidden, Expanded))` in place of the deprecated `rememberModalBottomSheetState(skipPartiallyExpanded = true)`.
+
+### Open TODOs
+- Session 18: "Nearest <structure>" in the search (see `docs/PLAN.md`).
+- The grid and crosshair switches are not persisted; they reset with the rest of the state when the tab is left (the Session 14 TODO).
+- The baseline profile was not regenerated (still open from Session 15). It does not cover the search bar, chips or layers sheet.
+- At 2 blocks per pixel, a very tall screen (above about 3000 px of map) would still start with pins hidden. A fit-to-span default zoom would cover it.

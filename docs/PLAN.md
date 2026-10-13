@@ -415,6 +415,27 @@ Each session is one branch and one pull request into `main`. The user's request 
 - **Build:** add `:core:domain` with the use cases; rewrite every `Syntax<S, E>` helper as an intent or a use case call; move the pure state helpers into the state classes; forbid the `Syntax` import in detekt.
 - **Done when:** green, `lintDebug` and `:app:checkMainMetroHiddenDependencies` pass, the existing ViewModel tests pass with only their constructors changed, and `:app:connectedDebugAndroidTest` passes.
 
+### Session 17: Immersive seed map
+- **Status:** done.
+- **Build:** the seed map in the style of a maps app.
+  - The map runs edge to edge, behind the status bar. A surface-coloured scrim keeps the status bar icons readable.
+  - Floating over it:
+    - The seed **search pill**. Expanded, it lists saved seeds, a random seed, "use seed" for typed text and "go to" for typed coordinates. It also holds the save and legend buttons.
+    - A **World chip** that opens the **layers sheet**. The sheet has dimension cards, a version menu, and grid and crosshair switches.
+    - A **Structures chip** that opens the filter sheet.
+    - The coordinate readout.
+    - A floating **toolbar** for spawn and zoom. It is vertical on a tall map and horizontal on a short one.
+  - The top bar, the version and dimension sheets, the saved-seeds menu and the go-to-coordinates dialog are gone.
+- **Done when:** the build is green, `lintDebug` and `:app:checkMainMetroHiddenDependencies` pass, `:app:connectedDebugAndroidTest` passes, and an emulator check covers portrait, landscape (list pane), search, the layers sheet and the grid.
+
+### Session 18: Seed search that finds structures
+- **Status:** planned.
+- **Build:**
+  - Typing a structure name in the seed search offers "Nearest <structure>" rows, with the marker icon. Tapping one centres the map on the nearest structure of that type, turns its toggle on, and opens its selection sheet. When none is within reach, a snackbar says so.
+  - `FindNearestStructureUseCase` in `:core:domain`. Region-based types search square rings of at most `MAX_STRUCTURE_SPAN` outward from the view's centre. The search stops when the closest hit is nearer than the next ring, or after about 4 rings. Strongholds take the nearest of `engine.strongholds`.
+  - `SeedSuggestion` gains a `Nearest(type)` row between the coordinates and "use seed".
+- **Done when:** the build is green, unit tests cover the use case (fake engine), the suggestions and the ViewModel intent (found and not found), and `:app:connectedDebugAndroidTest` passes.
+
 ## Final end-to-end verification (after Session 11)
 - `./gradlew spotlessCheck detekt lintDebug testDebugUnitTest assembleRelease` passes, and so does `:app:connectedDebugAndroidTest`.
 - Emulator walkthrough:
