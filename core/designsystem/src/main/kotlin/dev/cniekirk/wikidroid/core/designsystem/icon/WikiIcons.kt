@@ -103,4 +103,5 @@ object WikiIcons {
 
     @DrawableRes
     val FormatListBulleted: Int = R.drawable.ic_format_list_bulleted
+    val Grid: Int = R.drawable.ic_grid_4x4
 }

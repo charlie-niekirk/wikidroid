@@ -70,11 +70,18 @@ data class SeedMapState(
     /** The biomes the selected version and dimension generate, by name, for the legend sheet. */
     val biomeLegend: ImmutableList<BiomeLegendEntry> = persistentListOf(),
     val selection: MapSelection? = null,
+    /** Chunk and region lines over the map. */
+    val showGrid: Boolean = false,
+    /** The plus at the centre of the map, which the coordinate readout names. */
+    val showCrosshair: Boolean = true,
 ) {
     val world: MapWorld get() = MapWorld(seed, version, dimension)
 
+    /** This seed in this version, if it is in the saved list. */
+    val savedEntry: SavedSeed? get() = savedSeeds.firstOrNull { it.seed == seed && it.version == version.label }
+
     /** Whether this seed in this version is already in the saved list. */
-    val isSaved: Boolean get() = savedSeeds.any { it.seed == seed && it.version == version.label }
+    val isSaved: Boolean get() = savedEntry != null
 
     /** The world to find the spawn of, or null when the dimension has none. */
     internal val spawnQuery: MapWorld? get() = world.takeIf { it.dimension == Dimension.OVERWORLD }
@@ -277,6 +284,16 @@ sealed interface SeedMapAction {
     data class GoToCoordinates(
         val x: Int,
         val z: Int,
+    ) : SeedMapAction
+
+    /** The Grid switch in the layers sheet. */
+    data class SetGrid(
+        val show: Boolean,
+    ) : SeedMapAction
+
+    /** The Crosshair switch in the layers sheet. */
+    data class SetCrosshair(
+        val show: Boolean,
     ) : SeedMapAction
 }
 

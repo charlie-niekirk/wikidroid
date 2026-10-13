@@ -133,6 +133,8 @@ class SeedMapViewModel(
             is SeedMapAction.OpenLegendArticle -> intent { postSideEffect(SeedMapEffect.OpenArticle(action.title)) }
             SeedMapAction.GoToSpawn -> goToSpawn()
             is SeedMapAction.GoToCoordinates -> goToCoordinates(action.x, action.z)
+            is SeedMapAction.SetGrid -> intent { reduce { state.copy(showGrid = action.show) } }
+            is SeedMapAction.SetCrosshair -> intent { reduce { state.copy(showCrosshair = action.show) } }
         }
     }
 
