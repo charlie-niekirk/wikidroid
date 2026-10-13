@@ -54,6 +54,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import org.junit.Test
 
+private const val SNACKBAR_SHORT_MILLIS = 10_000L
+
 /** The floating controls: the seed search, saved seeds, and the layers sheet the World chip opens. */
 class SeedMapControlsTest : ComposeTest() {
     private val actions = mutableListOf<SeedMapAction>()
@@ -144,6 +146,60 @@ class SeedMapControlsTest : ComposeTest() {
         seedField().performImeAction()
 
         assertThat(userActions).containsExactly(SeedMapAction.GoToCoordinates(100, -200))
+    }
+
+    @Test
+    fun aStructureNameOffersTheNearestOne() {
+        setScreen()
+
+        search("strong")
+
+        composeRule
+            .onNodeWithTag(
+                nearestSuggestionTag(StructureType.STRONGHOLD),
+            ).assertTextContains("Nearest Stronghold")
+        composeRule.onNodeWithTag(nearestSuggestionTag(StructureType.STRONGHOLD)).performClick()
+
+        assertThat(userActions).containsExactly(SeedMapAction.GoToNearestStructure(StructureType.STRONGHOLD))
+    }
+
+    @Test
+    fun theSearchKeyFindsTheNearestStructureBeforeUsingTheWordsAsASeed() {
+        setScreen()
+
+        search("village")
+        seedField().performImeAction()
+
+        assertThat(userActions).containsExactly(SeedMapAction.GoToNearestStructure(StructureType.VILLAGE))
+    }
+
+    @Test
+    fun aStructureNameStillOffersItselfAsASeed() {
+        setScreen()
+
+        search("village")
+        composeRule.onNodeWithTag(USE_SEED_SUGGESTION_TAG).performClick()
+
+        assertThat(userActions).containsExactly(SeedMapAction.SubmitSeed("village"))
+    }
+
+    @Test
+    fun theMapSaysWhatItIsFinding() {
+        setScreen(SeedMapState(findingNearest = StructureType.MANSION, pinsHidden = true))
+
+        composeRule.onNodeWithTag(FINDING_CHIP_TAG).assertTextContains("Finding the nearest Woodland Mansion")
+        composeRule.onNodeWithText("Zoom in to see structures").assertDoesNotExist()
+    }
+
+    @Test
+    fun nothingFoundShowsASnackbarThenAcknowledgesIt() {
+        setScreen(SeedMapState(nearestMissing = StructureType.ANCIENT_CITY))
+
+        composeRule.onNodeWithText("No Ancient City within 18,432 blocks of here").assertIsDisplayed()
+        composeRule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)
+        composeRule.waitForIdle()
+
+        assertThat(userActions).containsExactly(SeedMapAction.NearestMissingShown)
     }
 
     @Test

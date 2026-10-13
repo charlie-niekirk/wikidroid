@@ -174,6 +174,19 @@ class SeedMapTest {
     }
 
     @Test
+    fun searchingAStructureNameGoesToTheNearestOne() {
+        openSeedMap()
+        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+
+        search("mansion")
+
+        // The real engine finds one, turns mansions on, centres the map on it and opens its sheet.
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-selection"), UI_TIMEOUT_MILLIS)
+        composeRule.onNodeWithTag("seed-map-selection-title").assertTextEquals("Woodland Mansion")
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-center") and !hasText("X 0, Z 0"), UI_TIMEOUT_MILLIS)
+    }
+
+    @Test
     fun aNewSeedRendersItsOwnMap() {
         openSeedMap()
         waitForTile(originTile(MapWorld(262, McVersion.newest)))

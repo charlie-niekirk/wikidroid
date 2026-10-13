@@ -3,7 +3,11 @@ package dev.cniekirk.wikidroid.feature.seedmap
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
+import dev.cniekirk.wikidroid.core.seedmap.MapWorld
+import dev.cniekirk.wikidroid.core.seedmap.McVersion
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
+import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import org.junit.Test
 
 class SeedSuggestionTest {
@@ -42,12 +46,15 @@ class SeedSuggestionTest {
         assertThat(parseCoordinates("99999999999 -99999999999")).isEqualTo(BlockPos(limit, -limit))
     }
 
+    private val world = MapWorld(262, McVersion.newest)
+    private val nether = world.copy(dimension = Dimension.NETHER)
+
     private val village = SavedSeed(seed = 262, version = "26.3", label = "Spawn village")
     private val plain = SavedSeed(seed = -99, version = "1.12", label = null)
 
     @Test
     fun nothingTypedOffersRandomAndEverySavedSeed() {
-        assertThat(seedSuggestions("", listOf(village, plain)))
+        assertThat(seedSuggestions("", listOf(village, plain), world))
             .containsExactly(
                 SeedSuggestion.Random,
                 SeedSuggestion.Saved(village),
@@ -57,23 +64,63 @@ class SeedSuggestionTest {
 
     @Test
     fun typedTextIsOfferedAsASeedFirst() {
-        assertThat(seedSuggestions(" glacier ", emptyList()))
+        assertThat(seedSuggestions(" glacier ", emptyList(), world))
             .containsExactly(SeedSuggestion.UseSeed("glacier"), SeedSuggestion.Random)
             .inOrder()
     }
 
     @Test
     fun typedCoordinatesAreOfferedAsAPlaceInsteadOfASeed() {
-        assertThat(seedSuggestions("10 20", emptyList()))
+        assertThat(seedSuggestions("10 20", emptyList(), world))
             .containsExactly(SeedSuggestion.GoTo(BlockPos(10, 20)), SeedSuggestion.Random)
             .inOrder()
     }
 
     @Test
+    fun aStructureNameOffersTheNearestOneBeforeTheSeed() {
+        assertThat(seedSuggestions("strong", emptyList(), world))
+            .containsExactly(
+                SeedSuggestion.Nearest(StructureType.STRONGHOLD),
+                SeedSuggestion.UseSeed("strong"),
+                SeedSuggestion.Random,
+            ).inOrder()
+    }
+
+    @Test
+    fun structuresMatchAnywhereInTheirNameIgnoringCase() {
+        assertThat(structuresMatching("PYRAMID", world))
+            .containsExactly(StructureType.DESERT_PYRAMID, StructureType.JUNGLE_TEMPLE)
+    }
+
+    @Test
+    fun onlyStructuresOfTheMapsWorldMatch() {
+        assertThat(structuresMatching("ruined portal", world)).containsExactly(StructureType.RUINED_PORTAL)
+        assertThat(structuresMatching("ruined portal", nether)).containsExactly(StructureType.RUINED_PORTAL_NETHER)
+        assertThat(structuresMatching("village", nether)).isEmpty()
+        assertThat(structuresMatching("trial", world.copy(version = McVersion.V1_12))).isEmpty()
+    }
+
+    @Test
+    fun oneLetterMatchesNoStructure() {
+        assertThat(structuresMatching("v", world)).isEmpty()
+    }
+
+    @Test
+    fun theSearchKeyRunsRowsForTheTypedText() {
+        assertThat(SeedSuggestion.GoTo(BlockPos(0, 0)).isForTypedText).isTrue()
+        assertThat(SeedSuggestion.Nearest(StructureType.VILLAGE).isForTypedText).isTrue()
+        assertThat(SeedSuggestion.UseSeed("x").isForTypedText).isTrue()
+        assertThat(SeedSuggestion.Random.isForTypedText).isFalse()
+        assertThat(SeedSuggestion.Saved(village).isForTypedText).isFalse()
+    }
+
+    @Test
     fun savedSeedsMatchTheirNameOrNumber() {
-        assertThat(seedSuggestions("VILLAGE", listOf(village, plain))).contains(SeedSuggestion.Saved(village))
-        assertThat(seedSuggestions("VILLAGE", listOf(village, plain))).doesNotContain(SeedSuggestion.Saved(plain))
-        assertThat(seedSuggestions("-99", listOf(village, plain))).contains(SeedSuggestion.Saved(plain))
+        assertThat(seedSuggestions("VILLAGE", listOf(village, plain), world)).contains(SeedSuggestion.Saved(village))
+        assertThat(
+            seedSuggestions("VILLAGE", listOf(village, plain), world),
+        ).doesNotContain(SeedSuggestion.Saved(plain))
+        assertThat(seedSuggestions("-99", listOf(village, plain), world)).contains(SeedSuggestion.Saved(plain))
     }
 
     @Test

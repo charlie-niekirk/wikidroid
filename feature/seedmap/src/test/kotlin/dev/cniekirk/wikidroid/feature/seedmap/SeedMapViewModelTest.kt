@@ -2,6 +2,7 @@ package dev.cniekirk.wikidroid.feature.seedmap
 
 import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.domain.seedmap.BiomeAtUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindNearestStructureUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindSpawnUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStrongholdsUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStructuresUseCase
@@ -46,6 +47,7 @@ class SeedMapViewModelTest {
             FindStructuresUseCase(engine),
             GetBiomeLegendUseCase(engine),
             BiomeAtUseCase(engine),
+            FindNearestStructureUseCase(engine),
         )
 
     private val state get() = viewModel.container.stateFlow.value
@@ -772,6 +774,88 @@ class SeedMapViewModelTest {
                 act(SeedMapAction.GoToCoordinates(7, 8))
 
                 expectEffect(SeedMapEffect.CenterOn(BlockPos(7, 8)))
+            }
+        }
+
+    @Test
+    fun `the nearest structure is searched from the middle of the view, turned on, selected and centred on`() =
+        runTest {
+            engine.structuresHandler = { _, type, area ->
+                val pos = BlockPos(5300, 2000)
+                if (pos.x in area.minX until area.maxX && pos.z in area.minZ until area.maxZ) {
+                    listOf(StructurePos(type, pos))
+                } else {
+                    emptyList()
+                }
+            }
+
+            onMap {
+                act(SeedMapAction.ViewportChanged(viewport(centerX = 5000, centerZ = 2000)))
+                engine.structureRequests.clear()
+
+                act(SeedMapAction.GoToNearestStructure(StructureType.MANSION))
+
+                expectEffect(SeedMapEffect.CenterOn(BlockPos(5300, 2000)))
+                assertThat(
+                    engine.structureRequests
+                        .first()
+                        .area.minX,
+                ).isEqualTo(5000 - 2048)
+                assertThat(state.enabledStructures).contains(StructureType.MANSION)
+                assertThat(state.selection)
+                    .isEqualTo(MapSelection.Structure(StructurePos(StructureType.MANSION, BlockPos(5300, 2000))))
+                assertThat(state.findingNearest).isNull()
+            }
+        }
+
+    @Test
+    fun `the search shows it is finding until the answer comes`() =
+        runTest {
+            val answer = CompletableDeferred<List<BlockPos>>()
+            engine.strongholdsHandler = { _, _ -> answer.await() }
+
+            onMap {
+                act(SeedMapAction.GoToNearestStructure(StructureType.STRONGHOLD))
+                assertThat(state.findingNearest).isEqualTo(StructureType.STRONGHOLD)
+
+                answer.complete(listOf(BlockPos(900, -300)))
+                runCurrent()
+
+                assertThat(state.findingNearest).isNull()
+                expectEffect(SeedMapEffect.CenterOn(BlockPos(900, -300)))
+            }
+        }
+
+    @Test
+    fun `nothing within reach says so until the message has been shown`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.GoToNearestStructure(StructureType.ANCIENT_CITY))
+
+                assertThat(state.nearestMissing).isEqualTo(StructureType.ANCIENT_CITY)
+                assertThat(state.selection).isNull()
+                assertThat(state.enabledStructures).doesNotContain(StructureType.ANCIENT_CITY)
+
+                act(SeedMapAction.NearestMissingShown)
+
+                assertThat(state.nearestMissing).isNull()
+            }
+        }
+
+    @Test
+    fun `an answer for a world the map has left is dropped`() =
+        runTest {
+            val answer = CompletableDeferred<List<BlockPos>>()
+            engine.strongholdsHandler = { _, _ -> answer.await() }
+
+            onMap {
+                act(SeedMapAction.GoToNearestStructure(StructureType.STRONGHOLD))
+                act(SeedMapAction.SubmitSeed("7"))
+                answer.complete(listOf(BlockPos(900, -300)))
+                runCurrent()
+
+                assertThat(state.findingNearest).isNull()
+                assertThat(state.selection).isNull()
             }
         }
 

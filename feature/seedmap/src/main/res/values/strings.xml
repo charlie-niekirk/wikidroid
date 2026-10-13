@@ -14,6 +14,10 @@
     <string name="seedmap_suggest_go_to">Go to X %1$d, Z %2$d</string>
     <string name="seedmap_suggest_use_seed">Use seed \u201c%1$s\u201d</string>
     <string name="seedmap_saved_name_suffix">· %1$s</string>
+    <string name="seedmap_suggest_nearest">Nearest %1$s</string>
+    <string name="seedmap_suggest_nearest_detail">From the middle of the map</string>
+    <string name="seedmap_finding_nearest">Finding the nearest %1$s</string>
+    <string name="seedmap_nearest_missing">No %1$s within %2$s blocks of here</string>
 
     <string name="seedmap_world_chip">%1$s · %2$s</string>
     <string name="seedmap_world_chip_description">Java Edition %1$s, %2$s. Change dimension, version and display</string>

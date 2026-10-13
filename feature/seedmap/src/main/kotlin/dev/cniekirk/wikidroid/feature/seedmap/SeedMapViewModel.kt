@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.feature.seedmap
 import androidx.lifecycle.ViewModel
 import dev.cniekirk.wikidroid.core.data.SeedRepository
 import dev.cniekirk.wikidroid.core.domain.seedmap.BiomeAtUseCase
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindNearestStructureUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindSpawnUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStrongholdsUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStructuresUseCase
@@ -13,6 +14,7 @@ import dev.cniekirk.wikidroid.core.seedmap.McVersion
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import dev.cniekirk.wikidroid.core.seedmap.SeedParser
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
+import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -51,6 +53,7 @@ class SeedMapViewModel(
     private val findStructures: FindStructuresUseCase,
     private val getBiomeLegend: GetBiomeLegendUseCase,
     private val biomeAt: BiomeAtUseCase,
+    private val findNearestStructure: FindNearestStructureUseCase,
 ) : ViewModel(),
     OrbitContainerHost<SeedMapState, SeedMapState, SeedMapEffect> {
     // The type is spelled out because the collectors below read `container` while it is being built.
@@ -133,6 +136,8 @@ class SeedMapViewModel(
             is SeedMapAction.OpenLegendArticle -> intent { postSideEffect(SeedMapEffect.OpenArticle(action.title)) }
             SeedMapAction.GoToSpawn -> goToSpawn()
             is SeedMapAction.GoToCoordinates -> goToCoordinates(action.x, action.z)
+            is SeedMapAction.GoToNearestStructure -> goToNearest(action.type)
+            SeedMapAction.NearestMissingShown -> intent { reduce { state.copy(nearestMissing = null) } }
             is SeedMapAction.SetGrid -> intent { reduce { state.copy(showGrid = action.show) } }
             is SeedMapAction.SetCrosshair -> intent { reduce { state.copy(showCrosshair = action.show) } }
         }
@@ -178,6 +183,17 @@ class SeedMapViewModel(
             val world = state.world
             val biome = biomeAt(world, pos) ?: return@intent
             reduce { state.withBiomeSelection(world, pos, biome) }
+        }
+
+    /** Finds the [type] closest to the middle of the view, then selects it and centres the map on it. */
+    private fun goToNearest(type: StructureType) =
+        intent {
+            val world = state.world
+            val from = state.viewport?.let { BlockPos(it.centerX, it.centerZ) } ?: BlockPos(0, 0)
+            reduce { state.copy(findingNearest = type, nearestMissing = null) }
+            val found = findNearestStructure(world, type, from)
+            reduce { state.withNearest(world, type, found) }
+            if (found != null && state.world == world) postSideEffect(SeedMapEffect.CenterOn(found.pos))
         }
 
     private fun goToSpawn() =

@@ -42,6 +42,8 @@ import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.SeedParser
+import dev.cniekirk.wikidroid.core.seedmap.StructureType
+import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 
@@ -54,6 +56,8 @@ internal const val GO_TO_SUGGESTION_TAG = "seed-map-suggest-goto"
 internal const val USE_SEED_SUGGESTION_TAG = "seed-map-suggest-seed"
 
 internal fun savedSeedTag(saved: SavedSeed): String = "seed-map-saved-${saved.seed}-${saved.version}"
+
+internal fun nearestSuggestionTag(type: StructureType): String = "seed-map-suggest-nearest-${type.name}"
 
 /**
  * The floating seed pill at the top of the map. Collapsed, it shows the seed (and its saved name) with save and
@@ -91,12 +95,17 @@ internal fun SeedSearchBar(
     }
 
     val typed = text.text.toString()
-    val suggestions = seedSuggestions(query = if (typed == shown) "" else typed, saved = state.savedSeeds)
+    val suggestions =
+        seedSuggestions(query = if (typed == shown) "" else typed, saved = state.savedSeeds, world = state.world)
 
     fun run(suggestion: SeedSuggestion?) {
         when (suggestion) {
             is SeedSuggestion.GoTo -> {
                 onAction(SeedMapAction.GoToCoordinates(suggestion.pos.x, suggestion.pos.z))
+            }
+
+            is SeedSuggestion.Nearest -> {
+                onAction(SeedMapAction.GoToNearestStructure(suggestion.type))
             }
 
             is SeedSuggestion.UseSeed -> {
@@ -128,7 +137,7 @@ internal fun SeedSearchBar(
             searchState = searchState,
             collapsed = collapsed,
             saved = state.savedEntry,
-            onSearch = { run(suggestions.firstOrNull { it is SeedSuggestion.GoTo || it is SeedSuggestion.UseSeed }) },
+            onSearch = { run(suggestions.firstOrNull { it.isForTypedText }) },
             onBack = { run(null) },
         )
     }
@@ -264,6 +273,24 @@ private fun SuggestionList(
                     )
                 }
 
+                is SeedSuggestion.Nearest -> {
+                    ListItem(
+                        onClick = { onClick(suggestion) },
+                        modifier = Modifier.testTag(nearestSuggestionTag(suggestion.type)),
+                        leadingContent = {
+                            MarkerIcon(suggestion.type.markerStyle(), icon = suggestion.type.icon(), size = 24.dp)
+                        },
+                        supportingContent = { Text(stringResource(R.string.seedmap_suggest_nearest_detail)) },
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.seedmap_suggest_nearest,
+                                StructureWikiTitles.titleFor(suggestion.type),
+                            ),
+                        )
+                    }
+                }
+
                 is SeedSuggestion.UseSeed -> {
                     SuggestionRow(
                         icon = WikiIcons.Map,
@@ -303,6 +330,7 @@ private fun SuggestionList(
 private fun SeedSuggestion.key(): String =
     when (this) {
         is SeedSuggestion.GoTo -> "goto"
+        is SeedSuggestion.Nearest -> "nearest-${type.name}"
         is SeedSuggestion.UseSeed -> "seed"
         SeedSuggestion.Random -> "random"
         is SeedSuggestion.Saved -> savedSeedTag(saved)
