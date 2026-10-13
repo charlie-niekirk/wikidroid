@@ -31,6 +31,7 @@ interface DatabaseTestGraph {
     val bookmarkDao: BookmarkDao
     val historyDao: HistoryDao
     val cachedArticleDao: CachedArticleDao
+    val pointOfInterestDao: PointOfInterestDao
 
     @DependencyGraph.Factory
     fun interface Factory {
@@ -59,6 +60,17 @@ class DatabaseProvidersTest : RobolectricTest() {
                     .isAvailableOffline,
             ).isTrue()
             assertThat(graph.historyDao.observeAll().first()).hasSize(1)
+            val id =
+                graph.pointOfInterestDao.insert(
+                    PointOfInterestEntity(0, 262, "OVERWORLD", 1, 2, null, "Base", "BASE", "BLUE", null, 5),
+                )
+            assertThat(
+                graph.pointOfInterestDao
+                    .observe(262, "OVERWORLD")
+                    .first()
+                    .single()
+                    .id,
+            ).isEqualTo(id)
             graph.database.close()
         }
 

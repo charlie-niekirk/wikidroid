@@ -1,12 +1,19 @@
 package dev.cniekirk.wikidroid.core.database
 
+import androidx.room3.AutoMigration
 import androidx.room3.Database
 import androidx.room3.RoomDatabase
 
 @Database(
-    entities = [BookmarkEntity::class, HistoryEntity::class, CachedArticleEntity::class],
-    version = 1,
+    entities = [
+        BookmarkEntity::class,
+        HistoryEntity::class,
+        CachedArticleEntity::class,
+        PointOfInterestEntity::class,
+    ],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 abstract class WikiDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
@@ -14,6 +21,8 @@ abstract class WikiDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
 
     abstract fun cachedArticleDao(): CachedArticleDao
+
+    abstract fun pointOfInterestDao(): PointOfInterestDao
 
     companion object {
         const val NAME = "wikidroid.db"
