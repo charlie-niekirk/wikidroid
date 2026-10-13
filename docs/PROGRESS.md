@@ -19,7 +19,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 15: Seed map, polish
 - [x] Session 16: ViewModel use cases
 - [x] Session 17: Immersive seed map
-- [ ] Session 18: Seed search that finds structures
+- [x] Session 18: Seed search that finds structures
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -573,7 +573,35 @@ What changed (all in `:feature:seedmap`, plus `WikiIcons.Grid`):
 - `LegendSheet` and the layers sheet use `rememberBottomSheetState(Hidden, setOf(Hidden, Expanded))` in place of the deprecated `rememberModalBottomSheetState(skipPartiallyExpanded = true)`.
 
 ### Open TODOs
-- Session 18: "Nearest <structure>" in the search (see `docs/PLAN.md`).
 - The grid and crosshair switches are not persisted; they reset with the rest of the state when the tab is left (the Session 14 TODO).
 - The baseline profile was not regenerated (still open from Session 15). It does not cover the search bar, chips or layers sheet.
 - At 2 blocks per pixel, a very tall screen (above about 3000 px of map) would still start with pins hidden. A fit-to-span default zoom would cover it.
+
+## Session 18 notes
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- `:app:connectedDebugAndroidTest` (20 tests, including the new `searchingAStructureNameGoesToTheNearestOne` on the real engine) passes on the `Pixel_10_Pro` AVD (API 37). It ran with `ANDROID_SERIAL=emulator-5554` because a phone was also attached.
+- Checked by hand on the emulator:
+  - "ruin" lists Ocean Ruins, Ruined Portal and Trail Ruins, each with its sprite, above "Use seed".
+  - The search key on "stronghold" centres seed 262 on the stronghold at X -12, Z -1708 and opens its sheet.
+
+What changed:
+- **`FindNearestStructureUseCase`** (`:core:domain`):
+  - Region-based types: square rings of 4096-block cells (`MAX_STRUCTURE_SPAN / 2`) around the point. A ring's cells are searched in parallel, and cells are clipped to the world border.
+  - It stops once the closest hit is within the reach already searched (half a cell plus a cell per ring), or after 5 rings: 81 cells, `REACH_BLOCKS` = 18,432.
+  - Strongholds take the nearest of `engine.strongholds`. A type the world cannot have returns null without asking the engine, and a cell the engine fails on counts as empty.
+- **`SeedSuggestion.Nearest(type)`:**
+  - Offered for every structure of the map's world whose wiki name contains the query, ignoring case. The query needs at least 2 letters. The two ruined portals share a name, and only the current dimension's one matches.
+  - The rows sit between "go to" and "use seed". The search key now runs the first row that acts on the typed text (`isForTypedText`), so "village" finds a village rather than becoming a seed. "Use seed" is still a row.
+- **ViewModel:** `GoToNearestStructure(type)` searches from the centre of the last viewport.
+  - While it looks, `findingNearest` drives a "Finding the nearest …" chip with a spinner, in place of the "zoom in" hint.
+  - `withNearest` turns the type on, selects it (the selection sheet opens) and posts `CenterOn`.
+  - Nothing found sets `nearestMissing`, which the screen shows as a snackbar and acknowledges with `NearestMissingShown` once it has gone.
+  - An answer for a world the map has left only clears `findingNearest`.
+- The screen has a `SnackbarHost` again (bottom centre, inside the safe drawing insets).
+
+### Deviations
+- **"From the middle of the map"** is the search's origin, and the row says so. It is the last reported viewport centre, which is what the readout shows.
+
+### Open TODOs
+- None from this session.
