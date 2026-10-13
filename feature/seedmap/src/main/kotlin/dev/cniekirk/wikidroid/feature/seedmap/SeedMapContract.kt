@@ -74,6 +74,10 @@ data class SeedMapState(
     val showGrid: Boolean = false,
     /** The plus at the centre of the map, which the coordinate readout names. */
     val showCrosshair: Boolean = true,
+    /** The structure the search is finding the nearest of, while it looks. */
+    val findingNearest: StructureType? = null,
+    /** A structure the search found none of within reach, until the snackbar saying so has been shown. */
+    val nearestMissing: StructureType? = null,
 ) {
     val world: MapWorld get() = MapWorld(seed, version, dimension)
 
@@ -206,6 +210,34 @@ data class SeedMapState(
             else -> copy(pins = found.filter { it.type in enabledStructures }.toImmutableList(), pinsHidden = false)
         }
 
+    /**
+     * The nearest [type] the search found in [world] (null: none within reach). Found, it is turned on and
+     * selected, so its pin shows and its sheet opens; missing, the screen says so. A search for a world the map
+     * has since left only stops looking.
+     */
+    fun withNearest(
+        world: MapWorld,
+        type: StructureType,
+        found: StructurePos?,
+    ): SeedMapState =
+        when {
+            world != this.world -> {
+                copy(findingNearest = null)
+            }
+
+            found == null -> {
+                copy(findingNearest = null, nearestMissing = type)
+            }
+
+            else -> {
+                copy(
+                    enabledStructures = (enabledStructures + type).toImmutableSet(),
+                    selection = MapSelection.Structure(found),
+                    findingNearest = null,
+                )
+            }
+        }
+
     /** Selects the biome tapped at [pos], unless the world changed while it was looked up. */
     fun withBiomeSelection(
         world: MapWorld,
@@ -285,6 +317,14 @@ sealed interface SeedMapAction {
         val x: Int,
         val z: Int,
     ) : SeedMapAction
+
+    /** A "Nearest <structure>" row of the seed search: centre the map on the closest one and select it. */
+    data class GoToNearestStructure(
+        val type: StructureType,
+    ) : SeedMapAction
+
+    /** The snackbar saying [SeedMapState.nearestMissing] was not found has been shown. */
+    data object NearestMissingShown : SeedMapAction
 
     /** The Grid switch in the layers sheet. */
     data class SetGrid(

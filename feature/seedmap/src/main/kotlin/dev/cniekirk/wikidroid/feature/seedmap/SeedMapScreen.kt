@@ -1,10 +1,12 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalFloatingToolbar
@@ -25,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,14 +43,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
+import dev.cniekirk.wikidroid.core.domain.seedmap.FindNearestStructureUseCase
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
+import dev.cniekirk.wikidroid.core.seedmap.StructureType
+import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
 import dev.cniekirk.wikidroid.core.seedmap.TileCache
 import kotlin.math.roundToInt
 
 internal const val GO_TO_SPAWN_TAG = "seed-map-go-to-spawn"
 internal const val MAP_TOOLBAR_TAG = "seed-map-toolbar"
+internal const val FINDING_CHIP_TAG = "seed-map-finding"
 
 /** The dialogs and sheets the screen can show. Kept as one value so only one is ever open. */
 private enum class Overlay { None, Filter, Legend, Layers, SaveSeed }
@@ -66,6 +77,7 @@ fun SeedMapScreen(
     camera: MapCamera = rememberMapCamera(),
 ) {
     var overlay by rememberSaveable { mutableStateOf(Overlay.None) }
+    val snackbarHostState = remember { SnackbarHostState() }
     KeepViewAcrossDimensions(state.dimension, camera)
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -94,20 +106,26 @@ fun SeedMapScreen(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(sides).padding(top = 8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
             )
-            if (state.pinsHidden) {
+            val finding = state.findingNearest
+            if (finding != null) {
+                FindingChip(type = finding, modifier = Modifier.padding(top = 8.dp))
+            } else if (state.pinsHidden) {
                 MapChip(text = stringResource(R.string.seedmap_pins_hidden), modifier = Modifier.padding(top = 8.dp))
             }
         }
+        val bottomInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
         MapOverlay(
             state = state,
             camera = camera,
             onAction = onAction,
-            modifier =
-                Modifier.windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                ),
+            modifier = Modifier.windowInsetsPadding(bottomInsets),
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(bottomInsets),
         )
     }
+    NearestMissingSnackbar(state.nearestMissing, snackbarHostState, onAction)
 
     when (overlay) {
         Overlay.None -> {
@@ -160,6 +178,57 @@ private fun KeepViewAcrossDimensions(
         if (dimension != shown) {
             camera.convertDimension(shown, dimension)
             shown = dimension
+        }
+    }
+}
+
+/** Says that no [missing] structure was within reach, then acknowledges it once the snackbar has gone. */
+@Composable
+private fun NearestMissingSnackbar(
+    missing: StructureType?,
+    snackbarHostState: SnackbarHostState,
+    onAction: (SeedMapAction) -> Unit,
+) {
+    val text =
+        missing?.let {
+            stringResource(
+                R.string.seedmap_nearest_missing,
+                StructureWikiTitles.titleFor(it),
+                "%,d".format(FindNearestStructureUseCase.REACH_BLOCKS),
+            )
+        }
+    val currentOnAction by rememberUpdatedState(onAction)
+    LaunchedEffect(missing) {
+        if (text == null) return@LaunchedEffect
+        // Acknowledged only once it has been shown: clearing it earlier would cancel this effect.
+        snackbarHostState.showSnackbar(text)
+        currentOnAction(SeedMapAction.NearestMissingShown)
+    }
+}
+
+/** "Finding the nearest Stronghold" with a spinner, while the search looks. */
+@Composable
+private fun FindingChip(
+    type: StructureType,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.testTag(FINDING_CHIP_TAG).semantics(mergeDescendants = true) {},
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            Text(
+                text = stringResource(R.string.seedmap_finding_nearest, StructureWikiTitles.titleFor(type)),
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }

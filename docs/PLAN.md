@@ -429,7 +429,7 @@ Each session is one branch and one pull request into `main`. The user's request 
 - **Done when:** the build is green, `lintDebug` and `:app:checkMainMetroHiddenDependencies` pass, `:app:connectedDebugAndroidTest` passes, and an emulator check covers portrait, landscape (list pane), search, the layers sheet and the grid.
 
 ### Session 18: Seed search that finds structures
-- **Status:** planned.
+- **Status:** done.
 - **Build:**
   - Typing a structure name in the seed search offers "Nearest <structure>" rows, with the marker icon. Tapping one centres the map on the nearest structure of that type, turns its toggle on, and opens its selection sheet. When none is within reach, a snackbar says so.
   - `FindNearestStructureUseCase` in `:core:domain`. Region-based types search square rings of at most `MAX_STRUCTURE_SPAN` outward from the view's centre. The search stops when the closest hit is nearer than the next ring, or after about 4 rings. Strongholds take the nearest of `engine.strongholds`.
