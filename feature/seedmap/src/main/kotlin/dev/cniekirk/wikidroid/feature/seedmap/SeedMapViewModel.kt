@@ -206,12 +206,15 @@ class SeedMapViewModel(
             reduce { state.copy(removedPoi = null) }
         }
 
-    /** Adds the portal [point] leads to, in the other dimension of the same seed, and says where it went. */
+    /**
+     * Adds the portal [point] leads to, in the other dimension of the same seed, and says where it went. The
+     * point's sheet closes, or it would cover the snackbar saying so.
+     */
     private fun addLinkedPortal(point: PointOfInterest) =
         intent {
             val linked = point.linkedPortal() ?: return@intent
             pois.save(linked)
-            reduce { state.copy(linkedPortalAddedTo = Dimension.valueOf(linked.dimension)) }
+            reduce { state.copy(linkedPortalAddedTo = Dimension.valueOf(linked.dimension), selection = null) }
         }
 
     private fun selectStructure(structure: StructurePos) =

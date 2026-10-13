@@ -1241,9 +1241,12 @@ class SeedMapViewModelTest {
                 act(SeedMapAction.StartAddPoi(BlockPos(100, -100)))
                 act(save(name = "Hub", category = PoiCategory.PORTAL, x = 100, z = -100))
 
+                act(SeedMapAction.SelectPoi(state.pois.single()))
                 act(SeedMapAction.AddLinkedPortal(state.pois.single()))
 
                 assertThat(state.linkedPortalAddedTo).isEqualTo(Dimension.NETHER)
+                // The sheet closes, or it would hide the snackbar saying where the portal went.
+                assertThat(state.selection).isNull()
                 val linked = pois.current.single { it.dimension == Dimension.NETHER.name }
                 assertThat(linked.name).isEqualTo("Hub")
                 assertThat(linked.pos).isEqualTo(BlockPos(12, -13))

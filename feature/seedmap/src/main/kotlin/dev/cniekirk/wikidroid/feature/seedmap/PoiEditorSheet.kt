@@ -60,7 +60,8 @@ internal fun poiColorTag(color: PoiColor): String = "seed-map-poi-color-${color.
 
 /**
  * Adds a point where the map was long-pressed, or changes one. The text lives here, in the sheet, until Save sends
- * it all at once. The colour follows the kind until the player picks one. Save waits for whole-number X and Z (and
+ * it all at once. The colour follows the kind until the player picks one (a saved point's colour counts as picked
+ * unless it is its kind's default). Save waits for whole-number X and Z (and
  * Y, if given).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -77,7 +78,12 @@ internal fun PoiEditorSheet(
     val z = rememberTextFieldState(draft.pos.z.toString())
     val y = rememberTextFieldState(existing?.y?.toString().orEmpty())
     var category by rememberSaveable { mutableStateOf(existing?.category ?: PoiCategory.BASE) }
-    var pickedColor by rememberSaveable { mutableStateOf(existing?.color) }
+    // A saved point whose colour is just its kind's default keeps following the kind.
+    var pickedColor by rememberSaveable {
+        mutableStateOf(
+            existing?.color?.takeIf { it != existing.category.defaultColor },
+        )
+    }
     val color = pickedColor ?: category.defaultColor
 
     val blockX =

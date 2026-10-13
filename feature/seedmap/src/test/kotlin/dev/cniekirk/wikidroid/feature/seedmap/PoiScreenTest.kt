@@ -155,6 +155,27 @@ class PoiScreenTest : ComposeTest() {
     }
 
     @Test
+    fun aSavedPointInItsKindsColourFollowsANewKind() {
+        setScreen(SeedMapState(poiEditor = PoiDraft(base.pos, base)))
+
+        composeRule.onNodeWithTag(poiCategoryTag(PoiCategory.PORTAL)).performScrollTo().performClick()
+        composeRule.onNodeWithTag(POI_SAVE_TAG).performScrollTo().performClick()
+
+        assertThat((userActions.single() as SeedMapAction.SavePoi).color).isEqualTo(PoiColor.PURPLE)
+    }
+
+    @Test
+    fun aSavedPointsOwnColourIsKept() {
+        val pink = base.copy(color = PoiColor.PINK)
+        setScreen(SeedMapState(poiEditor = PoiDraft(pink.pos, pink)))
+
+        composeRule.onNodeWithTag(poiCategoryTag(PoiCategory.PORTAL)).performScrollTo().performClick()
+        composeRule.onNodeWithTag(POI_SAVE_TAG).performScrollTo().performClick()
+
+        assertThat((userActions.single() as SeedMapAction.SavePoi).color).isEqualTo(PoiColor.PINK)
+    }
+
+    @Test
     fun saveWaitsForWholeNumberCoordinates() {
         setScreen(SeedMapState(poiEditor = PoiDraft(BlockPos(0, 0))))
 
