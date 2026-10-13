@@ -82,6 +82,7 @@ internal fun SeedMapCanvas(
 
     val currentState by rememberUpdatedState(state)
     val drawer = remember { TileDrawer() }
+    val slime = remember { SlimeLayer() }
     val markerPath = remember { Path() }
     val resources = LocalContext.current.resources
     val sprites = remember(resources) { StructureSprites.load(resources) }
@@ -114,6 +115,7 @@ internal fun SeedMapCanvas(
         tilesLoaded.intValue // Read here so the canvas redraws when a tile lands.
         drawRect(background)
         with(drawer) { drawTiles(camera, tiles, wanted.value) }
+        if (currentState.slimeChunksShown) with(slime) { drawSlimeChunks(camera, currentState.seed) }
         if (currentState.showGrid) drawGrid(camera)
         drawMarkers(camera, currentState, pinPaint)
         if (currentState.showCrosshair) drawCrosshair()

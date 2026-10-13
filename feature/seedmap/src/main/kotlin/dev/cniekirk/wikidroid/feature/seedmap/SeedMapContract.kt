@@ -9,6 +9,7 @@ import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
 import dev.cniekirk.wikidroid.core.seedmap.McVersion
+import dev.cniekirk.wikidroid.core.seedmap.SlimeChunks
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
@@ -29,6 +30,8 @@ sealed interface MapSelection {
     data class Biome(
         override val pos: BlockPos,
         val biomeId: Int,
+        /** Whether the chunk at [pos] spawns slimes; only ever true in the Overworld. */
+        val slimeChunk: Boolean = false,
     ) : MapSelection {
         override val wikiTitle: String? get() = BiomeWikiTitles.titleFor(biomeId)
     }
@@ -74,6 +77,8 @@ data class SeedMapState(
     val showGrid: Boolean = false,
     /** The plus at the centre of the map, which the coordinate readout names. */
     val showCrosshair: Boolean = true,
+    /** Green shading over the Overworld's slime chunks. */
+    val showSlimeChunks: Boolean = false,
     /** The structure the search is finding the nearest of, while it looks. */
     val findingNearest: StructureType? = null,
     /** A structure the search found none of within reach, until the snackbar saying so has been shown. */
@@ -238,12 +243,22 @@ data class SeedMapState(
             }
         }
 
+    /** Whether slime chunks are shaded: switched on, and only the Overworld has them. */
+    val slimeChunksShown: Boolean get() = showSlimeChunks && dimension == Dimension.OVERWORLD
+
     /** Selects the biome tapped at [pos], unless the world changed while it was looked up. */
     fun withBiomeSelection(
         world: MapWorld,
         pos: BlockPos,
         biome: Int,
-    ): SeedMapState = if (world == this.world) copy(selection = MapSelection.Biome(pos, biome)) else this
+    ): SeedMapState =
+        if (world == this.world) {
+            val slime =
+                world.dimension == Dimension.OVERWORLD && SlimeChunks.isSlimeChunk(world.seed, pos.chunkX, pos.chunkZ)
+            copy(selection = MapSelection.Biome(pos, biome, slime))
+        } else {
+            this
+        }
 
     companion object {
         const val DEFAULT_SEED = 262L
@@ -333,6 +348,11 @@ sealed interface SeedMapAction {
 
     /** The Crosshair switch in the layers sheet. */
     data class SetCrosshair(
+        val show: Boolean,
+    ) : SeedMapAction
+
+    /** The Slime chunks switch in the layers sheet. */
+    data class SetSlimeChunks(
         val show: Boolean,
     ) : SeedMapAction
 }

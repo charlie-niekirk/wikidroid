@@ -81,4 +81,13 @@ class SeedMapStateTest {
         assertThat(hidden.pins).isEmpty()
         assertThat(hidden.pinsHidden).isTrue()
     }
+
+    @Test
+    fun slimeChunksAreOnlyShownInTheOverworld() {
+        val on = SeedMapState(showSlimeChunks = true)
+
+        assertThat(on.slimeChunksShown).isTrue()
+        assertThat(on.withDimension(Dimension.NETHER).slimeChunksShown).isFalse()
+        assertThat(SeedMapState().slimeChunksShown).isFalse()
+    }
 }

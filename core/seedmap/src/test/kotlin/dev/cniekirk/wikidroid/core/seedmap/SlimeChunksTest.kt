@@ -14,9 +14,8 @@ class SlimeChunksTest {
     fun `slime chunks near the origin match cubiomes`() {
         assertThat(slimeChunksIn(262L, -8, -8)).containsExactlyElementsIn(
             chunks(
-                -8 to -6, -8 to 2, -7 to -6, -7 to -4, -7 to 2, -7 to 5, -6 to -8, -5 to 7, -4 to -7, -4 to -5,
-                -4 to -1, -3 to -5, -3 to 7, -2 to -3, -2 to 3, -2 to 6, -1 to -7, -1 to 1, 0 to -7, 0 to -3,
-                3 to -5, 3 to 0, 3 to 7, 4 to -8, 4 to 6, 5 to 0, 5 to 4, 7 to -5, 7 to 3, 7 to 5,
+                "-8:-6 -8:2 -7:-6 -7:-4 -7:2 -7:5 -6:-8 -5:7 -4:-7 -4:-5 -4:-1 -3:-5 -3:7 -2:-3 -2:3 " +
+                    "-2:6 -1:-7 -1:1 0:-7 0:-3 3:-5 3:0 3:7 4:-8 4:6 5:0 5:4 7:-5 7:3 7:5",
             ),
         )
     }
@@ -25,10 +24,9 @@ class SlimeChunksTest {
     fun `a negative seed matches cubiomes`() {
         assertThat(slimeChunksIn(-4172144997902289642L, 100, -60)).containsExactlyElementsIn(
             chunks(
-                100 to -59, 101 to -46, 102 to -60, 102 to -52, 102 to -49, 102 to -48, 103 to -55, 103 to -48,
-                103 to -47, 106 to -51, 106 to -47, 106 to -45, 107 to -58, 107 to -53, 108 to -60, 109 to -53,
-                110 to -54, 110 to -49, 111 to -60, 111 to -50, 112 to -52, 112 to -49, 113 to -59, 114 to -57,
-                114 to -45,
+                "100:-59 101:-46 102:-60 102:-52 102:-49 102:-48 103:-55 103:-48 103:-47 106:-51 106:-47 " +
+                    "106:-45 107:-58 107:-53 108:-60 109:-53 110:-54 110:-49 111:-60 111:-50 112:-52 112:-49 " +
+                    "113:-59 114:-57 114:-45",
             ),
         )
     }
@@ -37,12 +35,11 @@ class SlimeChunksTest {
     fun `the world border with the largest seed matches cubiomes`() {
         assertThat(slimeChunksIn(Long.MAX_VALUE, -1875008, 1874992)).containsExactlyElementsIn(
             chunks(
-                -1875008 to 1875006, -1875007 to 1874996, -1875007 to 1875001, -1875005 to 1874993,
-                -1875004 to 1875001, -1875003 to 1875006, -1875002 to 1874995, -1875002 to 1874996,
-                -1875002 to 1875002, -1875001 to 1874993, -1875001 to 1874999, -1875001 to 1875004,
-                -1875000 to 1875000, -1875000 to 1875004, -1875000 to 1875007, -1874999 to 1874993,
-                -1874999 to 1875000, -1874998 to 1875004, -1874997 to 1874996, -1874996 to 1874996,
-                -1874996 to 1874999, -1874996 to 1875001, -1874994 to 1874994,
+                "-1875008:1875006 -1875007:1874996 -1875007:1875001 -1875005:1874993 -1875004:1875001 " +
+                    "-1875003:1875006 -1875002:1874995 -1875002:1874996 -1875002:1875002 -1875001:1874993 " +
+                    "-1875001:1874999 -1875001:1875004 -1875000:1875000 -1875000:1875004 -1875000:1875007 " +
+                    "-1874999:1874993 -1874999:1875000 -1874998:1875004 -1874997:1874996 -1874996:1874996 " +
+                    "-1874996:1874999 -1874996:1875001 -1874994:1874994",
             ),
         )
     }
@@ -51,10 +48,10 @@ class SlimeChunksTest {
     fun `squares that overflow an int match cubiomes`() {
         assertThat(slimeChunksIn(Long.MIN_VALUE, 46336, -46346)).containsExactlyElementsIn(
             chunks(
-                46336 to -46342, 46338 to -46342, 46338 to -46334, 46338 to -46333, 46338 to -46332, 46339 to -46342,
-                46339 to -46333, 46341 to -46342, 46342 to -46344, 46343 to -46342, 46343 to -46336, 46343 to -46332,
-                46344 to -46333, 46345 to -46341, 46345 to -46339, 46345 to -46335, 46346 to -46332, 46347 to -46338,
-                46347 to -46331, 46349 to -46336, 46351 to -46337,
+                "46336:-46342 46338:-46342 46338:-46334 46338:-46333 46338:-46332 46339:-46342 " +
+                    "46339:-46333 46341:-46342 46342:-46344 46343:-46342 46343:-46336 46343:-46332 " +
+                    "46344:-46333 46345:-46341 46345:-46339 46345:-46335 46346:-46332 46347:-46338 " +
+                    "46347:-46331 46349:-46336 46351:-46337",
             ),
         )
     }
@@ -78,7 +75,12 @@ class SlimeChunksTest {
             (z0 until z0 + WINDOW).filter { z -> SlimeChunks.isSlimeChunk(seed, x, z) }.map { z -> x to z }
         }
 
-    private fun chunks(vararg chunks: Pair<Int, Int>): List<Pair<Int, Int>> = chunks.toList()
+    /** Chunks written as `x:z`, separated by spaces, the way the host build printed them. */
+    private fun chunks(text: String): List<Pair<Int, Int>> =
+        text.trim().split(' ').map { chunk ->
+            val (x, z) = chunk.split(':')
+            x.toInt() to z.toInt()
+        }
 
     private companion object {
         const val WINDOW = 16

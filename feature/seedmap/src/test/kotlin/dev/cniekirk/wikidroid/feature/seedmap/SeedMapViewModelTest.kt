@@ -1036,6 +1036,49 @@ class SeedMapViewModelTest {
             }
         }
 
+    @Test
+    fun `slime chunks start hidden and the switch shows them`() =
+        runTest {
+            onMap {
+                assertThat(state.showSlimeChunks).isFalse()
+
+                act(SeedMapAction.SetSlimeChunks(true))
+
+                assertThat(state.showSlimeChunks).isTrue()
+                assertThat(state.slimeChunksShown).isTrue()
+            }
+        }
+
+    @Test
+    fun `tapping a slime chunk says so`() =
+        runTest {
+            engine.biomeHandler = { _, _, _ -> 1 }
+
+            onMap {
+                // Chunk (-8, -6) of seed 262 is a slime chunk (SlimeChunksTest); chunk (0, 0) is not.
+                act(SeedMapAction.SelectPoint(BlockPos(-128, -96)))
+                assertThat((state.selection as MapSelection.Biome).slimeChunk).isTrue()
+
+                act(SeedMapAction.SelectPoint(BlockPos(0, 0)))
+                assertThat((state.selection as MapSelection.Biome).slimeChunk).isFalse()
+            }
+        }
+
+    @Test
+    fun `the Nether has no slime chunks`() =
+        runTest {
+            engine.biomeHandler = { _, _, _ -> 8 }
+
+            onMap {
+                act(SeedMapAction.SetSlimeChunks(true))
+                act(SeedMapAction.SelectDimension(Dimension.NETHER))
+                act(SeedMapAction.SelectPoint(BlockPos(-128, -96)))
+
+                assertThat((state.selection as MapSelection.Biome).slimeChunk).isFalse()
+                assertThat(state.slimeChunksShown).isFalse()
+            }
+        }
+
     // endregion
 
     private suspend fun suspendForever(): Nothing {

@@ -486,5 +486,32 @@ class SeedMapControlsTest : ComposeTest() {
             .inOrder()
     }
 
+    @Test
+    fun theSlimeSwitchSendsItsAction() {
+        setScreen()
+        openLayers()
+
+        composeRule
+            .onNodeWithTag(SLIME_SWITCH_TAG)
+            .performScrollTo()
+            .assertIsOff()
+            .performClick()
+
+        assertThat(userActions).containsExactly(SeedMapAction.SetSlimeChunks(true))
+    }
+
+    @Test
+    fun theSlimeSwitchIsOffAndDisabledOutsideTheOverworld() {
+        setScreen(SeedMapState(dimension = Dimension.NETHER, showSlimeChunks = true))
+        openLayers()
+
+        composeRule
+            .onNodeWithTag(SLIME_SWITCH_TAG)
+            .performScrollTo()
+            .assertIsNotEnabled()
+            .assertIsOff()
+        composeRule.onNodeWithText("Overworld only").assertIsDisplayed()
+    }
+
     // endregion
 }

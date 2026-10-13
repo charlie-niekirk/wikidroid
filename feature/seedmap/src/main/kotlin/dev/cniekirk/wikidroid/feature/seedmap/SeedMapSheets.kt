@@ -42,6 +42,7 @@ internal const val SELECTION_TITLE_TAG = "seed-map-selection-title"
 internal const val COPY_COORDINATES_TAG = "seed-map-copy"
 internal const val OPEN_ARTICLE_TAG = "seed-map-open-article"
 internal const val FILTER_SHEET_TAG = "seed-map-filter-sheet"
+internal const val SLIME_CHUNK_TAG = "seed-map-slime-chunk"
 
 /** What a tap picked: its name, where it is, and the actions that follow from it. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +76,19 @@ internal fun SelectionSheet(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (selection is MapSelection.Biome && selection.slimeChunk) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    WikiIcon(icon = WikiIcons.BubbleChart, contentDescription = null, tint = SlimeChunkGreen)
+                    Text(
+                        text = stringResource(R.string.seedmap_slime_chunk, selection.pos.chunkX, selection.pos.chunkZ),
+                        modifier = Modifier.testTag(SLIME_CHUNK_TAG),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
             // Stacked, because "Open wiki article" does not fit beside the other button on a phone.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(

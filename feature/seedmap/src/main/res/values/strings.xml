@@ -32,6 +32,10 @@
     <string name="seedmap_layers_grid_summary">Chunk and region lines</string>
     <string name="seedmap_layers_crosshair">Crosshair</string>
     <string name="seedmap_layers_crosshair_summary">Marks the point the coordinates name</string>
+    <string name="seedmap_layers_slime">Slime chunks</string>
+    <string name="seedmap_layers_slime_summary">Chunks where slimes spawn below Y 40</string>
+    <string name="seedmap_slime_overworld_only">Overworld only</string>
+    <string name="seedmap_slime_chunk">Slime chunk (chunk %1$d, %2$d)</string>
     <string name="seedmap_dimension_overworld">Overworld</string>
     <string name="seedmap_dimension_nether">Nether</string>
     <string name="seedmap_dimension_end">End</string>

@@ -140,6 +140,7 @@ class SeedMapViewModel(
             SeedMapAction.NearestMissingShown -> intent { reduce { state.copy(nearestMissing = null) } }
             is SeedMapAction.SetGrid -> intent { reduce { state.copy(showGrid = action.show) } }
             is SeedMapAction.SetCrosshair -> intent { reduce { state.copy(showCrosshair = action.show) } }
+            is SeedMapAction.SetSlimeChunks -> intent { reduce { state.copy(showSlimeChunks = action.show) } }
         }
     }
 
