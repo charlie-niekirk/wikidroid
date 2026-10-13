@@ -1,5 +1,6 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.MapWorld
@@ -24,6 +25,11 @@ internal sealed interface SeedSuggestion {
     /** The text as a seed, parsed like the game does. */
     data class UseSeed(
         val text: String,
+    ) : SeedSuggestion
+
+    /** One of the player's points whose name matches the text: go to it. */
+    data class Poi(
+        val point: PointOfInterest,
     ) : SeedSuggestion
 
     data object Random : SeedSuggestion
@@ -58,13 +64,14 @@ private fun String.toCoordinate(): Int? {
 
 /**
  * The rows under the expanded seed search for [query], which is empty until the player types something new.
- * A position comes first, then the structures of [world] whose name contains the query, the seed itself, the
- * random seed, and the saved seeds whose name or number contains the query.
+ * A position comes first, then the structures of [world] whose name contains the query, the player's [pois] whose
+ * name does, the seed itself, the random seed, and the saved seeds whose name or number contains the query.
  */
 internal fun seedSuggestions(
     query: String,
     saved: List<SavedSeed>,
     world: MapWorld,
+    pois: List<PointOfInterest> = emptyList(),
 ): ImmutableList<SeedSuggestion> {
     val text = query.trim()
     val position = parseCoordinates(text)
@@ -76,6 +83,7 @@ internal fun seedSuggestions(
 
             text.isNotEmpty() -> {
                 structuresMatching(text, world).forEach { add(SeedSuggestion.Nearest(it)) }
+                poisMatching(text, pois).forEach { add(SeedSuggestion.Poi(it)) }
                 add(SeedSuggestion.UseSeed(text))
             }
         }
@@ -98,9 +106,24 @@ internal fun structuresMatching(
         StructureType.availableIn(world).filter { StructureWikiTitles.titleFor(it).contains(text, ignoreCase = true) }
     }
 
+/** The points whose name contains [text], ignoring case; like structures, a single letter matches nothing. */
+internal fun poisMatching(
+    text: String,
+    pois: List<PointOfInterest>,
+): List<PointOfInterest> =
+    if (text.length < MIN_STRUCTURE_QUERY) {
+        emptyList()
+    } else {
+        pois.filter { it.name?.contains(text, ignoreCase = true) == true }
+    }
+
 /** Whether the search key should run [this]: a row that acts on the typed text, not a fixed one. */
 internal val SeedSuggestion.isForTypedText: Boolean
-    get() = this is SeedSuggestion.GoTo || this is SeedSuggestion.Nearest || this is SeedSuggestion.UseSeed
+    get() =
+        this is SeedSuggestion.GoTo ||
+            this is SeedSuggestion.Nearest ||
+            this is SeedSuggestion.Poi ||
+            this is SeedSuggestion.UseSeed
 
 private const val MIN_STRUCTURE_QUERY = 2
 

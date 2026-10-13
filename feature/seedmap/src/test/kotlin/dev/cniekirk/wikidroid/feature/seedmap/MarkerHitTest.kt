@@ -2,9 +2,11 @@ package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.compose.ui.geometry.Offset
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
+import kotlinx.collections.immutable.persistentListOf
 import org.junit.Test
 
 class MarkerHitTest {
@@ -91,5 +93,41 @@ class MarkerHitTest {
         val action = selectionAt(camera, Offset(600f, 1100f), state, radiusPx = 20f)
 
         assertThat(action).isEqualTo(SeedMapAction.SelectStructure(village))
+    }
+
+    private val base =
+        PointOfInterest(id = 7, seed = 262, dimension = "OVERWORLD", x = 100, z = 100, name = "Base")
+
+    @Test
+    fun aPointBeatsAStructureAtTheSameSpot() {
+        assertThat(hitTest(camera, Offset(600f, 1100f), null, emptyList(), listOf(village), 20f, listOf(base)))
+            .isEqualTo(MarkerHit.Poi(base))
+    }
+
+    @Test
+    fun aTapOnAPointSelectsIt() {
+        val state = SeedMapState(pins = persistentListOf(village), pois = persistentListOf(base))
+
+        assertThat(selectionAt(camera, Offset(600f, 1100f), state, radiusPx = 20f))
+            .isEqualTo(SeedMapAction.SelectPoi(base))
+    }
+
+    @Test
+    fun aLongPressOnAPointEditsIt() {
+        val state = SeedMapState(pois = persistentListOf(base))
+
+        assertThat(longPressAt(camera, Offset(605f, 1100f), state, radiusPx = 20f))
+            .isEqualTo(SeedMapAction.EditPoi(base))
+    }
+
+    @Test
+    fun aLongPressElsewhereAddsAPointThere() {
+        val state = SeedMapState(pins = persistentListOf(village), pois = persistentListOf(base))
+
+        // Over a structure pin but not the point: structures do not stop a point being added.
+        assertThat(longPressAt(camera, Offset(610f, 1100f), state.copy(pois = persistentListOf()), radiusPx = 20f))
+            .isEqualTo(SeedMapAction.StartAddPoi(BlockPos(110, 100)))
+        assertThat(longPressAt(camera, Offset(520f, 1030f), state, radiusPx = 20f))
+            .isEqualTo(SeedMapAction.StartAddPoi(BlockPos(20, 30)))
     }
 }

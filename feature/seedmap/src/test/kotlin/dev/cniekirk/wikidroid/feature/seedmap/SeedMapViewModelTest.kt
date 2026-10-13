@@ -7,6 +7,9 @@ import dev.cniekirk.wikidroid.core.domain.seedmap.FindSpawnUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStrongholdsUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindStructuresUseCase
 import dev.cniekirk.wikidroid.core.domain.seedmap.GetBiomeLegendUseCase
+import dev.cniekirk.wikidroid.core.model.PoiCategory
+import dev.cniekirk.wikidroid.core.model.PoiColor
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
@@ -18,6 +21,7 @@ import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
 import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.testing.MainDispatcherRule
+import dev.cniekirk.wikidroid.core.testing.fake.FakePointOfInterestRepository
 import dev.cniekirk.wikidroid.core.testing.fake.FakeSeedMapEngine
 import dev.cniekirk.wikidroid.core.testing.fake.FakeSeedRepository
 import dev.cniekirk.wikidroid.core.testing.fake.StructureRequest
@@ -39,9 +43,11 @@ class SeedMapViewModelTest {
 
     private val engine = FakeSeedMapEngine()
     private val seeds = FakeSeedRepository()
+    private val pois = FakePointOfInterestRepository()
     private val viewModel =
         SeedMapViewModel(
             seeds,
+            pois,
             FindSpawnUseCase(engine),
             FindStrongholdsUseCase(engine),
             FindStructuresUseCase(engine),
@@ -1076,6 +1082,203 @@ class SeedMapViewModelTest {
 
                 assertThat((state.selection as MapSelection.Biome).slimeChunk).isFalse()
                 assertThat(state.slimeChunksShown).isFalse()
+            }
+        }
+
+    // endregion
+
+    // region points of interest
+
+    private fun save(
+        name: String = "Base",
+        category: PoiCategory = PoiCategory.BASE,
+        x: Int = 100,
+        z: Int = -200,
+        y: Int? = 64,
+        note: String = "",
+        color: PoiColor = category.defaultColor,
+    ) = SeedMapAction.SavePoi(name, category, color, x, z, y, note)
+
+    private fun saved(
+        id: Long,
+        dimension: Dimension = Dimension.OVERWORLD,
+        name: String? = "Base",
+        category: PoiCategory = PoiCategory.BASE,
+        x: Int = 100,
+        z: Int = -200,
+    ) = PointOfInterest(
+        id = id,
+        seed = SeedMapState.DEFAULT_SEED,
+        dimension = dimension.name,
+        x = x,
+        z = z,
+        y = 64,
+        name = name,
+        category = category,
+        createdAt = pois.now,
+    )
+
+    @Test
+    fun `a long press opens the editor there and saving adds the point to this world`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -200)))
+                assertThat(state.poiEditor).isEqualTo(PoiDraft(BlockPos(100, -200)))
+
+                act(save(note = "  Behind the waterfall "))
+
+                assertThat(state.poiEditor).isNull()
+                assertThat(pois.current).containsExactly(saved(1).copy(note = "Behind the waterfall"))
+                assertThat(state.pois).containsExactly(saved(1).copy(note = "Behind the waterfall"))
+            }
+        }
+
+    @Test
+    fun `a blank name and note are saved as none`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(0, 0)))
+                act(save(name = "   ", note = " ", category = PoiCategory.FARM, x = 5, z = 6, y = null))
+
+                val point = pois.current.single()
+                assertThat(point.name).isNull()
+                assertThat(point.note).isNull()
+                assertThat(point.y).isNull()
+                assertThat(point.color).isEqualTo(PoiColor.GREEN)
+            }
+        }
+
+    @Test
+    fun `saving with no editor open does nothing`() =
+        runTest {
+            onMap {
+                act(save())
+
+                assertThat(pois.current).isEmpty()
+            }
+        }
+
+    @Test
+    fun `editing a point replaces it and keeps its id`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -200)))
+                act(save())
+                act(SeedMapAction.SelectPoi(state.pois.single()))
+
+                act(SeedMapAction.EditPoi(state.pois.single()))
+                assertThat(state.selection).isNull()
+                assertThat(state.poiEditor).isEqualTo(PoiDraft(BlockPos(100, -200), saved(1)))
+
+                act(save(name = "Home", color = PoiColor.PINK, x = 1, z = 2))
+
+                assertThat(
+                    pois.current,
+                ).containsExactly(saved(1, name = "Home", x = 1, z = 2).copy(color = PoiColor.PINK))
+            }
+        }
+
+    @Test
+    fun `deleting a point can be undone`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -200)))
+                act(save())
+                val point = state.pois.single()
+                act(SeedMapAction.SelectPoi(point))
+
+                act(SeedMapAction.DeletePoi(point))
+                assertThat(state.pois).isEmpty()
+                assertThat(state.selection).isNull()
+                assertThat(state.removedPoi).isEqualTo(point)
+
+                act(SeedMapAction.UndoDeletePoi)
+                assertThat(state.pois).containsExactly(point)
+                assertThat(state.removedPoi).isNull()
+            }
+        }
+
+    @Test
+    fun `a deleted point stays deleted once its snackbar has gone`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -200)))
+                act(save())
+                act(SeedMapAction.DeletePoi(state.pois.single()))
+
+                act(SeedMapAction.RemovedPoiShown)
+                act(SeedMapAction.UndoDeletePoi)
+
+                assertThat(state.removedPoi).isNull()
+                assertThat(pois.current).isEmpty()
+            }
+        }
+
+    @Test
+    fun `points follow the seed and dimension but not the version`() =
+        runTest {
+            pois.save(saved(0, dimension = Dimension.NETHER, name = "Hub"))
+            pois.save(saved(0, name = "Base"))
+
+            onMap {
+                assertThat(state.pois.map { it.name }).containsExactly("Base")
+
+                act(SeedMapAction.SelectVersion(McVersion.V1_20))
+                assertThat(state.pois.map { it.name }).containsExactly("Base")
+
+                act(SeedMapAction.SelectDimension(Dimension.NETHER))
+                assertThat(state.pois.map { it.name }).containsExactly("Hub")
+
+                act(SeedMapAction.SubmitSeed("1"))
+                assertThat(state.pois).isEmpty()
+            }
+        }
+
+    @Test
+    fun `a portal's linked portal is added to the other dimension`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -100)))
+                act(save(name = "Hub", category = PoiCategory.PORTAL, x = 100, z = -100))
+
+                act(SeedMapAction.AddLinkedPortal(state.pois.single()))
+
+                assertThat(state.linkedPortalAddedTo).isEqualTo(Dimension.NETHER)
+                val linked = pois.current.single { it.dimension == Dimension.NETHER.name }
+                assertThat(linked.name).isEqualTo("Hub")
+                assertThat(linked.pos).isEqualTo(BlockPos(12, -13))
+                assertThat(linked.category).isEqualTo(PoiCategory.PORTAL)
+
+                act(SeedMapAction.LinkedPortalShown)
+                assertThat(state.linkedPortalAddedTo).isNull()
+            }
+        }
+
+    @Test
+    fun `only a portal has a linked portal`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.StartAddPoi(BlockPos(100, -100)))
+                act(save())
+
+                act(SeedMapAction.AddLinkedPortal(state.pois.single()))
+
+                assertThat(pois.current).hasSize(1)
+                assertThat(state.linkedPortalAddedTo).isNull()
+            }
+        }
+
+    @Test
+    fun `going to a point selects it and centres the map on it`() =
+        runTest {
+            pois.save(saved(0))
+
+            onMap {
+                val point = state.pois.single()
+                viewModel.onAction(SeedMapAction.GoToPoi(point))
+
+                expectEffect(SeedMapEffect.CenterOn(BlockPos(100, -200)))
+                assertThat(state.selection).isEqualTo(MapSelection.Poi(point))
             }
         }
 

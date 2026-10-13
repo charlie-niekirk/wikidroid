@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
@@ -43,6 +44,10 @@ internal const val COPY_COORDINATES_TAG = "seed-map-copy"
 internal const val OPEN_ARTICLE_TAG = "seed-map-open-article"
 internal const val FILTER_SHEET_TAG = "seed-map-filter-sheet"
 internal const val SLIME_CHUNK_TAG = "seed-map-slime-chunk"
+internal const val POI_EDIT_TAG = "seed-map-poi-edit"
+internal const val POI_SHEET_DELETE_TAG = "seed-map-poi-sheet-delete"
+internal const val POI_ADD_LINKED_TAG = "seed-map-poi-add-linked"
+internal const val POI_LINKED_TAG = "seed-map-poi-linked"
 
 /** What a tap picked: its name, where it is, and the actions that follow from it. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +61,12 @@ internal fun SelectionSheet(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var copied by remember(selection) { mutableStateOf(false) }
-    val coordinates = "${selection.pos.x}, ${selection.pos.z}"
+    val point = (selection as? MapSelection.Poi)?.point
+    val height = point?.y
+    // With a height, in the order /tp takes them.
+    val pos = selection.pos
+    val title = point?.displayName() ?: selection.wikiTitle ?: stringResource(R.string.seedmap_unknown_biome)
+    val coordinates = if (height != null) "${pos.x} $height ${pos.z}" else "${pos.x}, ${pos.z}"
 
     ModalBottomSheet(onDismissRequest = { onAction(SeedMapAction.DismissSelection) }, modifier = modifier) {
         Column(
@@ -64,9 +74,13 @@ internal fun SelectionSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                selection.icon()?.let { StructureIconImage(it, size = 40.dp) }
+                if (point != null) {
+                    PoiMarker(point.category.icon, point.color, size = 40.dp)
+                } else {
+                    selection.icon()?.let { StructureIconImage(it, size = 40.dp) }
+                }
                 Text(
-                    text = selection.wikiTitle ?: stringResource(R.string.seedmap_unknown_biome),
+                    text = title,
                     modifier = Modifier.testTag(SELECTION_TITLE_TAG),
                     style = MaterialTheme.typography.headlineSmall,
                 )
@@ -76,6 +90,7 @@ internal fun SelectionSheet(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (point != null) PoiDetails(point)
             if (selection is MapSelection.Biome && selection.slimeChunk) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -111,6 +126,7 @@ internal fun SelectionSheet(
                         ),
                     )
                 }
+                if (point != null) PoiButtons(point, onAction)
                 if (selection.wikiTitle != null) {
                     Button(
                         onClick = { onAction(SeedMapAction.OpenWikiArticle) },
@@ -124,6 +140,66 @@ internal fun SelectionSheet(
                         Text(stringResource(R.string.seedmap_open_article))
                     }
                 }
+            }
+        }
+    }
+}
+
+/** A point's height, note, and for a portal where it leads. */
+@Composable
+private fun PoiDetails(point: PointOfInterest) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        point.y?.let { y ->
+            Text(
+                text = stringResource(R.string.seedmap_poi_height, y),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        point.note?.let { note -> Text(text = note, style = MaterialTheme.typography.bodyLarge) }
+        val linked = point.linkedPortal()
+        val dimension = linked?.mapDimension
+        if (linked != null && dimension != null) {
+            val dimensionName = stringResource(dimension.labelRes())
+            Text(
+                text = stringResource(R.string.seedmap_poi_links_to, linked.x, linked.z, dimensionName),
+                modifier = Modifier.testTag(POI_LINKED_TAG),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+}
+
+/** Edit and delete, and for a portal, adding the one it leads to. */
+@Composable
+private fun PoiButtons(
+    point: PointOfInterest,
+    onAction: (SeedMapAction) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { onAction(SeedMapAction.EditPoi(point)) },
+                modifier = Modifier.weight(1f).testTag(POI_EDIT_TAG),
+            ) {
+                WikiIcon(icon = WikiIcons.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.seedmap_poi_edit))
+            }
+            OutlinedButton(
+                onClick = { onAction(SeedMapAction.DeletePoi(point)) },
+                modifier = Modifier.weight(1f).testTag(POI_SHEET_DELETE_TAG),
+            ) {
+                WikiIcon(icon = WikiIcons.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.seedmap_poi_delete))
+            }
+        }
+        if (point.linkedPortal() != null) {
+            Button(
+                onClick = { onAction(SeedMapAction.AddLinkedPortal(point)) },
+                modifier = Modifier.fillMaxWidth().testTag(POI_ADD_LINKED_TAG),
+            ) {
+                WikiIcon(icon = WikiIcons.Portal, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.seedmap_poi_add_linked))
             }
         }
     }

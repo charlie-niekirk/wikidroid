@@ -1,6 +1,9 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import androidx.compose.runtime.Immutable
+import dev.cniekirk.wikidroid.core.model.PoiCategory
+import dev.cniekirk.wikidroid.core.model.PoiColor
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BiomeLegendEntry
 import dev.cniekirk.wikidroid.core.seedmap.BiomeWikiTitles
@@ -48,7 +51,25 @@ sealed interface MapSelection {
     ) : MapSelection {
         override val wikiTitle: String get() = SPAWN_WIKI_TITLE
     }
+
+    /** One of the player's own points; it has no article. */
+    data class Poi(
+        val point: PointOfInterest,
+    ) : MapSelection {
+        override val pos: BlockPos get() = point.pos
+        override val wikiTitle: String? get() = null
+    }
 }
+
+/** The point editor: a new point at [pos], or [existing] being changed. */
+@Immutable
+data class PoiDraft(
+    val pos: BlockPos,
+    val existing: PointOfInterest? = null,
+)
+
+/** Where a point is on the map. */
+val PointOfInterest.pos: BlockPos get() = BlockPos(x, z)
 
 private const val SPAWN_WIKI_TITLE = "World spawn"
 
@@ -58,6 +79,7 @@ private const val SPAWN_WIKI_TITLE = "World spawn"
  * both only for toggled-on types; [pinsHidden] is true while the view is too wide to search.
  */
 @Immutable
+@Suppress("TooManyFunctions") // One member per kind of answer the ViewModel reduces into the state.
 data class SeedMapState(
     val seed: Long = DEFAULT_SEED,
     val version: McVersion = McVersion.newest,
@@ -83,6 +105,14 @@ data class SeedMapState(
     val findingNearest: StructureType? = null,
     /** A structure the search found none of within reach, until the snackbar saying so has been shown. */
     val nearestMissing: StructureType? = null,
+    /** The player's points for this seed and dimension, oldest first. */
+    val pois: ImmutableList<PointOfInterest> = persistentListOf(),
+    /** The point being added or edited, while the editor is open. */
+    val poiEditor: PoiDraft? = null,
+    /** A point just deleted, until the snackbar offering to undo it has gone. */
+    val removedPoi: PointOfInterest? = null,
+    /** The dimension a linked portal was just added to, until the snackbar saying so has gone. */
+    val linkedPortalAddedTo: Dimension? = null,
 ) {
     val world: MapWorld get() = MapWorld(seed, version, dimension)
 
@@ -118,6 +148,8 @@ data class SeedMapState(
         if (seed == this.seed && version == this.version && dimension == this.dimension) {
             this
         } else {
+            // Points belong to a seed and dimension, not a version, so a new version keeps them.
+            val samePlace = seed == this.seed && dimension == this.dimension
             copy(
                 seed = seed,
                 version = version,
@@ -127,6 +159,8 @@ data class SeedMapState(
                 strongholds = persistentListOf(),
                 pinsHidden = false,
                 selection = null,
+                pois = if (samePlace) pois else persistentListOf(),
+                poiEditor = poiEditor.takeIf { samePlace },
             )
         }
 
@@ -243,6 +277,42 @@ data class SeedMapState(
             }
         }
 
+    /**
+     * The points saved for [seed] in [dimension], unless the map has moved to another seed or dimension since. A
+     * selected point follows its saved copy, and is unselected once it is gone.
+     */
+    fun withPois(
+        seed: Long,
+        dimension: Dimension,
+        found: List<PointOfInterest>,
+    ): SeedMapState {
+        if (seed != this.seed || dimension != this.dimension) return this
+        val selected = selection
+        val refreshed =
+            if (selected is MapSelection.Poi) {
+                found.firstOrNull { it.id == selected.point.id }?.let(MapSelection::Poi)
+            } else {
+                selected
+            }
+        return copy(pois = found.toImmutableList(), selection = refreshed)
+    }
+
+    /** The editor opened on [point]; its sheet replaces the point's own. */
+    fun withPoiEditor(point: PointOfInterest): SeedMapState =
+        copy(poiEditor = PoiDraft(point.pos, point), selection = null)
+
+    /**
+     * [point] gone: off the map at once (the saved list follows), unselected, its editor closed, and kept as
+     * [removedPoi] so it can be put back.
+     */
+    fun withoutPoi(point: PointOfInterest): SeedMapState =
+        copy(
+            pois = pois.filterNot { it.id == point.id }.toImmutableList(),
+            selection = selection?.takeUnless { it is MapSelection.Poi && it.point.id == point.id },
+            poiEditor = poiEditor?.takeUnless { it.existing?.id == point.id },
+            removedPoi = point,
+        )
+
     /** Whether slime chunks are shaded: switched on, and only the Overworld has them. */
     val slimeChunksShown: Boolean get() = showSlimeChunks && dimension == Dimension.OVERWORLD
 
@@ -355,6 +425,60 @@ sealed interface SeedMapAction {
     data class SetSlimeChunks(
         val show: Boolean,
     ) : SeedMapAction
+
+    /** A long press on bare map: open the editor for a new point there. */
+    data class StartAddPoi(
+        val pos: BlockPos,
+    ) : SeedMapAction
+
+    /** "Edit" on a point, or a long press on its marker. */
+    data class EditPoi(
+        val point: PointOfInterest,
+    ) : SeedMapAction
+
+    data object DismissPoiEditor : SeedMapAction
+
+    /**
+     * The editor's Save: what the player entered. The point is new unless the editor was opened on one, and a
+     * blank [name] or [note] is stored as none.
+     */
+    data class SavePoi(
+        val name: String,
+        val category: PoiCategory,
+        val color: PoiColor,
+        val x: Int,
+        val z: Int,
+        val y: Int?,
+        val note: String,
+    ) : SeedMapAction
+
+    /** A tap on a point's marker. */
+    data class SelectPoi(
+        val point: PointOfInterest,
+    ) : SeedMapAction
+
+    /** A point picked from the list or the search: centre the map on it and select it. */
+    data class GoToPoi(
+        val point: PointOfInterest,
+    ) : SeedMapAction
+
+    data class DeletePoi(
+        val point: PointOfInterest,
+    ) : SeedMapAction
+
+    /** The snackbar's Undo for [SeedMapState.removedPoi]. */
+    data object UndoDeletePoi : SeedMapAction
+
+    /** The snackbar for [SeedMapState.removedPoi] has gone. */
+    data object RemovedPoiShown : SeedMapAction
+
+    /** "Add linked portal" on a Nether portal point: add the portal it leads to in the other dimension. */
+    data class AddLinkedPortal(
+        val point: PointOfInterest,
+    ) : SeedMapAction
+
+    /** The snackbar for [SeedMapState.linkedPortalAddedTo] has gone. */
+    data object LinkedPortalShown : SeedMapAction
 }
 
 sealed interface SeedMapEffect {

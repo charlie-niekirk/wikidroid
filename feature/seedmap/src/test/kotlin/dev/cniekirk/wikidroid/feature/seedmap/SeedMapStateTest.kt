@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
 import com.google.common.truth.Truth.assertThat
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.seedmap.BlockArea
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
@@ -89,5 +90,37 @@ class SeedMapStateTest {
         assertThat(on.slimeChunksShown).isTrue()
         assertThat(on.withDimension(Dimension.NETHER).slimeChunksShown).isFalse()
         assertThat(SeedMapState().slimeChunksShown).isFalse()
+    }
+
+    private val base = PointOfInterest(id = 1, seed = 262, dimension = "OVERWORLD", x = 1, z = 2, name = "Base")
+
+    @Test
+    fun pointsForAnotherSeedOrDimensionAreDiscarded() {
+        val state = SeedMapState()
+
+        assertThat(state.withPois(1L, Dimension.OVERWORLD, listOf(base))).isEqualTo(state)
+        assertThat(state.withPois(state.seed, Dimension.NETHER, listOf(base))).isEqualTo(state)
+        assertThat(state.withPois(state.seed, Dimension.OVERWORLD, listOf(base)).pois).containsExactly(base)
+    }
+
+    @Test
+    fun aSelectedPointFollowsItsSavedCopyAndGoesWhenItIsGone() {
+        val selected = SeedMapState(pois = persistentListOf(base), selection = MapSelection.Poi(base))
+        val renamed = base.copy(name = "Home")
+
+        assertThat(selected.withPois(selected.seed, selected.dimension, listOf(renamed)).selection)
+            .isEqualTo(MapSelection.Poi(renamed))
+        assertThat(selected.withPois(selected.seed, selected.dimension, emptyList()).selection).isNull()
+    }
+
+    @Test
+    fun anotherVersionKeepsThePointsButAnotherSeedOrDimensionDropsThem() {
+        val state = SeedMapState(pois = persistentListOf(base), poiEditor = PoiDraft(BlockPos(0, 0)))
+
+        assertThat(state.withVersion(McVersion.V1_20).pois).containsExactly(base)
+        assertThat(state.withVersion(McVersion.V1_20).poiEditor).isNotNull()
+        assertThat(state.inWorld(seed = 1L).pois).isEmpty()
+        assertThat(state.inWorld(seed = 1L).poiEditor).isNull()
+        assertThat(state.withDimension(Dimension.NETHER).pois).isEmpty()
     }
 }

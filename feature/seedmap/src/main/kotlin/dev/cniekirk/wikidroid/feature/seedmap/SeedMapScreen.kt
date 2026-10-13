@@ -21,14 +21,17 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.domain.seedmap.FindNearestStructureUseCase
+import dev.cniekirk.wikidroid.core.model.PointOfInterest
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
@@ -57,7 +61,7 @@ internal const val MAP_TOOLBAR_TAG = "seed-map-toolbar"
 internal const val FINDING_CHIP_TAG = "seed-map-finding"
 
 /** The dialogs and sheets the screen can show. Kept as one value so only one is ever open. */
-private enum class Overlay { None, Filter, Legend, Layers, SaveSeed }
+private enum class Overlay { None, Filter, Legend, Layers, SaveSeed, Pois }
 
 /**
  * The Seed map tab: the map from edge to edge, with the seed pill and chips floating over its top and the
@@ -103,6 +107,7 @@ fun SeedMapScreen(
                 state = state,
                 onWorldClick = { overlay = Overlay.Layers },
                 onStructuresClick = { overlay = Overlay.Filter },
+                onPoisClick = { overlay = Overlay.Pois },
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(sides).padding(top = 8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
             )
@@ -126,6 +131,8 @@ fun SeedMapScreen(
         )
     }
     NearestMissingSnackbar(state.nearestMissing, snackbarHostState, onAction)
+    RemovedPoiSnackbar(state.removedPoi, snackbarHostState, onAction)
+    LinkedPortalSnackbar(state.linkedPortalAddedTo, snackbarHostState, onAction)
 
     when (overlay) {
         Overlay.None -> {
@@ -151,6 +158,18 @@ fun SeedMapScreen(
             LayersSheet(state = state, onAction = onAction, onDismiss = { overlay = Overlay.None })
         }
 
+        Overlay.Pois -> {
+            PoiListSheet(
+                pois = state.pois,
+                from = BlockPos(camera.centerX.roundToInt(), camera.centerZ.roundToInt()),
+                onGoTo = { point ->
+                    onAction(SeedMapAction.GoToPoi(point))
+                    overlay = Overlay.None
+                },
+                onDismiss = { overlay = Overlay.None },
+            )
+        }
+
         Overlay.SaveSeed -> {
             SaveSeedDialog(
                 onSave = { label ->
@@ -164,6 +183,10 @@ fun SeedMapScreen(
 
     state.selection?.let { selection ->
         SelectionSheet(selection = selection, dimension = state.dimension, onAction = onAction)
+    }
+    state.poiEditor?.let { draft ->
+        // Keyed so a different point (or spot) gets a fresh form rather than the last one's text.
+        key(draft) { PoiEditorSheet(draft = draft, onAction = onAction) }
     }
 }
 
@@ -179,30 +202,6 @@ private fun KeepViewAcrossDimensions(
             camera.convertDimension(shown, dimension)
             shown = dimension
         }
-    }
-}
-
-/** Says that no [missing] structure was within reach, then acknowledges it once the snackbar has gone. */
-@Composable
-private fun NearestMissingSnackbar(
-    missing: StructureType?,
-    snackbarHostState: SnackbarHostState,
-    onAction: (SeedMapAction) -> Unit,
-) {
-    val text =
-        missing?.let {
-            stringResource(
-                R.string.seedmap_nearest_missing,
-                StructureWikiTitles.titleFor(it),
-                "%,d".format(FindNearestStructureUseCase.REACH_BLOCKS),
-            )
-        }
-    val currentOnAction by rememberUpdatedState(onAction)
-    LaunchedEffect(missing) {
-        if (text == null) return@LaunchedEffect
-        // Acknowledged only once it has been shown: clearing it earlier would cancel this effect.
-        snackbarHostState.showSnackbar(text)
-        currentOnAction(SeedMapAction.NearestMissingShown)
     }
 }
 

@@ -33,17 +33,20 @@ import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 
 internal const val WORLD_CHIP_TAG = "seed-map-world-chip"
 internal const val STRUCTURES_CHIP_TAG = "seed-map-structures-chip"
+internal const val POIS_CHIP_TAG = "seed-map-pois-chip"
 
 /**
- * The chips under the seed pill: the world (version and dimension, opening the layers sheet) and the
- * structures shown on the map (opening the filter sheet). The row scrolls sideways once it holds more than fits;
- * [contentPadding] lines its first chip up with the pill while letting chips scroll to the edge.
+ * The chips under the seed pill: the world (version and dimension, opening the layers sheet), the structures
+ * shown on the map (opening the filter sheet) and the player's points (opening their list). The row scrolls
+ * sideways once it holds more than fits; [contentPadding] lines its first chip up with the pill while letting chips
+ * scroll to the edge.
  */
 @Composable
 internal fun MapChipRow(
     state: SeedMapState,
     onWorldClick: () -> Unit,
     onStructuresClick: () -> Unit,
+    onPoisClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
@@ -71,6 +74,20 @@ internal fun MapChipRow(
             leadingIcon = {
                 WikiIcon(
                     icon = WikiIcons.Tune,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+            trailingIcon = { WikiIcon(icon = WikiIcons.ExpandMore, contentDescription = null) },
+            colors = colors,
+        )
+        ElevatedAssistChip(
+            onClick = onPoisClick,
+            label = { Text(stringResource(R.string.seedmap_pois_chip, state.pois.size)) },
+            modifier = Modifier.testTag(POIS_CHIP_TAG),
+            leadingIcon = {
+                WikiIcon(
+                    icon = WikiIcons.LocationOn,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
