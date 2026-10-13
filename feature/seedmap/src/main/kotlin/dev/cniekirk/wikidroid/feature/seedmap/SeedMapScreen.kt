@@ -1,18 +1,25 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,12 +29,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
-import dev.cniekirk.wikidroid.core.designsystem.component.WikiTopAppBar
+import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.model.SavedSeed
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
@@ -36,14 +43,19 @@ import dev.cniekirk.wikidroid.core.seedmap.TileCache
 import kotlin.math.roundToInt
 
 internal const val GO_TO_SPAWN_TAG = "seed-map-go-to-spawn"
+internal const val MAP_TOOLBAR_TAG = "seed-map-toolbar"
 
 /** The dialogs and sheets the screen can show. Kept as one value so only one is ever open. */
-private enum class Overlay { None, Filter, Legend, Version, Dimension, SaveSeed, GoToCoordinates }
+private enum class Overlay { None, Filter, Legend, Layers, SaveSeed }
 
 /**
- * The Seed map tab: a pannable map of the seed with the seed field and version picker above it.
- * Stateless: the route owns the ViewModel, the tile cache and navigation. Where the map is looking is
- * held by [camera], which the route also moves when the ViewModel asks it to go somewhere.
+ * The Seed map tab: the map from edge to edge, with the seed pill and chips floating over its top and the
+ * coordinate readout and map toolbar over its bottom. Stateless: the route owns the ViewModel, the tile cache and
+ * navigation. Where the map is looking is held by [camera], which the route also moves when the ViewModel asks it
+ * to go somewhere.
+ *
+ * The map draws behind the status bar; everything floating keeps clear of it (and of a cutout or the navigation
+ * rail) through the safe drawing insets. The app's navigation bar has already consumed the bottom inset.
  */
 @Composable
 fun SeedMapScreen(
@@ -56,44 +68,45 @@ fun SeedMapScreen(
     var overlay by rememberSaveable { mutableStateOf(Overlay.None) }
     KeepViewAcrossDimensions(state.dimension, camera)
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            WikiTopAppBar(
-                title = stringResource(R.string.seedmap_title),
-                actions = {
-                    LegendButton(onClick = { overlay = Overlay.Legend })
-                    SavedSeedsMenu(
-                        saved = state.savedSeeds,
-                        isCurrentSaved = state.isSaved,
-                        onSaveCurrent = { overlay = Overlay.SaveSeed },
-                        onAction = onAction,
-                    )
-                    StructureFilterButton(onClick = { overlay = Overlay.Filter })
-                },
-            )
-        },
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            SeedControls(
-                seed = state.seed,
-                version = state.version,
-                dimension = state.dimension,
-                onVersionClick = { overlay = Overlay.Version },
-                onDimensionClick = { overlay = Overlay.Dimension },
+    Box(modifier = modifier.fillMaxSize()) {
+        SeedMapCanvas(state = state, tiles = tiles, camera = camera, onAction = onAction)
+        StatusBarScrim(Modifier.align(Alignment.TopCenter))
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .padding(top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val sides = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+            SeedSearchBar(
+                state = state,
+                onSave = { overlay = Overlay.SaveSeed },
+                onLegend = { overlay = Overlay.Legend },
                 onAction = onAction,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.windowInsetsPadding(sides).padding(horizontal = 16.dp),
             )
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                SeedMapCanvas(state = state, tiles = tiles, camera = camera, onAction = onAction)
-                MapOverlay(
-                    state = state,
-                    camera = camera,
-                    onGoToCoordinates = { overlay = Overlay.GoToCoordinates },
-                    onAction = onAction,
-                )
+            MapChipRow(
+                state = state,
+                onWorldClick = { overlay = Overlay.Layers },
+                onStructuresClick = { overlay = Overlay.Filter },
+                modifier = Modifier.fillMaxWidth().windowInsetsPadding(sides).padding(top = 8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            )
+            if (state.pinsHidden) {
+                MapChip(text = stringResource(R.string.seedmap_pins_hidden), modifier = Modifier.padding(top = 8.dp))
             }
         }
+        MapOverlay(
+            state = state,
+            camera = camera,
+            onAction = onAction,
+            modifier =
+                Modifier.windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                ),
+        )
     }
 
     when (overlay) {
@@ -116,43 +129,14 @@ fun SeedMapScreen(
             )
         }
 
-        Overlay.Version -> {
-            VersionSheet(
-                selected = state.version,
-                onSelect = { version ->
-                    onAction(SeedMapAction.SelectVersion(version))
-                    overlay = Overlay.None
-                },
-                onDismiss = { overlay = Overlay.None },
-            )
-        }
-
-        Overlay.Dimension -> {
-            DimensionSheet(
-                version = state.version,
-                selected = state.dimension,
-                onSelect = { dimension ->
-                    onAction(SeedMapAction.SelectDimension(dimension))
-                    overlay = Overlay.None
-                },
-                onDismiss = { overlay = Overlay.None },
-            )
+        Overlay.Layers -> {
+            LayersSheet(state = state, onAction = onAction, onDismiss = { overlay = Overlay.None })
         }
 
         Overlay.SaveSeed -> {
             SaveSeedDialog(
                 onSave = { label ->
                     onAction(SeedMapAction.SaveSeed(label))
-                    overlay = Overlay.None
-                },
-                onDismiss = { overlay = Overlay.None },
-            )
-        }
-
-        Overlay.GoToCoordinates -> {
-            GoToCoordinatesDialog(
-                onGo = { x, z ->
-                    onAction(SeedMapAction.GoToCoordinates(x, z))
                     overlay = Overlay.None
                 },
                 onDismiss = { overlay = Overlay.None },
@@ -180,60 +164,87 @@ private fun KeepViewAcrossDimensions(
     }
 }
 
-/** Zoom buttons, "go to" buttons, the coordinate readout and the hint shown while pins are hidden. */
+/**
+ * A fade from the surface colour behind the status bar, so its icons (dark on a light theme, light on a dark one)
+ * stay readable over a snowy or a deep-ocean map.
+ */
+@Composable
+private fun StatusBarScrim(modifier: Modifier = Modifier) {
+    val surface = MaterialTheme.colorScheme.surface
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(
+                    Brush.verticalGradient(listOf(surface.copy(alpha = SCRIM_ALPHA), surface.copy(alpha = 0f))),
+                ),
+    )
+}
+
+/**
+ * The coordinate readout at the bottom start and the toolbar (spawn, zoom) at the bottom end. The toolbar stands
+ * up the side of a tall map and lies along the bottom of a short one (a phone on its side), where standing it would
+ * reach the chips.
+ */
 @Composable
 private fun MapOverlay(
     state: SeedMapState,
     camera: MapCamera,
-    onGoToCoordinates: () -> Unit,
     onAction: (SeedMapAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        if (state.pinsHidden) {
-            MapChip(
-                text = stringResource(R.string.seedmap_pins_hidden),
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-            )
-        }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val center = BlockPos(camera.centerX.roundToInt(), camera.centerZ.roundToInt())
         MapChip(
             text = coordinatesText(center, state.dimension),
-            modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).testTag(CENTER_READOUT_TAG),
+            modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).testTag(CENTER_READOUT_TAG),
         )
-        Column(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MapButton(
-                icon = WikiIcons.PinDrop,
-                description = stringResource(R.string.seedmap_go_to_coordinates),
-                onClick = onGoToCoordinates,
-            )
-            if (state.dimension == Dimension.OVERWORLD) {
-                MapButton(
-                    icon = WikiIcons.MyLocation,
-                    description = stringResource(R.string.seedmap_go_to_spawn),
-                    onClick = { onAction(SeedMapAction.GoToSpawn) },
-                    modifier = Modifier.testTag(GO_TO_SPAWN_TAG),
-                )
+        val toolbarModifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).testTag(MAP_TOOLBAR_TAG)
+        if (maxHeight >= TallMapHeight) {
+            VerticalFloatingToolbar(expanded = true, modifier = toolbarModifier) {
+                MapToolbarButtons(state.dimension, camera, onAction)
             }
-            MapButton(
-                icon = WikiIcons.Add,
-                description = stringResource(R.string.seedmap_zoom_in),
-                onClick = { camera.zoomBy(ZOOM_STEP) },
-            )
-            MapButton(
-                icon = WikiIcons.Remove,
-                description = stringResource(R.string.seedmap_zoom_out),
-                onClick = { camera.zoomBy(1f / ZOOM_STEP) },
-            )
+        } else {
+            HorizontalFloatingToolbar(expanded = true, modifier = toolbarModifier) {
+                MapToolbarButtons(state.dimension, camera, onAction)
+            }
         }
     }
 }
 
+@Composable
+private fun MapToolbarButtons(
+    dimension: Dimension,
+    camera: MapCamera,
+    onAction: (SeedMapAction) -> Unit,
+) {
+    if (dimension == Dimension.OVERWORLD) {
+        WikiIconButton(
+            icon = WikiIcons.MyLocation,
+            contentDescription = stringResource(R.string.seedmap_go_to_spawn),
+            onClick = { onAction(SeedMapAction.GoToSpawn) },
+            modifier = Modifier.testTag(GO_TO_SPAWN_TAG),
+        )
+    }
+    WikiIconButton(
+        icon = WikiIcons.Add,
+        contentDescription = stringResource(R.string.seedmap_zoom_in),
+        onClick = { camera.zoomBy(ZOOM_STEP) },
+    )
+    WikiIconButton(
+        icon = WikiIcons.Remove,
+        contentDescription = stringResource(R.string.seedmap_zoom_out),
+        onClick = { camera.zoomBy(1f / ZOOM_STEP) },
+    )
+}
+
+/** Below this the standing toolbar would reach up to the chips under the seed pill. */
+private val TallMapHeight = 480.dp
+
 internal const val CENTER_READOUT_TAG = "seed-map-center"
 private const val ZOOM_STEP = 2f
+private const val SCRIM_ALPHA = 0.7f
 
 /** "X 12, Z -3", and under it the overworld position when the map is of the Nether. */
 @Composable
@@ -247,24 +258,6 @@ internal fun coordinatesText(
 }
 
 @Composable
-private fun MapButton(
-    icon: Int,
-    description: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SmallFloatingActionButton(
-        onClick = onClick,
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp),
-    ) {
-        WikiIcon(icon = icon, contentDescription = description)
-    }
-}
-
-@Composable
 private fun MapChip(
     text: String,
     modifier: Modifier = Modifier,
@@ -274,6 +267,7 @@ private fun MapChip(
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
         contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = 2.dp,
     ) {
         Text(
             text = text,

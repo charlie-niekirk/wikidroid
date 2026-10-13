@@ -114,8 +114,9 @@ internal fun SeedMapCanvas(
         tilesLoaded.intValue // Read here so the canvas redraws when a tile lands.
         drawRect(background)
         with(drawer) { drawTiles(camera, tiles, wanted.value) }
+        if (currentState.showGrid) drawGrid(camera)
         drawMarkers(camera, currentState, pinPaint)
-        drawCrosshair()
+        if (currentState.showCrosshair) drawCrosshair()
     }
 }
 

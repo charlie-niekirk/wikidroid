@@ -935,6 +935,25 @@ class SeedMapViewModelTest {
 
     // endregion
 
+    // region display
+
+    @Test
+    fun `the grid starts off and the crosshair on, and the switches change them`() =
+        runTest {
+            onMap {
+                assertThat(state.showGrid).isFalse()
+                assertThat(state.showCrosshair).isTrue()
+
+                act(SeedMapAction.SetGrid(true))
+                act(SeedMapAction.SetCrosshair(false))
+
+                assertThat(state.showGrid).isTrue()
+                assertThat(state.showCrosshair).isFalse()
+            }
+        }
+
+    // endregion
+
     private suspend fun suspendForever(): Nothing {
         CompletableDeferred<Nothing>().await()
     }

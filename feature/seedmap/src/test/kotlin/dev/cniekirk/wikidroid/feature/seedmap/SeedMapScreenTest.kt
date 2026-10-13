@@ -6,11 +6,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
@@ -78,220 +81,6 @@ class SeedMapScreenTest : ComposeTest() {
         composeRule.mainClock.advanceTimeBy(DOUBLE_TAP_WINDOW_MILLIS)
         composeRule.waitForIdle()
     }
-
-    // region controls
-
-    @Test
-    fun showsTheSeedAndVersion() {
-        setScreen(SeedMapState(seed = 262, version = McVersion.V1_21_1))
-
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).assertTextContains("262")
-        composeRule.onNodeWithTag(VERSION_CHIP_TAG).assertTextContains("1.21.1")
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("Overworld")
-    }
-
-    @Test
-    fun theSeedFieldSpansTheWidthAndTheChipsSitUnderIt() {
-        setScreen()
-
-        val field = composeRule.onNodeWithTag(SEED_FIELD_TAG).fetchSemanticsNode().boundsInRoot
-        val version = composeRule.onNodeWithTag(VERSION_CHIP_TAG).fetchSemanticsNode().boundsInRoot
-        val dimension = composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).fetchSemanticsNode().boundsInRoot
-        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
-
-        // Nothing shares the field's row, and it runs from one gutter to the other.
-        assertThat(field.width).isGreaterThan(root.width - 2 * 16f * density - 1f)
-        assertThat(version.top).isAtLeast(field.bottom)
-        assertThat(dimension.top).isAtLeast(field.bottom)
-        assertThat(version.right).isAtMost(dimension.left)
-    }
-
-    @Test
-    fun submittingTheSeedFieldSendsItsText() {
-        setScreen()
-
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).performTextClearance()
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).performTextInput("Hello World")
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).performImeAction()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SubmitSeed("Hello World"))
-    }
-
-    @Test
-    fun theDiceButtonAsksForARandomSeed() {
-        setScreen()
-
-        composeRule.onNodeWithTag(RANDOM_SEED_TAG).performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SubmitSeed(""))
-    }
-
-    @Test
-    fun theFieldShowsASeedThatChangedOutsideIt() {
-        var state by mutableStateOf(SeedMapState(seed = 262))
-        composeRule.setContent {
-            WikiDroidTheme(dynamicColor = false) {
-                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
-            }
-        }
-
-        state = state.copy(seed = -4172144997902289642)
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).assertTextContains("-4172144997902289642")
-    }
-
-    @Test
-    fun aSeedTypedAsWordsIsNotReplacedByItsHash() {
-        var state by mutableStateOf(SeedMapState(seed = 262))
-        composeRule.setContent {
-            WikiDroidTheme(dynamicColor = false) {
-                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
-            }
-        }
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).performTextClearance()
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).performTextInput("glacier")
-
-        state = state.copy(seed = "glacier".hashCode().toLong())
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SEED_FIELD_TAG).assertTextContains("glacier")
-    }
-
-    // endregion
-
-    // region version and dimension sheets
-
-    private val density get() = composeRule.density.density
-
-    @Test
-    fun theVersionChipOpensASheetOfEveryVersionNewestFirst() {
-        setScreen(SeedMapState(version = McVersion.V1_21_1))
-        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertDoesNotExist()
-
-        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertIsDisplayed()
-        val newest = composeRule.onNodeWithTag(versionItemTag(McVersion.newest)).fetchSemanticsNode().boundsInRoot
-        val older = composeRule.onNodeWithTag(versionItemTag(McVersion.V1_21_11)).fetchSemanticsNode().boundsInRoot
-        assertThat(newest.top).isLessThan(older.top)
-    }
-
-    @Test
-    fun theVersionSheetMarksTheCurrentVersion() {
-        setScreen(SeedMapState(version = McVersion.V26_2))
-        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_2)).assertIsSelected()
-        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_3)).assertIsNotSelected()
-    }
-
-    @Test
-    fun choosingAVersionSendsItAndClosesTheSheet() {
-        setScreen(SeedMapState(version = McVersion.newest))
-        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(versionItemTag(McVersion.V26_1)).performClick()
-        composeRule.waitForIdle()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SelectVersion(McVersion.V26_1))
-        composeRule.onNodeWithTag(VERSION_SHEET_TAG).assertDoesNotExist()
-    }
-
-    @Test
-    fun theVersionSheetReachesTheOldestVersionToo() {
-        setScreen()
-        composeRule.onNodeWithTag(VERSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(VERSION_SHEET_TAG).performScrollToNode(hasTestTag(versionItemTag(McVersion.B1_7)))
-        composeRule.onNodeWithTag(versionItemTag(McVersion.B1_7)).performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SelectVersion(McVersion.B1_7))
-    }
-
-    @Test
-    fun theDimensionChipOpensASheetOfAllThreeDimensions() {
-        setScreen()
-        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertDoesNotExist()
-
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertIsDisplayed()
-        Dimension.entries.forEach { composeRule.onNodeWithTag(dimensionItemTag(it)).assertIsDisplayed() }
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsSelected()
-    }
-
-    @Test
-    fun choosingADimensionSendsItAndClosesTheSheet() {
-        setScreen(SeedMapState(version = McVersion.newest))
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).performClick()
-        composeRule.waitForIdle()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SelectDimension(Dimension.NETHER))
-        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertDoesNotExist()
-    }
-
-    @Test
-    fun dimensionsTheVersionLacksAreDisabledAndSayWhy() {
-        setScreen(SeedMapState(version = McVersion.V1_12))
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsEnabled()
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.END)).assertIsEnabled()
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).assertIsNotEnabled()
-        composeRule.onNodeWithText("Java Edition 1.16.1 and newer").assertIsDisplayed()
-
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).performClick()
-
-        assertThat(userActions).isEmpty()
-        composeRule.onNodeWithTag(DIMENSION_SHEET_TAG).assertIsDisplayed()
-    }
-
-    @Test
-    fun beforeBeta19OnlyTheOverworldCanBePicked() {
-        setScreen(SeedMapState(version = McVersion.B1_7))
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
-
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.NETHER)).assertIsNotEnabled()
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.END)).assertIsNotEnabled()
-        composeRule.onNodeWithTag(dimensionItemTag(Dimension.OVERWORLD)).assertIsEnabled()
-    }
-
-    @Test
-    fun theDimensionChipWearsTheIconOfItsDimension() {
-        var state by mutableStateOf(SeedMapState(dimension = Dimension.OVERWORLD))
-        composeRule.setContent {
-            WikiDroidTheme(dynamicColor = false) {
-                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
-            }
-        }
-        composeRule.onNodeWithTag(dimensionIconTag(Dimension.OVERWORLD), useUnmergedTree = true).assertExists()
-
-        state = state.copy(dimension = Dimension.NETHER)
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(dimensionIconTag(Dimension.NETHER), useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag(dimensionIconTag(Dimension.OVERWORLD), useUnmergedTree = true).assertDoesNotExist()
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("Nether")
-
-        state = state.copy(dimension = Dimension.END)
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(dimensionIconTag(Dimension.END), useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).assertTextContains("End")
-    }
-
-    @Test
-    fun theDimensionSheetShowsTheSameIconsBesideItsEntries() {
-        setScreen(SeedMapState(version = McVersion.newest))
-        composeRule.onNodeWithTag(DIMENSION_CHIP_TAG).performClick()
-
-        Dimension.entries.forEach {
-            composeRule.onAllNodesWithTag(dimensionIconTag(it), useUnmergedTree = true).onLast().assertIsDisplayed()
-        }
-    }
-
-    // endregion
 
     // region nether
 
@@ -447,7 +236,7 @@ class SeedMapScreenTest : ComposeTest() {
     fun aFilterChipShowsTheWikiIconOfItsStructure() {
         setScreen(SeedMapState(version = McVersion.newest))
 
-        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).performClick()
 
         composeRule.onNodeWithTag(structureIconTag(StructureType.VILLAGE.icon()), useUnmergedTree = true).assertExists()
         composeRule
@@ -647,125 +436,13 @@ class SeedMapScreenTest : ComposeTest() {
 
     // endregion
 
-    // region go to coordinates
-
-    @Test
-    fun goToCoordinatesNeedsTwoWholeNumbers() {
-        setScreen()
-        composeRule.onNodeWithContentDescription("Go to coordinates").performClick()
-
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).assertIsNotEnabled()
-        composeRule.onNodeWithTag(GOTO_X_TAG).performTextInput("120")
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).assertIsNotEnabled()
-        composeRule.onNodeWithTag(GOTO_Z_TAG).performTextInput("abc")
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).assertIsNotEnabled()
-        composeRule.onNodeWithTag(GOTO_Z_TAG).performTextClearance()
-        composeRule.onNodeWithTag(GOTO_Z_TAG).performTextInput("-45")
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).assertIsEnabled()
-    }
-
-    @Test
-    fun goingToCoordinatesSendsThemAndClosesTheDialog() {
-        setScreen()
-        composeRule.onNodeWithContentDescription("Go to coordinates").performClick()
-        composeRule.onNodeWithTag(GOTO_X_TAG).performTextInput("120")
-        composeRule.onNodeWithTag(GOTO_Z_TAG).performTextInput("-45")
-
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.GoToCoordinates(120, -45))
-        composeRule.onNodeWithTag(GOTO_CONFIRM_TAG).assertDoesNotExist()
-    }
-
-    // endregion
-
-    // region saved seeds
-
-    private val savedA = SavedSeed(seed = 262, version = "26.3", label = "Spawn village")
-    private val savedB = SavedSeed(seed = -99, version = "1.12", label = null)
-
-    @Test
-    fun theSavedSeedsMenuListsThemByNameOrSeed() {
-        setScreen(SeedMapState(savedSeeds = persistentListOf(savedA, savedB)))
-
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-
-        composeRule.onNodeWithText("Spawn village").assertIsDisplayed()
-        composeRule.onNodeWithText("Seed 262 · Java 26.3").assertIsDisplayed()
-        composeRule.onNodeWithText("-99").assertIsDisplayed()
-        composeRule.onNodeWithText("Seed -99 · Java 1.12").assertIsDisplayed()
-    }
-
-    @Test
-    fun anEmptyMenuSaysSo() {
-        setScreen()
-
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-
-        composeRule.onNodeWithText("No saved seeds yet").assertIsDisplayed()
-    }
-
-    @Test
-    fun choosingASavedSeedLoadsIt() {
-        setScreen(SeedMapState(savedSeeds = persistentListOf(savedA, savedB)))
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-
-        composeRule.onNodeWithText("Spawn village", useUnmergedTree = true).performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.LoadSavedSeed(savedA))
-    }
-
-    @Test
-    fun theTrashButtonRemovesASavedSeed() {
-        setScreen(SeedMapState(savedSeeds = persistentListOf(savedA, savedB)))
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-
-        composeRule.onNodeWithContentDescription("Remove Spawn village from saved seeds").performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.DeleteSavedSeed(savedA))
-    }
-
-    @Test
-    fun savingTheCurrentSeedAsksForAnOptionalName() {
-        setScreen()
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-        composeRule.onNodeWithText("Save this seed").performClick()
-
-        composeRule.onNodeWithTag(SAVE_NAME_TAG).performTextInput("Mushroom island")
-        composeRule.onNodeWithTag(SAVE_CONFIRM_TAG).performClick()
-
-        assertThat(userActions).containsExactly(SeedMapAction.SaveSeed("Mushroom island"))
-    }
-
-    @Test
-    fun savingWithoutANameSendsWhatWasTyped() {
-        setScreen()
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-        composeRule.onNodeWithText("Save this seed").performClick()
-
-        composeRule.onNodeWithTag(SAVE_CONFIRM_TAG).performClick()
-
-        // The ViewModel turns an empty name into no label.
-        assertThat(userActions).containsExactly(SeedMapAction.SaveSeed(""))
-    }
-
-    @Test
-    fun aSeedThatIsAlreadySavedCannotBeSavedAgain() {
-        setScreen(SeedMapState(seed = 262, version = McVersion.V26_3, savedSeeds = persistentListOf(savedA)))
-        composeRule.onNodeWithTag(SAVED_SEEDS_TAG).performClick()
-
-        composeRule.onNodeWithText("This seed is saved").assertIsNotEnabled()
-    }
-
-    // endregion
-
     // region structure filter
 
     @Test
     fun theFilterSheetShowsOnlyStructuresThisVersionHas() {
         setScreen(SeedMapState(version = McVersion.V1_8))
 
-        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).performClick()
 
         composeRule.onNodeWithText("Village").assertIsDisplayed()
         composeRule.onNodeWithText("Ocean Monument").assertIsDisplayed()
@@ -778,7 +455,7 @@ class SeedMapScreenTest : ComposeTest() {
     fun theFilterSheetOffersTheNewestStructuresInTheNewestVersion() {
         setScreen(SeedMapState(version = McVersion.newest))
 
-        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).performClick()
 
         composeRule.onNodeWithText("Trial Chambers").assertExists()
         composeRule.onNodeWithText("Ancient City").assertExists()
@@ -787,7 +464,7 @@ class SeedMapScreenTest : ComposeTest() {
     @Test
     fun tappingAChipTogglesTheStructure() {
         setScreen(SeedMapState(enabledStructures = persistentSetOf(StructureType.VILLAGE)))
-        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).performClick()
 
         composeRule.onNodeWithText("Igloo").performClick()
 
@@ -795,11 +472,27 @@ class SeedMapScreenTest : ComposeTest() {
     }
 
     @Test
+    fun theStructuresChipCountsWhatIsShown() {
+        var state by mutableStateOf(SeedMapState(version = McVersion.newest))
+        composeRule.setContent {
+            WikiDroidTheme(dynamicColor = false) {
+                SeedMapScreen(state = state, tiles = tiles, onAction = {}, camera = camera)
+            }
+        }
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).assertTextContains("Structures · 2")
+
+        // Villages and strongholds are not in the Nether.
+        state = state.copy(dimension = Dimension.NETHER)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).assertTextContains("Structures · 0")
+    }
+
+    @Test
     fun theFilterSheetWorksWhenAVersionHasNoNetherStructures() {
         // Beta 1.7 has villages and nothing else but strongholds in the overworld; the sheet still opens.
         setScreen(SeedMapState(version = McVersion.B1_7))
 
-        composeRule.onNodeWithTag(FILTER_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(STRUCTURES_CHIP_TAG).performClick()
 
         composeRule.onNodeWithTag(FILTER_SHEET_TAG).assertIsDisplayed()
     }

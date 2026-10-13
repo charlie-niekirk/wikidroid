@@ -156,7 +156,11 @@ class MapCamera(
         /** Widest zoom: the coarsest tile scale is then one cell to a pixel. */
         const val MAX_BLOCKS_PER_PIXEL = 256f
 
-        const val DEFAULT_BLOCKS_PER_PIXEL = 3f
+        /**
+         * Where a new map starts. The map fills a phone's full height, so this keeps a tall screen's view (with
+         * the pin search's padding) inside [SeedMapEngine.MAX_STRUCTURE_SPAN] and shows structures straight away.
+         */
+        const val DEFAULT_BLOCKS_PER_PIXEL = 2f
 
         private val LIMIT = SeedMapEngine.MAX_COORDINATE.toDouble()
 

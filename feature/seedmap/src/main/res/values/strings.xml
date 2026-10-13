@@ -7,12 +7,27 @@
     <string name="seedmap_coordinates_overworld">Overworld X %1$d, Z %2$d</string>
     <string name="seedmap_pins_hidden">Zoom in to see structures</string>
 
-    <string name="seedmap_seed_label">Seed</string>
+    <string name="seedmap_search_hint">Seed, or X Z to go there</string>
+    <string name="seedmap_search_close">Close search</string>
+    <string name="seedmap_search_clear">Clear</string>
     <string name="seedmap_random_seed">Random seed</string>
-    <string name="seedmap_version_chip_description">Java Edition version %1$s. Change version</string>
-    <string name="seedmap_dimension_chip_description">Dimension %1$s. Change dimension</string>
-    <string name="seedmap_version_sheet_title">Java Edition version</string>
-    <string name="seedmap_dimension_sheet_title">Dimension</string>
+    <string name="seedmap_suggest_go_to">Go to X %1$d, Z %2$d</string>
+    <string name="seedmap_suggest_use_seed">Use seed \u201c%1$s\u201d</string>
+    <string name="seedmap_saved_name_suffix">· %1$s</string>
+
+    <string name="seedmap_world_chip">%1$s · %2$s</string>
+    <string name="seedmap_world_chip_description">Java Edition %1$s, %2$s. Change dimension, version and display</string>
+    <string name="seedmap_structures_chip">Structures · %1$d</string>
+
+    <string name="seedmap_layers_title">Map</string>
+    <string name="seedmap_layers_dimension">Dimension</string>
+    <string name="seedmap_layers_version">Version</string>
+    <string name="seedmap_layers_display">Display</string>
+    <string name="seedmap_java_version">Java Edition %1$s</string>
+    <string name="seedmap_layers_grid">Grid</string>
+    <string name="seedmap_layers_grid_summary">Chunk and region lines</string>
+    <string name="seedmap_layers_crosshair">Crosshair</string>
+    <string name="seedmap_layers_crosshair_summary">Marks the point the coordinates name</string>
     <string name="seedmap_dimension_overworld">Overworld</string>
     <string name="seedmap_dimension_nether">Nether</string>
     <string name="seedmap_dimension_end">End</string>
@@ -21,11 +36,9 @@
     <string name="seedmap_zoom_in">Zoom in</string>
     <string name="seedmap_zoom_out">Zoom out</string>
     <string name="seedmap_go_to_spawn">Go to world spawn</string>
-    <string name="seedmap_go_to_coordinates">Go to coordinates</string>
 
-    <string name="seedmap_saved_seeds">Saved seeds</string>
     <string name="seedmap_save_seed">Save this seed</string>
-    <string name="seedmap_seed_is_saved">This seed is saved</string>
+    <string name="seedmap_unsave_seed">Remove this seed from saved seeds</string>
     <string name="seedmap_no_saved_seeds">No saved seeds yet</string>
     <string name="seedmap_saved_seed_subtitle">Seed %1$s · Java %2$s</string>
     <string name="seedmap_remove_saved_seed">Remove %1$s from saved seeds</string>
@@ -35,12 +48,6 @@
     <string name="seedmap_save">Save</string>
     <string name="seedmap_cancel">Cancel</string>
 
-    <string name="seedmap_goto_dialog_title">Go to coordinates</string>
-    <string name="seedmap_goto_x">X</string>
-    <string name="seedmap_goto_z">Z</string>
-    <string name="seedmap_goto_go">Go</string>
-
-    <string name="seedmap_filter_open">Structures</string>
     <string name="seedmap_filter_title">Show on map</string>
     <string name="seedmap_filter_none">This version has no structures to show.</string>
 
