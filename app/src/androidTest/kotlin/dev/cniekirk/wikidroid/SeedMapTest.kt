@@ -10,6 +10,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -184,6 +185,26 @@ class SeedMapTest {
         composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-selection"), UI_TIMEOUT_MILLIS)
         composeRule.onNodeWithTag("seed-map-selection-title").assertTextEquals("Woodland Mansion")
         composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-center") and !hasText("X 0, Z 0"), UI_TIMEOUT_MILLIS)
+    }
+
+    @Test
+    fun aPointAddedByLongPressIsSavedAndCanBeTapped() {
+        openSeedMap()
+        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { longClick(center) }
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-poi-editor"), UI_TIMEOUT_MILLIS)
+        composeRule.onNodeWithTag("seed-map-poi-name").performTextInput("Base")
+        composeRule.onNodeWithTag("seed-map-poi-save").performScrollTo().performClick()
+
+        // Saved to Room and read back through the ViewModel's flow.
+        composeRule.waitUntilAtLeastOneExists(
+            hasTestTag("seed-map-pois-chip") and hasText("Points · 1"),
+            UI_TIMEOUT_MILLIS,
+        )
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { click(center) }
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-selection"), UI_TIMEOUT_MILLIS)
+        composeRule.onNodeWithTag("seed-map-selection-title").assertTextEquals("Base")
     }
 
     @Test
