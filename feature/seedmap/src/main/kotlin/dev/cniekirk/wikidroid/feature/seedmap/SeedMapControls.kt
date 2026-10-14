@@ -1,5 +1,6 @@
 package dev.cniekirk.wikidroid.feature.seedmap
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -104,16 +105,18 @@ internal fun SeedMapState.shownStructureCount(): Int = enabledStructures.count {
 internal const val SAVE_NAME_TAG = "seed-map-save-name"
 internal const val SAVE_CONFIRM_TAG = "seed-map-save-confirm"
 
-/** Asks for an optional name for the seed being saved. */
+/** Asks for an optional name for the seed being saved, or (with [initialName] and [title]) a new one. */
 @Composable
 internal fun SaveSeedDialog(
     onSave: (label: String?) -> Unit,
     onDismiss: () -> Unit,
+    initialName: String = "",
+    @StringRes title: Int = R.string.seedmap_save_dialog_title,
 ) {
-    val name = rememberTextFieldState()
+    val name = rememberTextFieldState(initialName)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.seedmap_save_dialog_title)) },
+        title = { Text(stringResource(title)) },
         text = {
             OutlinedTextField(
                 state = name,

@@ -37,6 +37,8 @@ class FakePointOfInterestRepository(
         state.update { all -> all.filterNot { it.id == point.id } }
     }
 
+    override fun countsBySeed(): Flow<Map<Long, Int>> = state.map { all -> all.groupingBy { it.seed }.eachCount() }
+
     override suspend fun restore(point: PointOfInterest) {
         state.update { all -> (all + point).sortedWith(compareBy({ it.createdAt }, { it.id })) }
     }

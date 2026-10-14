@@ -21,6 +21,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 17: Immersive seed map
 - [x] Session 18: Seed search that finds structures
 - [x] Session 19: Slime chunks and points of interest
+- [x] Session 20: Measure distance and My worlds
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -650,4 +651,36 @@ What changed:
 - Adding a linked portal twice saves two points; nothing removes duplicates.
 - The grid and slime switches are still not persisted (open since Session 17).
 - Point markers, like structure markers, are not exposed to accessibility services (open since Session 14). The list sheet and search rows are accessible.
+
+## Session 20 notes
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- `:app:connectedDebugAndroidTest` (23 tests, including the new measuring and My worlds rename flows) passes on the `Pixel_10_Pro` AVD (API 37), run with `ANDROID_SERIAL=emulator-5554` because a phone was attached.
+- Checked by hand on the emulator (seed 262):
+  - Two taps about 806 px apart at 2 blocks per pixel read "1,612 blocks · 202 through the Nether".
+  - My worlds lists a seed saved as "Survival" with its version and point count, marked as the one on the map.
+
+What changed:
+- **Measure:**
+  - A ruler button tops the map toolbar (`StartMeasure`/`StopMeasure`). While it is on, map taps go to `MeasurePoint`: the first sets the start and later ones move the end. A tap on a marker snaps to it, so a distance can run pin to pin.
+  - The line is dashed, with a dot at each end. A bar under the chips says what to tap next, then the distance and `Dimension.travelEquivalent` (Overworld / 8 "through the Nether", Nether x 8 "in the Overworld", nothing in the End), with a close button.
+  - Every selection's sheet has "Measure from here" (`MeasureFrom`). The measurement survives a version change, not a seed or dimension change.
+  - The ruler actions share a sealed `SeedMapAction.Measure`, so `onAction` routes them on one line.
+- **My worlds:**
+  - The expanded seed search has a "Saved seeds" header with a My worlds button. The sheet lists saved seeds with seed, version and point count, and marks the one on the map.
+  - Tapping a row loads that seed. Rename reuses `SaveSeedDialog`, filled in, and goes through the new `SeedRepository.renameSeed`, which keeps the seed's place. Remove asks first and says the seed's points stay.
+  - Point counts come from `PointOfInterestDao.countBySeed()` through `PointOfInterestRepository.countsBySeed()`, into `SeedMapState.poiCounts`.
+- **Housekeeping:**
+  - The suggestion list moved to `SeedSuggestionList.kt`.
+  - `AppGraph` exposes `PointOfInterestRepository`, and `ResetAppStateRule` now deletes every point.
+  - New icons: `Straighten` (ruler) and `Public` (My worlds).
+
+### Deviations
+- **My worlds is opened from the search, not the pill.** A third pill button (144 dp of actions) left about 136 dp for the seed on a 360 dp phone, which cut off long seeds. It also covered the middle of the field on Robolectric's 320 dp screen, so taps meant to open the search hit the button.
+- **`renameSeed`:** a new call on `SeedRepository` and `PreferencesDataSource`. Saving under a new label moves the seed to the front, and a rename should not.
+- **Fix to Session 19's tests:** `ResetAppStateRule` did not clear points of interest. A point left on the device sat near the map's centre and broke the biome-tap test.
+
+### Open TODOs
+- The ruler stays on until it is closed, and map taps measure instead of selecting meanwhile. The bar says so, but a player may still expect a tap to select.
+- The grid and slime switches are still not persisted (open since Session 17).
 

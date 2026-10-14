@@ -12,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.cniekirk.wikidroid.core.model.Edition
 import dev.cniekirk.wikidroid.core.model.ThemeMode
 import dev.cniekirk.wikidroid.core.model.UserPreferences
+import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.rules.ExternalResource
@@ -38,6 +39,12 @@ class ResetAppStateRule : ExternalResource() {
             graph.seedRepository.savedSeeds
                 .first()
                 .forEach { graph.seedRepository.removeSeed(it) }
+            val points = graph.pointOfInterestRepository
+            points.countsBySeed().first().keys.forEach { seed ->
+                Dimension.entries.forEach { dimension ->
+                    points.observe(seed, dimension.name).first().forEach { points.delete(it) }
+                }
+            }
             graph.settingsRepository.apply {
                 setThemeMode(ThemeMode.System)
                 setDynamicColor(true)

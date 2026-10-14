@@ -126,6 +126,7 @@ internal fun SeedMapCanvas(
         with(drawer) { drawTiles(camera, tiles, wanted.value) }
         if (currentState.slimeChunksShown) with(slime) { drawSlimeChunks(camera, currentState.seed) }
         if (currentState.showGrid) drawGrid(camera)
+        currentState.measure?.let { drawMeasurement(camera, it) }
         drawMarkers(camera, currentState, pinPaint, poiPaint)
         if (currentState.showCrosshair) drawCrosshair()
     }
@@ -133,21 +134,34 @@ internal fun SeedMapCanvas(
 
 private const val DOUBLE_TAP_ZOOM = 2f
 
-/** What a tap at [tap] selects: a marker under the finger, otherwise the biome at that spot. */
+/**
+ * What a tap at [tap] selects: a marker under the finger, otherwise the biome at that spot. While measuring it is
+ * a point of the measurement instead, snapped to a marker under the finger so a distance can run pin to pin.
+ */
 internal fun selectionAt(
     camera: MapCamera,
     tap: Offset,
     state: SeedMapState,
     radiusPx: Float,
-): SeedMapAction =
-    when (
-        val hit = hitTest(camera, tap, state.spawn, state.strongholds, state.pins, radiusPx, state.pois)
-    ) {
+): SeedMapAction {
+    val hit = hitTest(camera, tap, state.spawn, state.strongholds, state.pins, radiusPx, state.pois)
+    if (state.measure != null) {
+        val snapped =
+            when (hit) {
+                is MarkerHit.Structure -> hit.structure.pos
+                MarkerHit.Spawn -> state.spawn
+                is MarkerHit.Poi -> hit.point.pos
+                null -> null
+            }
+        return SeedMapAction.MeasurePoint(snapped ?: camera.blockAt(tap.x, tap.y))
+    }
+    return when (hit) {
         is MarkerHit.Structure -> SeedMapAction.SelectStructure(hit.structure)
         MarkerHit.Spawn -> SeedMapAction.SelectSpawn
         is MarkerHit.Poi -> SeedMapAction.SelectPoi(hit.point)
         null -> SeedMapAction.SelectPoint(camera.blockAt(tap.x, tap.y))
     }
+}
 
 /** What a long press at [press] does: edit the player's point under the finger, otherwise add one there. */
 internal fun longPressAt(

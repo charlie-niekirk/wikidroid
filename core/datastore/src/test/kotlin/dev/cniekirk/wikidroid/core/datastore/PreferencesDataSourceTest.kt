@@ -212,6 +212,21 @@ class PreferencesDataSourceTest {
         }
 
     @Test
+    fun `renaming a seed keeps its place`() =
+        runTest {
+            val source = dataSource()
+            source.saveSeed(SavedSeed(seed = 262, version = "1.21.4", label = "Base"))
+            source.saveSeed(SavedSeed(seed = 1, version = "1.21.4"))
+
+            source.renameSeed(SavedSeed(seed = 262, version = "1.21.4"), "Home")
+            source.renameSeed(SavedSeed(seed = 1, version = "1.21.4", label = "x"), null)
+
+            assertThat(source.savedSeeds.first())
+                .containsExactly(SavedSeed(1, "1.21.4"), SavedSeed(262, "1.21.4", "Home"))
+                .inOrder()
+        }
+
+    @Test
     fun `the same seed in another version is a separate entry`() =
         runTest {
             val source = dataSource()

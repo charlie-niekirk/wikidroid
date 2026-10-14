@@ -45,6 +45,7 @@ internal const val OPEN_ARTICLE_TAG = "seed-map-open-article"
 internal const val FILTER_SHEET_TAG = "seed-map-filter-sheet"
 internal const val SLIME_CHUNK_TAG = "seed-map-slime-chunk"
 internal const val POI_EDIT_TAG = "seed-map-poi-edit"
+internal const val MEASURE_FROM_TAG = "seed-map-measure-from"
 internal const val POI_SHEET_DELETE_TAG = "seed-map-poi-sheet-delete"
 internal const val POI_ADD_LINKED_TAG = "seed-map-poi-add-linked"
 internal const val POI_LINKED_TAG = "seed-map-poi-linked"
@@ -125,6 +126,17 @@ internal fun SelectionSheet(
                             if (copied) R.string.seedmap_coordinates_copied else R.string.seedmap_copy_coordinates,
                         ),
                     )
+                }
+                OutlinedButton(
+                    onClick = { onAction(SeedMapAction.MeasureFrom(selection.pos)) },
+                    modifier = Modifier.fillMaxWidth().testTag(MEASURE_FROM_TAG),
+                ) {
+                    WikiIcon(
+                        icon = WikiIcons.Straighten,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(stringResource(R.string.seedmap_measure_from_here))
                 }
                 if (point != null) PoiButtons(point, onAction)
                 if (selection.wikiTitle != null) {

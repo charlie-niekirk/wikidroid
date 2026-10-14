@@ -48,6 +48,7 @@
     <string name="seedmap_save_seed">Save this seed</string>
     <string name="seedmap_unsave_seed">Remove this seed from saved seeds</string>
     <string name="seedmap_no_saved_seeds">No saved seeds yet</string>
+    <string name="seedmap_saved_seeds">Saved seeds</string>
     <string name="seedmap_saved_seed_subtitle">Seed %1$s · Java %2$s</string>
     <string name="seedmap_remove_saved_seed">Remove %1$s from saved seeds</string>
 
@@ -107,6 +108,29 @@
     <string name="seedmap_poi_links_to">Links to X %1$d, Z %2$d in the %3$s</string>
     <string name="seedmap_poi_add_linked">Add linked portal</string>
     <string name="seedmap_poi_linked_added">Linked portal added to the %1$s</string>
+
+    <string name="seedmap_measure">Measure distance</string>
+    <string name="seedmap_measure_stop">Stop measuring</string>
+    <string name="seedmap_measure_pick_start">Tap where to measure from</string>
+    <string name="seedmap_measure_pick_end">Tap where to measure to</string>
+    <string name="seedmap_measure_blocks">%1$s blocks</string>
+    <string name="seedmap_measure_through_nether">%1$s blocks · %2$s through the Nether</string>
+    <string name="seedmap_measure_in_overworld">%1$s blocks · %2$s in the Overworld</string>
+    <string name="seedmap_measure_from_here">Measure from here</string>
+
+    <string name="seedmap_worlds_open">My worlds</string>
+    <string name="seedmap_worlds_title">My worlds</string>
+    <string name="seedmap_worlds_empty">Seeds you save appear here. Save one with the bookmark in the seed bar.</string>
+    <string name="seedmap_world_current">On the map now</string>
+    <string name="seedmap_world_rename">Rename %1$s</string>
+    <plurals name="seedmap_world_points">
+        <item quantity="one">%d point</item>
+        <item quantity="other">%d points</item>
+    </plurals>
+    <string name="seedmap_rename_dialog_title">Rename seed</string>
+    <string name="seedmap_remove_dialog_title">Remove %1$s?</string>
+    <string name="seedmap_remove_dialog_text">Its points of interest stay with the seed, so saving it again brings them back.</string>
+    <string name="seedmap_remove">Remove</string>
 
     <string name="seedmap_unknown_biome">Unknown biome</string>
     <string name="seedmap_copy_coordinates">Copy coordinates</string>

@@ -24,4 +24,13 @@ class FakeSeedRepository(
     override suspend fun removeSeed(seed: SavedSeed) {
         state.update { list -> list.filterNot { it.seed == seed.seed && it.version == seed.version } }
     }
+
+    override suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    ) {
+        state.update { list ->
+            list.map { if (it.seed == seed.seed && it.version == seed.version) it.copy(label = label) else it }
+        }
+    }
 }

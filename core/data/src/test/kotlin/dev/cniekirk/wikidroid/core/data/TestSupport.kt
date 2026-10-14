@@ -123,6 +123,23 @@ class FakePreferencesDataSource(
     override suspend fun removeSeed(seed: SavedSeed) {
         seeds.update { list -> list - seed }
     }
+
+    override suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    ) {
+        seeds.update { list ->
+            list.map {
+                if (it.seed == seed.seed &&
+                    it.version == seed.version
+                ) {
+                    it.copy(label = label)
+                } else {
+                    it
+                }
+            }
+        }
+    }
 }
 
 class FakeClock(

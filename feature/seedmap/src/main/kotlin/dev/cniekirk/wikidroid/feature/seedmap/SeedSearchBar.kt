@@ -21,6 +21,7 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarState
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +52,7 @@ import kotlinx.coroutines.launch
 internal const val SEED_FIELD_TAG = "seed-map-seed-field"
 internal const val SAVE_SEED_TAG = "seed-map-save-seed"
 internal const val LEGEND_BUTTON_TAG = "seed-map-legend"
+internal const val WORLDS_BUTTON_TAG = "seed-map-worlds-button"
 internal const val RANDOM_SEED_TAG = "seed-map-random"
 internal const val SUGGESTIONS_TAG = "seed-map-suggestions"
 internal const val GO_TO_SUGGESTION_TAG = "seed-map-suggest-goto"
@@ -75,6 +77,7 @@ internal fun SeedSearchBar(
     state: SeedMapState,
     onSave: () -> Unit,
     onLegend: () -> Unit,
+    onWorlds: () -> Unit,
     onAction: (SeedMapAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -172,6 +175,10 @@ internal fun SeedSearchBar(
             suggestions = suggestions,
             onClick = ::run,
             onRemove = { onAction(SeedMapAction.DeleteSavedSeed(it)) },
+            onWorlds = {
+                run(null)
+                onWorlds()
+            },
         )
     }
 }
@@ -265,150 +272,3 @@ private fun PillActions(
 
 /** Two icon buttons, less the trailing slot's own padding. */
 private val PillActionsWidth = 96.dp
-
-@Composable
-private fun SuggestionList(
-    suggestions: ImmutableList<SeedSuggestion>,
-    onClick: (SeedSuggestion) -> Unit,
-    onRemove: (SavedSeed) -> Unit,
-) {
-    val hasSaved = suggestions.any { it is SeedSuggestion.Saved }
-    LazyColumn(modifier = Modifier.testTag(SUGGESTIONS_TAG)) {
-        items(suggestions, key = { it.key() }) { suggestion ->
-            when (suggestion) {
-                is SeedSuggestion.GoTo -> {
-                    SuggestionRow(
-                        icon = WikiIcons.PinDrop,
-                        headline = stringResource(R.string.seedmap_suggest_go_to, suggestion.pos.x, suggestion.pos.z),
-                        onClick = { onClick(suggestion) },
-                        modifier = Modifier.testTag(GO_TO_SUGGESTION_TAG),
-                    )
-                }
-
-                is SeedSuggestion.Nearest -> {
-                    ListItem(
-                        onClick = { onClick(suggestion) },
-                        modifier = Modifier.testTag(nearestSuggestionTag(suggestion.type)),
-                        leadingContent = {
-                            MarkerIcon(suggestion.type.markerStyle(), icon = suggestion.type.icon(), size = 24.dp)
-                        },
-                        supportingContent = { Text(stringResource(R.string.seedmap_suggest_nearest_detail)) },
-                    ) {
-                        Text(
-                            stringResource(
-                                R.string.seedmap_suggest_nearest,
-                                StructureWikiTitles.titleFor(suggestion.type),
-                            ),
-                        )
-                    }
-                }
-
-                is SeedSuggestion.Poi -> {
-                    ListItem(
-                        onClick = { onClick(suggestion) },
-                        modifier = Modifier.testTag(poiSuggestionTag(suggestion.point)),
-                        leadingContent = {
-                            PoiMarker(
-                                suggestion.point.category.icon,
-                                suggestion.point.color,
-                                size = 24.dp,
-                            )
-                        },
-                        supportingContent = {
-                            Text(stringResource(R.string.seedmap_coordinates, suggestion.point.x, suggestion.point.z))
-                        },
-                    ) {
-                        Text(
-                            stringResource(R.string.seedmap_suggest_poi, suggestion.point.displayName()),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-
-                is SeedSuggestion.UseSeed -> {
-                    SuggestionRow(
-                        icon = WikiIcons.Map,
-                        headline = stringResource(R.string.seedmap_suggest_use_seed, suggestion.text),
-                        onClick = { onClick(suggestion) },
-                        modifier = Modifier.testTag(USE_SEED_SUGGESTION_TAG),
-                    )
-                }
-
-                SeedSuggestion.Random -> {
-                    SuggestionRow(
-                        icon = WikiIcons.Shuffle,
-                        headline = stringResource(R.string.seedmap_random_seed),
-                        onClick = { onClick(suggestion) },
-                        modifier = Modifier.testTag(RANDOM_SEED_TAG),
-                    )
-                }
-
-                is SeedSuggestion.Saved -> {
-                    SavedSeedRow(suggestion.saved, onLoad = { onClick(suggestion) }, onRemove = onRemove)
-                }
-            }
-        }
-        if (!hasSaved) {
-            item(key = "no-saved") {
-                Text(
-                    text = stringResource(R.string.seedmap_no_saved_seeds),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-private fun SeedSuggestion.key(): String =
-    when (this) {
-        is SeedSuggestion.GoTo -> "goto"
-        is SeedSuggestion.Nearest -> "nearest-${type.name}"
-        is SeedSuggestion.Poi -> "poi-${point.id}"
-        is SeedSuggestion.UseSeed -> "seed"
-        SeedSuggestion.Random -> "random"
-        is SeedSuggestion.Saved -> savedSeedTag(saved)
-    }
-
-@Composable
-private fun SuggestionRow(
-    icon: Int,
-    headline: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ListItem(
-        onClick = onClick,
-        modifier = modifier,
-        leadingContent = { WikiIcon(icon = icon, contentDescription = null) },
-    ) {
-        Text(headline, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
-private fun SavedSeedRow(
-    saved: SavedSeed,
-    onLoad: () -> Unit,
-    onRemove: (SavedSeed) -> Unit,
-) {
-    ListItem(
-        onClick = onLoad,
-        modifier = Modifier.testTag(savedSeedTag(saved)),
-        leadingContent = { WikiIcon(icon = WikiIcons.Bookmark, contentDescription = null) },
-        supportingContent = {
-            Text(stringResource(R.string.seedmap_saved_seed_subtitle, saved.seed.toString(), saved.version))
-        },
-        trailingContent = {
-            WikiIconButton(
-                icon = WikiIcons.Delete,
-                contentDescription = stringResource(R.string.seedmap_remove_saved_seed, saved.displayName()),
-                onClick = { onRemove(saved) },
-            )
-        },
-    ) {
-        Text(saved.displayName())
-    }
-}

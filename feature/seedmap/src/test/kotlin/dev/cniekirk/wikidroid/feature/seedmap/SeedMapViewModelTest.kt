@@ -1287,6 +1287,73 @@ class SeedMapViewModelTest {
 
     // endregion
 
+    // region measure and saved seeds
+
+    @Test
+    fun `the ruler measures between two taps until it is stopped`() =
+        runTest {
+            onMap {
+                act(SeedMapAction.SelectSpawn)
+                act(SeedMapAction.StartMeasure)
+                assertThat(state.measure).isEqualTo(Measurement())
+
+                act(SeedMapAction.MeasurePoint(BlockPos(0, 0)))
+                act(SeedMapAction.MeasurePoint(BlockPos(30, 40)))
+                assertThat(state.measure?.blocks).isEqualTo(50L)
+
+                act(SeedMapAction.StopMeasure)
+                assertThat(state.measure).isNull()
+            }
+        }
+
+    @Test
+    fun `measuring from a selection starts there and closes its sheet`() =
+        runTest {
+            engine.biomeHandler = { _, _, _ -> 1 }
+
+            onMap {
+                act(SeedMapAction.SelectPoint(BlockPos(7, 8)))
+                act(SeedMapAction.MeasureFrom(BlockPos(7, 8)))
+
+                assertThat(state.selection).isNull()
+                assertThat(state.measure).isEqualTo(Measurement(start = BlockPos(7, 8)))
+            }
+        }
+
+    @Test
+    fun `renaming a saved seed keeps its place and a blank name removes it`() =
+        runTest {
+            val first = SavedSeed(262, "26.3", "Base")
+            val second = SavedSeed(1, "1.12", "Island")
+            seeds.saveSeed(second)
+            seeds.saveSeed(first)
+
+            onMap {
+                act(SeedMapAction.RenameSavedSeed(second, "  Spawn island "))
+                act(SeedMapAction.RenameSavedSeed(first, "  "))
+
+                assertThat(seeds.current)
+                    .containsExactly(SavedSeed(262, "26.3", null), SavedSeed(1, "1.12", "Spawn island"))
+                    .inOrder()
+            }
+        }
+
+    @Test
+    fun `point counts per seed follow the saved points`() =
+        runTest {
+            pois.save(saved(0))
+            pois.save(saved(0, dimension = Dimension.NETHER))
+
+            onMap {
+                assertThat(state.poiCounts).containsExactly(SeedMapState.DEFAULT_SEED, 2)
+
+                act(SeedMapAction.DeletePoi(state.pois.single()))
+                assertThat(state.poiCounts).containsExactly(SeedMapState.DEFAULT_SEED, 1)
+            }
+        }
+
+    // endregion
+
     private suspend fun suspendForever(): Nothing {
         CompletableDeferred<Nothing>().await()
     }

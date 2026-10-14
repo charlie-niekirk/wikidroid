@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.feature.seedmap
 import dev.cniekirk.wikidroid.core.seedmap.BlockPos
 import dev.cniekirk.wikidroid.core.seedmap.Dimension
 import dev.cniekirk.wikidroid.core.seedmap.SeedMapEngine
+import kotlin.math.roundToLong
 
 /** One Nether block is eight overworld blocks across, which is what a portal trip relies on. */
 internal const val NETHER_SCALE = 8
@@ -39,3 +40,14 @@ private fun toOverworld(coordinate: Int): Int {
     val limit = SeedMapEngine.MAX_COORDINATE.toLong()
     return (coordinate.toLong() * NETHER_SCALE).coerceIn(-limit, limit).toInt()
 }
+
+/**
+ * [blocks] walked in this dimension as the other dimension counts them: an Overworld trip is an eighth as long
+ * through the Nether, and a Nether trip covers eight times as much Overworld. Null in the End.
+ */
+internal fun Dimension.travelEquivalent(blocks: Long): Pair<Dimension, Long>? =
+    when (this) {
+        Dimension.OVERWORLD -> Dimension.NETHER to (blocks / NETHER_SCALE.toDouble()).roundToLong()
+        Dimension.NETHER -> Dimension.OVERWORLD to blocks * NETHER_SCALE
+        Dimension.END -> null
+    }

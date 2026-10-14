@@ -46,4 +46,16 @@ class DimensionScaleTest {
     fun endPortalsLinkNowhere() {
         assertThat(BlockPos(0, 0).linkedPortal(Dimension.END)).isNull()
     }
+
+    @Test
+    fun anOverworldTripIsAnEighthAsLongThroughTheNether() {
+        assertThat(Dimension.OVERWORLD.travelEquivalent(1000)).isEqualTo(Dimension.NETHER to 125L)
+        assertThat(Dimension.OVERWORLD.travelEquivalent(1004)).isEqualTo(Dimension.NETHER to 126L)
+    }
+
+    @Test
+    fun aNetherTripCoversEightTimesAsMuchOverworld() {
+        assertThat(Dimension.NETHER.travelEquivalent(125)).isEqualTo(Dimension.OVERWORLD to 1000L)
+        assertThat(Dimension.END.travelEquivalent(125)).isNull()
+    }
 }

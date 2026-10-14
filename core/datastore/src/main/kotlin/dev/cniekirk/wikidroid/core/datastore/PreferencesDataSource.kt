@@ -35,6 +35,12 @@ interface PreferencesDataSource {
     /** Forgets the entry with [seed]'s seed and version, whatever its label. */
     suspend fun removeSeed(seed: SavedSeed)
 
+    /** Gives [seed]'s seed and version a new [label] (null: none), keeping its place in the list. */
+    suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    )
+
     companion object {
         const val MAX_RECENT_SEARCHES = 10
     }
@@ -86,6 +92,15 @@ class DataStorePreferencesDataSource(
 
     override suspend fun removeSeed(seed: SavedSeed) {
         dataStore.updateData { data -> data.copy(savedSeeds = data.savedSeeds.filterNot { it.sameWorldAs(seed) }) }
+    }
+
+    override suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    ) {
+        dataStore.updateData { data ->
+            data.copy(savedSeeds = data.savedSeeds.map { if (it.sameWorldAs(seed)) it.copy(label = label) else it })
+        }
     }
 }
 

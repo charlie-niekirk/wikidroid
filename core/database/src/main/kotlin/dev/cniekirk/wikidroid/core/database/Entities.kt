@@ -51,6 +51,12 @@ data class PointOfInterestEntity(
     val createdAt: Long,
 )
 
+/** A seed and how many points it has. */
+data class SeedPointCount(
+    val seed: Long,
+    val count: Int,
+)
+
 /** A bookmark or history row joined with whether its article is cached for offline reading. */
 data class LibraryRow(
     val title: String,

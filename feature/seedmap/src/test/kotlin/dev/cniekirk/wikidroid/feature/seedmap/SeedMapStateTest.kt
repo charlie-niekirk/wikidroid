@@ -123,4 +123,32 @@ class SeedMapStateTest {
         assertThat(state.inWorld(seed = 1L).poiEditor).isNull()
         assertThat(state.withDimension(Dimension.NETHER).pois).isEmpty()
     }
+
+    @Test
+    fun aMeasurementHasADistanceOnceBothEndsAreSet() {
+        val started = Measurement().withPoint(BlockPos(0, 0))
+
+        assertThat(started.blocks).isNull()
+        assertThat(started.withPoint(BlockPos(300, 400)).blocks).isEqualTo(500L)
+        assertThat(started.withPoint(BlockPos(300, 400)).withPoint(BlockPos(-6, 8)))
+            .isEqualTo(Measurement(BlockPos(0, 0), BlockPos(-6, 8)))
+    }
+
+    @Test
+    fun startingToMeasureClosesTheSelectionAndTapsOnlyCountWhileMeasuring() {
+        val selected = SeedMapState(selection = MapSelection.Spawn(BlockPos(0, 0)))
+
+        val measuring = selected.measuringFrom(BlockPos(5, 5))
+        assertThat(measuring.selection).isNull()
+        assertThat(measuring.measure).isEqualTo(Measurement(start = BlockPos(5, 5)))
+        assertThat(selected.withMeasurePoint(BlockPos(1, 1))).isEqualTo(selected)
+    }
+
+    @Test
+    fun aMeasurementSurvivesAnotherVersionButNotAnotherSeed() {
+        val measuring = SeedMapState().measuringFrom(BlockPos(5, 5))
+
+        assertThat(measuring.withVersion(McVersion.V1_20).measure).isNotNull()
+        assertThat(measuring.inWorld(seed = 1L).measure).isNull()
+    }
 }

@@ -77,6 +77,16 @@ class PointOfInterestRepositoryTest : DatabaseRepositoryTest() {
         }
 
     @Test
+    fun `points are counted per seed`() =
+        runTest {
+            repository.save(base)
+            repository.save(base.copy(dimension = "END"))
+            repository.save(base.copy(seed = 1))
+
+            assertThat(repository.countsBySeed().first()).containsExactly(262L, 2, 1L, 1)
+        }
+
+    @Test
     fun `a restored point comes back with its id and time`() =
         runTest {
             val id = repository.save(base)

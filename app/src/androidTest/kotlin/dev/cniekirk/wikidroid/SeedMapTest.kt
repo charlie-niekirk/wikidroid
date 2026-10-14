@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid
 
 import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
@@ -271,6 +273,46 @@ class SeedMapTest {
     }
 
     @Test
+    fun aSavedSeedCanBeRenamedInMyWorlds() {
+        openSeedMap()
+        composeRule.onNodeWithTag("seed-map-save-seed").performClick()
+        composeRule.onNodeWithTag("seed-map-save-name").performTextInput("Base")
+        composeRule.onNodeWithTag("seed-map-save-confirm").performClick()
+        composeRule.waitUntilAtLeastOneExists(hasText("· Base"), UI_TIMEOUT_MILLIS, useUnmergedTree = true)
+
+        seedField().performClick()
+        composeRule.onNodeWithTag("seed-map-suggestions").performScrollToNode(hasTestTag("seed-map-worlds-button"))
+        composeRule.onNodeWithTag("seed-map-worlds-button").performClick()
+        composeRule.onNodeWithTag("seed-map-world-rename-262-26.3").performClick()
+        composeRule.onNodeWithTag("seed-map-save-name").performTextClearance()
+        composeRule.onNodeWithTag("seed-map-save-name").performTextInput("Home")
+        composeRule.onNodeWithTag("seed-map-save-confirm").performClick()
+
+        // Stored in DataStore and read back into the sheet and the pill.
+        composeRule.waitUntilAtLeastOneExists(
+            hasTestTag("seed-map-world-262-26.3") and hasText("Home"),
+            UI_TIMEOUT_MILLIS,
+        )
+    }
+
+    @Test
+    fun measuringBetweenTwoTapsShowsTheDistance() {
+        openSeedMap()
+        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+
+        composeRule.onNodeWithTag("seed-map-measure").performClick()
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { click(center) }
+        composeRule.waitUntilAtLeastOneExists(hasText("Tap where to measure to"), UI_TIMEOUT_MILLIS)
+        // Past the double-tap window, so the second tap is not a double tap.
+        Thread.sleep(DOUBLE_TAP_GAP_MILLIS)
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { click(center + Offset(0f, 200f)) }
+
+        composeRule.waitUntilAtLeastOneExists(hasText("through the Nether", substring = true), UI_TIMEOUT_MILLIS)
+        composeRule.onNodeWithTag("seed-map-measure-close").performClick()
+        composeRule.onNodeWithTag("seed-map-measure-bar").assertDoesNotExist()
+    }
+
+    @Test
     fun leavingTheTabAndComingBackKeepsTheMap() {
         openSeedMap()
         waitForTile(originTile(MapWorld(262, McVersion.newest)))
@@ -285,3 +327,4 @@ class SeedMapTest {
 }
 
 private const val PIN_SETTLE_MILLIS = 1_500L
+private const val DOUBLE_TAP_GAP_MILLIS = 600L
