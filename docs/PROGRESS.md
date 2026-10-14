@@ -22,6 +22,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 18: Seed search that finds structures
 - [x] Session 19: Slime chunks and points of interest
 - [x] Session 20: Measure distance and My worlds
+- [x] Session 21: Full-screen seed map on wide windows
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -684,3 +685,20 @@ What changed:
 - The ruler stays on until it is closed, and map taps measure instead of selecting meanwhile. The bar says so, but a player may still expect a tap to select.
 - The grid and slime switches are still not persisted (open since Session 17).
 
+## Session 21 notes
+A follow-up asked for after Session 20, not in the plan: the seed map no longer shares a wide window with a "Select a page" pane.
+
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- Checked by hand on the `Resizable_Android_17` AVD (2208 x 1840, unfolded): the map fills everything right of the rail. "Open wiki article" on a village opens the article full width, and back returns to the map.
+
+What changed:
+- `SeedMapEntryInstaller` registers `SeedMapKey` with no pane metadata (it was `WikiPanes.list()`). `ListDetailSceneStrategy` returns no scene for it, so `NavDisplay` shows it single-pane.
+- An article opened from the map is full width too, with no change to `ArticleKey`. The strategy only gathers the pane entries above the last entry without metadata, and the scaffold only expands panes in that history. A lone detail entry is one pane, so the strategy declines it as well.
+- `AppShellTest` has two wide-window tests (`w1280dp-h800dp`): a list destination and its article side by side, and the seed map and its article at full width. The second fails if the seed map entry is given `WikiPanes.list()` again.
+
+### Deviations
+- None.
+
+### Open TODOs
+- The seed pill and chips now stretch across the whole window on a tablet. Capping the pill's width (Material's search bar maxes out around 720 dp) may look better.
