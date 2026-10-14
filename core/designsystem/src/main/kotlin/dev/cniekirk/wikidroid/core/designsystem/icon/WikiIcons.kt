@@ -128,4 +128,10 @@ object WikiIcons {
 
     @DrawableRes
     val BubbleChart: Int = R.drawable.ic_bubble_chart
+
+    @DrawableRes
+    val Straighten: Int = R.drawable.ic_straighten
+
+    @DrawableRes
+    val Public: Int = R.drawable.ic_public
 }

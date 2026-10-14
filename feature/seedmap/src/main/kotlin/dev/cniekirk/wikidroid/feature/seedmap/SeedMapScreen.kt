@@ -59,9 +59,10 @@ import kotlin.math.roundToInt
 internal const val GO_TO_SPAWN_TAG = "seed-map-go-to-spawn"
 internal const val MAP_TOOLBAR_TAG = "seed-map-toolbar"
 internal const val FINDING_CHIP_TAG = "seed-map-finding"
+internal const val MEASURE_BUTTON_TAG = "seed-map-measure"
 
 /** The dialogs and sheets the screen can show. Kept as one value so only one is ever open. */
-private enum class Overlay { None, Filter, Legend, Layers, SaveSeed, Pois }
+private enum class Overlay { None, Filter, Legend, Layers, SaveSeed, Pois, Worlds }
 
 /**
  * The Seed map tab: the map from edge to edge, with the seed pill and chips floating over its top and the
@@ -100,6 +101,7 @@ fun SeedMapScreen(
                 state = state,
                 onSave = { overlay = Overlay.SaveSeed },
                 onLegend = { overlay = Overlay.Legend },
+                onWorlds = { overlay = Overlay.Worlds },
                 onAction = onAction,
                 modifier = Modifier.windowInsetsPadding(sides).padding(horizontal = 16.dp),
             )
@@ -111,6 +113,14 @@ fun SeedMapScreen(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(sides).padding(top = 8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
             )
+            state.measure?.let { measure ->
+                MeasureBar(
+                    measure = measure,
+                    dimension = state.dimension,
+                    onAction = onAction,
+                    modifier = Modifier.windowInsetsPadding(sides).padding(top = 8.dp),
+                )
+            }
             val finding = state.findingNearest
             if (finding != null) {
                 FindingChip(type = finding, modifier = Modifier.padding(top = 8.dp))
@@ -166,6 +176,16 @@ fun SeedMapScreen(
                     onAction(SeedMapAction.GoToPoi(point))
                     overlay = Overlay.None
                 },
+                onDismiss = { overlay = Overlay.None },
+            )
+        }
+
+        Overlay.Worlds -> {
+            MyWorldsSheet(
+                saved = state.savedSeeds,
+                current = state.savedEntry,
+                poiCounts = state.poiCounts,
+                onAction = onAction,
                 onDismiss = { overlay = Overlay.None },
             )
         }
@@ -271,14 +291,30 @@ private fun MapOverlay(
         val toolbarModifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).testTag(MAP_TOOLBAR_TAG)
         if (maxHeight >= TallMapHeight) {
             VerticalFloatingToolbar(expanded = true, modifier = toolbarModifier) {
+                MeasureButton(measuring = state.measure != null, onAction = onAction)
                 MapToolbarButtons(state.dimension, camera, onAction)
             }
         } else {
             HorizontalFloatingToolbar(expanded = true, modifier = toolbarModifier) {
+                MeasureButton(measuring = state.measure != null, onAction = onAction)
                 MapToolbarButtons(state.dimension, camera, onAction)
             }
         }
     }
+}
+
+/** The ruler: turns measuring on, or off again. */
+@Composable
+private fun MeasureButton(
+    measuring: Boolean,
+    onAction: (SeedMapAction) -> Unit,
+) {
+    WikiIconButton(
+        icon = WikiIcons.Straighten,
+        contentDescription = stringResource(if (measuring) R.string.seedmap_measure_stop else R.string.seedmap_measure),
+        onClick = { onAction(if (measuring) SeedMapAction.StopMeasure else SeedMapAction.StartMeasure) },
+        modifier = Modifier.testTag(MEASURE_BUTTON_TAG),
+    )
 }
 
 @Composable

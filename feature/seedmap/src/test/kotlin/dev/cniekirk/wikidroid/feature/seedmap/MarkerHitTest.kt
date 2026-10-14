@@ -130,4 +130,14 @@ class MarkerHitTest {
         assertThat(longPressAt(camera, Offset(520f, 1030f), state, radiusPx = 20f))
             .isEqualTo(SeedMapAction.StartAddPoi(BlockPos(20, 30)))
     }
+
+    @Test
+    fun whileMeasuringATapIsAPointSnappedToAMarker() {
+        val state = SeedMapState(pins = persistentListOf(village), measure = Measurement())
+
+        assertThat(selectionAt(camera, Offset(605f, 1095f), state, radiusPx = 20f))
+            .isEqualTo(SeedMapAction.MeasurePoint(BlockPos(100, 100)))
+        assertThat(selectionAt(camera, Offset(520f, 1030f), state, radiusPx = 20f))
+            .isEqualTo(SeedMapAction.MeasurePoint(BlockPos(20, 30)))
+    }
 }

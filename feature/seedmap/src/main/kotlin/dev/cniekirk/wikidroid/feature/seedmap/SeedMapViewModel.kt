@@ -24,6 +24,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -68,6 +69,9 @@ class SeedMapViewModel(
             coroutineScope {
                 launch {
                     seeds.savedSeeds.collect { saved -> reduce { state.copy(savedSeeds = saved.toImmutableList()) } }
+                }
+                launch {
+                    pois.countsBySeed().collect { counts -> reduce { state.copy(poiCounts = counts.toImmutableMap()) } }
                 }
                 launch {
                     container.stateFlow
@@ -155,9 +159,27 @@ class SeedMapViewModel(
             is SeedMapAction.SetGrid -> intent { reduce { state.copy(showGrid = action.show) } }
             is SeedMapAction.SetCrosshair -> intent { reduce { state.copy(showCrosshair = action.show) } }
             is SeedMapAction.SetSlimeChunks -> intent { reduce { state.copy(showSlimeChunks = action.show) } }
+            is SeedMapAction.Measure -> onMeasureAction(action)
+            is SeedMapAction.RenameSavedSeed -> renameSavedSeed(action.saved, action.label)
             else -> onPoiAction(action)
         }
     }
+
+    /** The ruler's actions. */
+    private fun onMeasureAction(action: SeedMapAction.Measure) {
+        when (action) {
+            SeedMapAction.StartMeasure -> intent { reduce { state.measuringFrom() } }
+            is SeedMapAction.MeasureFrom -> intent { reduce { state.measuringFrom(action.pos) } }
+            is SeedMapAction.MeasurePoint -> intent { reduce { state.withMeasurePoint(action.pos) } }
+            SeedMapAction.StopMeasure -> intent { reduce { state.copy(measure = null) } }
+        }
+    }
+
+    /** A blank [label] removes the name. */
+    private fun renameSavedSeed(
+        saved: SavedSeed,
+        label: String,
+    ) = intent { seeds.renameSeed(saved, label.trim().takeIf { it.isNotEmpty() }) }
 
     /** The actions about the player's own points. */
     private fun onPoiAction(action: SeedMapAction) {

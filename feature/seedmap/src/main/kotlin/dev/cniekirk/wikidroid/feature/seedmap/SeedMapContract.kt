@@ -17,11 +17,15 @@ import dev.cniekirk.wikidroid.core.seedmap.StructurePos
 import dev.cniekirk.wikidroid.core.seedmap.StructureType
 import dev.cniekirk.wikidroid.core.seedmap.StructureWikiTitles
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
+import kotlin.math.hypot
+import kotlin.math.roundToLong
 
 /** What a tap on the map picked, for the bottom sheet. */
 sealed interface MapSelection {
@@ -71,6 +75,25 @@ data class PoiDraft(
 /** Where a point is on the map. */
 val PointOfInterest.pos: BlockPos get() = BlockPos(x, z)
 
+/** A distance being measured on the map: the first tap sets [start], later taps move [end]. */
+@Immutable
+data class Measurement(
+    val start: BlockPos? = null,
+    val end: BlockPos? = null,
+) {
+    /** Blocks between the ends in a straight line, ignoring height; null until both are set. */
+    val blocks: Long?
+        get() =
+            if (start != null && end != null) {
+                hypot((end.x - start.x).toDouble(), (end.z - start.z).toDouble()).roundToLong()
+            } else {
+                null
+            }
+
+    /** A tap at [pos]: the start if there is none yet, otherwise the new end. */
+    fun withPoint(pos: BlockPos): Measurement = if (start == null) copy(start = pos) else copy(end = pos)
+}
+
 private const val SPAWN_WIKI_TITLE = "World spawn"
 
 /**
@@ -113,6 +136,10 @@ data class SeedMapState(
     val removedPoi: PointOfInterest? = null,
     /** The dimension a linked portal was just added to, until the snackbar saying so has gone. */
     val linkedPortalAddedTo: Dimension? = null,
+    /** The distance being measured, while the ruler is on; map taps then go to it instead of selecting. */
+    val measure: Measurement? = null,
+    /** How many points each seed has, for the My worlds sheet. */
+    val poiCounts: ImmutableMap<Long, Int> = persistentMapOf(),
 ) {
     val world: MapWorld get() = MapWorld(seed, version, dimension)
 
@@ -161,6 +188,7 @@ data class SeedMapState(
                 selection = null,
                 pois = if (samePlace) pois else persistentListOf(),
                 poiEditor = poiEditor.takeIf { samePlace },
+                measure = measure.takeIf { samePlace },
             )
         }
 
@@ -312,6 +340,13 @@ data class SeedMapState(
             poiEditor = poiEditor?.takeUnless { it.existing?.id == point.id },
             removedPoi = point,
         )
+
+    /** The ruler on, measuring from [start] if given; a selection's sheet closes so the map can be tapped. */
+    fun measuringFrom(start: BlockPos? = null): SeedMapState =
+        copy(measure = Measurement(start = start), selection = null)
+
+    /** A map tap while measuring; ignored when the ruler is off. */
+    fun withMeasurePoint(pos: BlockPos): SeedMapState = measure?.let { copy(measure = it.withPoint(pos)) } ?: this
 
     /** Whether slime chunks are shaded: switched on, and only the Overworld has them. */
     val slimeChunksShown: Boolean get() = showSlimeChunks && dimension == Dimension.OVERWORLD
@@ -479,6 +514,31 @@ sealed interface SeedMapAction {
 
     /** The snackbar for [SeedMapState.linkedPortalAddedTo] has gone. */
     data object LinkedPortalShown : SeedMapAction
+
+    /** The ruler's actions. */
+    sealed interface Measure : SeedMapAction
+
+    /** The ruler button: start measuring, with the next map tap as the start. */
+    data object StartMeasure : Measure
+
+    /** "Measure from here" in a selection's sheet. */
+    data class MeasureFrom(
+        val pos: BlockPos,
+    ) : Measure
+
+    /** A map tap while measuring. */
+    data class MeasurePoint(
+        val pos: BlockPos,
+    ) : Measure
+
+    /** The ruler button again, or the measurement's close button. */
+    data object StopMeasure : Measure
+
+    /** Rename in the My worlds sheet; a blank [label] removes the name. */
+    data class RenameSavedSeed(
+        val saved: SavedSeed,
+        val label: String,
+    ) : SeedMapAction
 }
 
 sealed interface SeedMapEffect {
