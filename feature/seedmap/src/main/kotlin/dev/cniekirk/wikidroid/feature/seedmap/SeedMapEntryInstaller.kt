@@ -7,19 +7,21 @@ import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.navigation.Navigator
 import dev.cniekirk.wikidroid.core.navigation.SeedMapKey
 import dev.cniekirk.wikidroid.core.seedmap.TileCache
-import dev.cniekirk.wikidroid.core.ui.pane.WikiPanes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
 import dev.zacsweers.metro.Inject
 
-/** Registers the Seed map tab. An article opened from the map sits beside it on wide windows. */
+/**
+ * Registers the Seed map tab. It has no pane metadata, so the map fills the window on every size (no "Select a page"
+ * pane beside it), and so does an article opened from it.
+ */
 @Inject
 @ContributesIntoSet(AppScope::class)
 class SeedMapEntryInstaller(
     private val tiles: TileCache,
 ) : EntryProviderInstaller {
     override fun EntryProviderScope<NavKey>.install(navigator: Navigator) {
-        entry<SeedMapKey>(metadata = WikiPanes.list()) {
+        entry<SeedMapKey> {
             SeedMapRoute(tiles = tiles, onOpenArticle = { navigator.navigate(ArticleKey(it)) })
         }
     }
