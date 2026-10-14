@@ -31,6 +31,9 @@ interface PointOfInterestRepository {
 
     /** Puts back a deleted point (for undo) with its original id and time. */
     suspend fun restore(point: PointOfInterest)
+
+    /** How many points each seed has, across its dimensions. A seed with none is not in the map. */
+    fun countsBySeed(): Flow<Map<Long, Int>>
 }
 
 @Inject
@@ -61,6 +64,9 @@ internal class RoomPointOfInterestRepository(
     override suspend fun restore(point: PointOfInterest) {
         dao.insert(point.toEntity())
     }
+
+    override fun countsBySeed(): Flow<Map<Long, Int>> =
+        dao.countBySeed().map { rows -> rows.associate { it.seed to it.count } }
 }
 
 private fun PointOfInterest.toEntity(): PointOfInterestEntity =

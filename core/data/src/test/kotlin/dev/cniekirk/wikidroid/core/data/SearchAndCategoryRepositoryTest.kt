@@ -176,5 +176,8 @@ class SeedRepositoryTest {
 
             repository.removeSeed(SavedSeed(262, "1.21.4"))
             assertThat(repository.savedSeeds.first()).containsExactly(SavedSeed(1, "1.12", "Spawn island"))
+
+            repository.renameSeed(SavedSeed(1, "1.12"), "Island")
+            assertThat(repository.savedSeeds.first()).containsExactly(SavedSeed(1, "1.12", "Island"))
         }
 }

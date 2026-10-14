@@ -108,4 +108,8 @@ interface PointOfInterestDao {
 
     @Query("DELETE FROM points_of_interest WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** How many points each seed has, across its dimensions; seeds with none are left out. */
+    @Query("SELECT seed, COUNT(*) AS count FROM points_of_interest GROUP BY seed")
+    fun countBySeed(): Flow<List<SeedPointCount>>
 }

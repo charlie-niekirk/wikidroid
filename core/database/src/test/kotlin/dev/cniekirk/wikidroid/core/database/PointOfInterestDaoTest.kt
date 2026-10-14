@@ -31,6 +31,17 @@ class PointOfInterestDaoTest : DatabaseTest() {
         }
 
     @Test
+    fun `points are counted per seed across dimensions`() =
+        runTest {
+            points.insert(point(seed = 262))
+            points.insert(point(seed = 262, dimension = "NETHER"))
+            points.insert(point(seed = 1))
+
+            assertThat(points.countBySeed().first())
+                .containsExactly(SeedPointCount(262, 2), SeedPointCount(1, 1))
+        }
+
+    @Test
     fun `update and delete are seen by observers`() =
         runTest {
             val id = points.insert(point(name = "Base"))

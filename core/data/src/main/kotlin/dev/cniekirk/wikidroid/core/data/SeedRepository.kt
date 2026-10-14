@@ -17,6 +17,12 @@ interface SeedRepository {
 
     /** Removes the saved entry for [seed]'s seed and version, whatever its label. */
     suspend fun removeSeed(seed: SavedSeed)
+
+    /** Gives the saved entry for [seed]'s seed and version a new [label] (null: none), keeping its place. */
+    suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    )
 }
 
 @Inject
@@ -30,4 +36,9 @@ internal class PreferencesSeedRepository(
     override suspend fun saveSeed(seed: SavedSeed) = preferences.saveSeed(seed)
 
     override suspend fun removeSeed(seed: SavedSeed) = preferences.removeSeed(seed)
+
+    override suspend fun renameSeed(
+        seed: SavedSeed,
+        label: String?,
+    ) = preferences.renameSeed(seed, label)
 }
