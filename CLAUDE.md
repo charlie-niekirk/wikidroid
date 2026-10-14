@@ -125,4 +125,8 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - `PointOfInterestRepository.save` inserts when the id is 0 and updates otherwise; undo uses `restore` (Room's `@Upsert` returns -1 on update and an update of a deleted row does nothing).
 - Room migration tests live in `core/database/src/androidTest` (the room3 plugin puts schemas only in androidTest assets) and run in CI's instrumented job.
 - A snackbar under a `ModalBottomSheet` is hidden: close the sheet in the same reduce that triggers the snackbar.
+- ktlint braces every branch of a `when` once one branch spans lines, which can push `onAction` past detekt's `LongMethod` and `CyclomaticComplexMethod`. Keep dispatcher branches to one line: group related actions under a sealed sub-interface (`SeedMapAction.Measure`), or call a named intent.
+- The seed pill has room for two action buttons. A third cuts off long seeds on a 360 dp phone and covers the middle of the field on Robolectric's 320 dp screen, so taps meant to open the search hit it. My worlds opens from the saved seeds' header in the search instead.
+- While the ruler is on (`SeedMapState.measure`), `selectionAt` returns `MeasurePoint` (snapped to a marker) instead of a selection.
+- `ResetAppStateRule` clears every store the app writes, points of interest included. A new store needs a line there, or one test's leftovers break the next.
 - `MapCamera.DEFAULT_BLOCKS_PER_PIXEL` (2) keeps a full-height phone view, with the pin padding, inside `MAX_STRUCTURE_SPAN`; raise it and pins start hidden on tall screens.

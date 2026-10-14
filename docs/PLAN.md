@@ -447,10 +447,11 @@ Each session is one branch and one pull request into `main`. The user's request 
 - **Done when:** the build is green, unit tests cover the slime goldens, the repository, the ViewModel, the hit test and the sheets, the migration test passes on a device, and `:app:connectedDebugAndroidTest` passes.
 
 ### Session 20: Measure distance and My worlds
+- **Status:** done (My worlds opens from the seed search's saved seeds, not the pill; see `docs/PROGRESS.md`).
 - **Depends on:** Session 19.
 - **Build:**
   - A ruler button in the map toolbar starts measuring. Map taps then set the start and move the end, and a dashed line joins them. A chip shows the distance in blocks and the Nether equivalent (Overworld distance / 8, or Nether distance x 8), with a close button. A point's or structure's sheet offers "Measure from here".
-  - A My worlds sheet, opened from the seed pill, lists saved seeds with their version and number of points:
+  - A My worlds sheet, opened from the saved seeds in the seed search, lists saved seeds with their version and number of points:
     - Tapping a seed switches to it.
     - Rename reuses the save dialog's field.
     - Delete keeps the points, which belong to the seed; the confirmation says so.
