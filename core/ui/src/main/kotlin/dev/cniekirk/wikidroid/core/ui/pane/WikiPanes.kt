@@ -10,7 +10,8 @@ import dev.cniekirk.wikidroid.core.ui.R
 /**
  * Entry metadata that tells the app's `ListDetailSceneStrategy` which pane a destination belongs in.
  * On a phone every destination is full-screen; on a wide window a [list] destination and the [detail]
- * destination above it show side by side.
+ * destination above it show side by side. A destination with no pane metadata (the seed map) fills the window on
+ * every size, and so does an article opened from it: the scaffold only expands panes that are on the back stack.
  *
  * ```
  * entry<CategoryKey>(metadata = WikiPanes.list()) { ... }
