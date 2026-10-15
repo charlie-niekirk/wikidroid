@@ -458,6 +458,207 @@ Each session is one branch and one pull request into `main`. The user's request 
     - Counts come from a new `PointOfInterestDao.countBySeed()` through `PointOfInterestRepository.countsBySeed()`.
 - **Done when:** the build is green, unit tests cover the measurement maths, the ViewModel actions and the sheet, and `:app:connectedDebugAndroidTest` passes.
 
+## Architecture follow-up (Sessions 22–34)
+An architecture review after Session 21 found bugs that come from structure. Each tab loses its screen state when the user leaves it, redirect titles miss the article cache, and the seed map's tile cache is smaller than what the canvas asks for. It also found structural debt: an inconsistent error model, unenforced layering, a 23-field `SeedMapState`, domain logic in `:feature:seedmap`, and the UI model doubling as the stored JSON schema. These sessions fix that in order: bugs (22–25), the error model (26), the seed map restructure (27–28), domain-only layering (29–30), a feature MVI tidy-up (31), then hygiene (32–34). Each follows the Session protocol above.
+
+Decided with the user: **features call use cases only.** From Session 30 on, features depend on `:core:domain` and never on `:core:data`.
+
+### Session 22: Per-tab screen state
+- **Depends on:** Session 21.
+- **Problem:** `AppShell` gives `NavDisplay` only the current tab's stack, with one pair of decorators. On a tab switch, every entry of the old tab leaves that stack, so its ViewModels and saveable state are cleared. This is the "state lost when leaving a tab" TODO open since Session 7.
+- **Build:**
+  - `Navigator`: add `stack(tab)` and `canGoBack`, which is the rule now duplicated between `goBack()` and AppShell's `BackHandler`.
+  - `AppNavDisplay`, following the Nav3 `MultipleBackStackSample` pattern:
+    - On **every** composition, loop over `TopLevelKeys`, never behind `if (tab == currentTab)`.
+    - Inside `key(tab)`, give each tab its own `rememberSaveableStateHolderNavEntryDecorator()` and `rememberViewModelStoreNavEntryDecorator()`, then call `rememberDecoratedNavEntries(navigator.stack(tab), decorators, entryProvider)`. ViewModel store providers key by composite key hash, so `key(tab)` keeps each tab's stores apart.
+    - Show the current tab with the `NavDisplay(entries = ...)` overload, wrapped in `key(navigator.currentTab)`. Entry identity is the key alone, so without the outer key the same `ArticleKey` on two tabs (or two `WikiPanes.list()` scenes) would share or leak saved state.
+    - Keep `BackHandler(enabled = backStack.size == 1 && navigator.canGoBack)`. `NavDisplay` only handles back when the scene has previous entries.
+    - `placeholderEntry` uses `key as? WikiKey`.
+  - PROGRESS.md: close the per-tab state TODOs. Note that ViewModels survive tab switches but not process death (no `SavedStateHandle`), and that every tab's `ArticleViewModel` now stays in memory.
+- **Done when:**
+  - Green. `lintDebug`, `:app:checkMainMetroHiddenDependencies` and `:app:connectedDebugAndroidTest` pass.
+  - `NavigatorTest` covers `stack`/`canGoBack`.
+  - `AppShellTest` uses a test ViewModel that counts instances: it survives a tab round trip, is cleared on pop, and the same key on two tabs keeps separate state.
+  - New instrumented test: the search query and results, and the seed map's seed and camera, survive a tab round trip.
+  - Emulator check: tablet list-detail, and predictive back from a tab root.
+
+### Session 23: Article cache correctness
+- **Depends on:** Session 22.
+- **Build:**
+  - **Redirect aliases (database v3):**
+    - New entity `ArticleAliasEntity(requested PK, canonical)`, with a foreign key to `cached_articles.title` `ON DELETE CASCADE` and `Index("canonical")`. Add `@AutoMigration(2, 3)` and commit `schemas/3.json`.
+    - Keep `@Upsert` on `cached_articles`: `REPLACE` would delete the row and cascade to its aliases.
+    - A `@Transaction` DAO method stores the article and its alias, and deletes any row cached under the requested title, so a stale "old name" row can't keep winning the lookup.
+    - `getArticle` reads `cache.get(requested) ?: aliasFor(requested)?.let(cache::get)`.
+    - Today a redirect name always misses the cache, and `ArticleRepositoryTest` asserts that. The test flips: the name now resolves from cache, offline too.
+  - **Refresh by revision:**
+    - Add `MediaWikiApi.parseRevision(oldid)`: the same props, without `page`, `redirects` or `maxage`. Add a matching `WikiRemoteDataSource.parseRevision` and fake handler.
+    - `refreshIfStale` downloads the probed revision, so OkHttp's cached `page=` response (`maxage=600`) can't return the old revision.
+    - Add a fixture and a MockWebServer test.
+  - **Errors:** `cache.get` and `aliasFor` are wrapped in `dataResultOf`. `toArticle` maps only parser failures to `DataError.Parse`.
+  - **Dead field:** remove `Article.categories`, which nothing fills in, and the `categories` parse prop. Update `ArticleEndpointsTest`.
+- **Done when:** green. The v2→v3 migration test (`core/database/src/androidTest`) and `:app:connectedDebugAndroidTest` pass. Emulator check: open a redirect title offline after viewing it once.
+
+### Session 24: Seed map memory and rendering
+- **Depends on:** Session 22.
+- **Build:**
+  - **Tile budget:**
+    - `TileCache.capacityTiles` replaces `MAX_WANTED_TILES = 96`. That constant is 24 MB of tiles, while the cache on a memoryClass-128 device is 16 MB (64 tiles).
+    - Test that the smallest budget covers a 1080×2400 view at every scale boundary. If it doesn't, allow up to 4 px per cell at coarse scales.
+  - **Memory pressure:**
+    - `WikiDroidApp` registers `ComponentCallbacks2`. `TileCache.trim(level)` halves the cache on `TRIM_MEMORY_UI_HIDDEN` and clears it on `RUNNING_LOW`/`onLowMemory`.
+    - `SlimeLayer`'s region cache becomes an app-scoped, byte-bounded `SlimeRegionCache` in `:core:seedmap`, trimmed the same way.
+  - **Main thread:**
+    - Slime region bitmaps are built on a worker, like `TileLoader`, and only finished regions are drawn.
+    - `StructureIcons` sprites are decoded once.
+  - **Allocations:** `wantedTiles` sorts by integer tile-centre maths, without a `BlockArea` per comparison. `TileDrawer` reuses a scratch list for its fallback keys.
+  - **`TileLoader`:** clear `failed` on a world change, and retry a failed tile after a backoff.
+  - **Dispatcher:** `SeedMapCanvas` takes `@DefaultDispatcher` through `SeedMapEntryInstaller` instead of a hard-coded `Dispatchers.Default`.
+- **Done when:**
+  - Green. `:app:connectedDebugAndroidTest` and `:core:seedmap:connectedDebugAndroidTest` pass.
+  - `TilePerformanceTest` (`perf=true`) is no slower.
+  - The baseline profile is regenerated (open since Session 15).
+  - Emulator check: pan, zoom and toggles on a memoryClass-128 AVD.
+
+### Session 25: Seed map engine hardening
+- **Depends on:** Session 24.
+- **Build:**
+  - **Native:**
+    - Add a regression test that `nativeGetBiomeAt` on a fresh handle returns -1. cubiomes' `setupGenerator` already sets `DIM_UNDEF`, so no C change is needed.
+    - Bounds-check x/y/z in C.
+    - Add a contract test that resolves every `external fun`, or move to `RegisterNatives` in `JNI_OnLoad`, so a renamed class fails at load.
+  - **`GeneratorPool`:**
+    - `close()` waits for lent generators, as `shutDown()` does.
+    - Keep one concurrency limit, not both `limitedParallelism` and a semaphore.
+    - Add a `NativeGenerators` interface between the pool and the `NativeSeedMap` statics, with JVM tests for lending and re-seeding.
+  - **Cancellation:** split `structuresIn` over large areas into native calls of at most 64 regions, so a superseded search frees its worker. Cap `FindNearestStructureUseCase`'s per-ring concurrency to the pool size.
+  - **Drift checks:**
+    - Kotlin and C limits disagree: structure span is 8192 against 16384, and coordinates are 30M against 60M. Expose the C limits through one native call, and have `NativeContractTest` assert Kotlin ≤ C.
+    - Check `StructureType`/`McVersion` support against `nativeStructureSupported`.
+  - **Version labels:** a pinned-labels test of every `McVersion.label`, so renaming one fails. Labels stay the stored key, as `SavedSeed` documents.
+- **Done when:** green. `:core:seedmap:connectedDebugAndroidTest` and `:app:connectedDebugAndroidTest` pass.
+
+### Session 26: One error model
+- **Depends on:** Session 23.
+- **Build:**
+  - **One mapping per layer:** each layer names only its own exception types, since `:core:common` is plain JVM.
+    - `:core:common`: `toDataError()` (cancellation rethrown, IOException→Network, else Unknown).
+    - `:core:network`: `toNetworkDataError()` adds HTTP 404→NotFound and `SerializationException`→Parse, and delegates the rest to common.
+    - `:core:data`: `SQLiteException`→ a new `DataError.Storage`.
+  - **Logging:** a `Logger` interface in `:core:common`, bound in `:app` (Logcat in debug, no-op in release) and faked in `:core:testing`. Unknown errors and dropped writes are logged.
+  - **Repository returns:** `LibraryRepository`, `PointOfInterestRepository`, `SeedRepository` and `SettingsRepository` mutations return `Result<_, DataError>` like the other repositories. The fakes gain scriptable failures.
+  - **Seed map refusals:** `Attempt.kt` is replaced by a `SeedMapRefusal` that `JniSeedMapEngine` throws for world-border and unsupported-combination cases. Only that is caught; `require`/`check` failures propagate.
+  - **History writes:** `ObserveArticleUseCase` logs a failed history write instead of dropping it silently.
+  - **Rename:** `Result` becomes `DataResult`, so it no longer shadows `kotlin.Result`. Do this in its own mechanical commit.
+- **Done when:** green, and the existing ViewModel tests pass with only error-type changes.
+
+### Session 27: Seed map domain extraction
+- **Depends on:** Session 26.
+- **Build:** move pure logic out of `:feature:seedmap` and bring its tests along.
+  - **To `:core:seedmap`:**
+    - `DimensionScale.kt`.
+    - `parseCoordinates`, next to `SeedParser`.
+    - A `SeedMapQueries` planner for the spawn, stronghold and pin queries and type filtering, taking a `BlockArea` rather than a feature type.
+    - One visible-area function, shared by `MapCamera` (floor/ceil of the centre) and `MapViewport` (rounded centre) so tiles and pins agree at the edges.
+    - The "World spawn" title, which joins `StructureWikiTitles`.
+  - **To `:core:domain/seedmap`:** the `Pois.kt` helpers (`linkedPortal`, `edited`), taking plain fields instead of `SeedMapAction.SavePoi`.
+- **Done when:** green. The moved tests pass in their new modules, and the feature holds only UI, state and ViewModel code.
+
+### Session 28: Seed map state split
+- **Depends on:** Session 27.
+- **Build:**
+  - **Sub-states:** split `SeedMapState` (23 fields) into nested immutable sub-states, each with its own reducers. Every field gets a home; list the field→sub-state table in the PR.
+    - `WorldState`: seed, version, dimension, saved seeds, viewport.
+    - `PinsState`: toggles, pins, spawn, strongholds, nearest search and miss.
+    - `PoiState`: points, editor, counts, removed point, linked-portal result.
+    - `MeasureState`.
+    - `LayersState`: grid, crosshair, slime, biome legend.
+    - `SelectionState`.
+  - **Actions:**
+    - Group `SeedMapAction` (37 leaves) into one sealed sub-interface per sub-state, as `SeedMapAction.Measure` already is.
+    - The dispatcher becomes one exhaustive `when` with no `else -> error()`, and a handler per group.
+  - **Collectors and screen:** each collector reduces only into its own sub-state, and the screen passes sub-states down.
+- **Done when:** green. The ViewModel tests pass with their assertions moved to the sub-states, and `:app:connectedDebugAndroidTest` passes.
+
+### Session 29: Domain-only use cases (wiki features)
+- **Depends on:** Session 26.
+- **Build:**
+  - **Coverage:** a use case for every repository call in Article, Explore, Search, Library and Settings, in each area's package. Each is `@Inject class XxxUseCase { suspend operator fun invoke() }`, or returns a `Flow` for observers.
+  - **Logic that moves in:**
+    - The random-article retry and version-page filter → `GetRandomArticleUseCase`.
+    - `LibraryRepository`'s direct `saveHistory` read → `RecordHistoryUseCase`.
+  - **Search:** `SearchViewModel` stops mixing `RunSearchUseCase` with direct repository calls.
+  - **`:app`:** `MainViewModel` uses `ObservePreferencesUseCase`.
+- **Done when:** green. The use cases are tested, and `:app:connectedDebugAndroidTest` passes. Searching those five features' `src/main` for `core.data` finds nothing.
+
+### Session 30: Domain-only use cases (seed map) and enforcement
+- **Depends on:** Sessions 28 and 29.
+- **Build:**
+  - **Seed map use cases:** saved seeds and points of interest. Group them into one `@Inject` holder per Session 28 sub-state, for example `PoiUseCases(observe, save, delete, restore, countsBySeed)`, so the ViewModel takes about six holders instead of about 17 parameters.
+  - **Typed dimension:** `PointOfInterestRepository` takes and returns `Dimension`, not `String`, and drops unknown stored values. Update `SeedMapViewModel` (no more `Dimension.valueOf`) and `ResetAppStateRule`.
+  - **Enforcement:**
+    - `wikidroid.android.feature` drops `:core:data`.
+    - `:core:domain` uses `implementation(projects.core.data)`.
+    - Feature tests still see repository types through `:core:testing`.
+  - **Docs:** CLAUDE.md and "MVI (Orbit)" above change to "features call use cases only; per-area holders are allowed for large ViewModels".
+- **Done when:** green. `:app:checkMainMetroHiddenDependencies` and `:app:connectedDebugAndroidTest` pass, and no `feature/*/src/main` file references `core.data`.
+
+### Session 31: Feature MVI tidy-up
+- **Depends on:** Session 30.
+- **Build:**
+  - **Navigation:** navigation leaves the `Action` types that ViewModels ignore (Explore, CategoryDetail, Article, Settings). Routes take callbacks, and the ViewModels' no-op branches go.
+  - **Article links:**
+    - The anchor-or-navigate decision moves from `ArticleRoute` into `ArticleViewModel`, which emits a navigate effect or reduces a scroll-to-anchor.
+    - One title normaliser (`normalizeTitle` → `:core:model`) is used by data, the ViewModel and the route.
+  - **Single-flight:**
+    - A `SingleFlight` helper (wrapping `Mutex.tryLock`) in `:core:common`, used by CategoryDetail, Search and Article.
+    - Search runs inside one intent, with no nested `intent {}`, and loses its duplicated suggestion fetch.
+  - **Compose:**
+    - `ArticleActions`/`ArticleContent` take only the fields they read.
+    - Library row mapping moves into the ViewModel state.
+    - Explore's version titles come from the state.
+  - **Design system:**
+    - `WikiTopAppBar`'s back description defaults to a design-system string.
+    - One `ThemeMode.isDark()` helper, shared by `MainActivity` and `Theme.kt`.
+- **Done when:** green. The screen tests are updated for the callbacks, and `:app:connectedDebugAndroidTest` passes.
+
+### Session 32: Stored types and model dependencies
+- **Depends on:** Session 31.
+- **Build:**
+  - **Stored types:**
+    - `StoredUserData` switches to `StoredPreferences`/`StoredSavedSeed` types in `:core:datastore`, with the same JSON field names.
+    - The stored enums are their own types with the same constant names, so `coerceInputValues` keeps reading old files leniently.
+    - Map to the `:core:model` types at the data source.
+  - **`:core:model`:**
+    - Drop the `api` dependencies on Compose and kotlinx-serialization; kotlinx-collections-immutable stays.
+    - `@Immutable` gives way to a Compose compiler `stabilityConfigurationFile` (`dev.cniekirk.wikidroid.core.model.**`) set in `wikidroid.android.compose`.
+    - Compare compose compiler reports for `:feature:article` before and after.
+- **Done when:** green. A test decodes today's JSON file, and installing over the previous release APK keeps preferences and saved seeds.
+
+### Session 33: Network/data boundary and shared test code
+- **Depends on:** Session 32.
+- **Build:**
+  - **Network/data boundary:**
+    - `WikiRemoteDataSource` returns DTOs only; `latestVersions` parsing and search sorting move to `:core:data` mappers.
+    - `stripMarkup` and the thumbnail heuristic move into `:core:article-parser`, which removes jsoup from `:core:data`.
+    - `ArticleRepository` takes a `String` base URL, and `:core:network` exposes OkHttp as `implementation`.
+  - **`:core:testing`:** test libraries become `implementation`, except those in fake and rule signatures. Data-layer fakes (`FakeRemote`, `FakePreferencesDataSource`, `EchoParser`) are promoted if they are reused.
+  - **`:core:ui`:** the Coil `ImageLoader` provider moves to `:app`.
+- **Done when:** green.
+
+### Session 34: Build and CI hygiene
+- **Depends on:** Session 33.
+- **Build:**
+  - **Signing:** `assembleRelease` fails when `CI=true` and the signing secrets are missing, unless `-Pwikidroid.allowDebugSigning` is passed, which the fork-PR path in `pr.yml` sets.
+  - **Robolectric flags:** the duplicated `--add-exports` block moves into `configureAndroidCommon`.
+  - **Metro check:** `checkMainMetroHiddenDependencies` computes its module list at configuration time.
+  - **Accessors:** remove `TYPESAFE_PROJECT_ACCESSORS` if it is unused.
+- **Done when:** CI is green, and a fork-style run with no secrets still produces a debug-signed APK.
+
+### Not planned
+- Persisting parsed blocks instead of HTML. Profile the slow first article load first (open since Session 8); if parsing dominates, add a `parserVersion` column.
+- `SavedStateHandle` for process death.
+
 ## Final end-to-end verification (after Session 11)
 - `./gradlew spotlessCheck detekt lintDebug testDebugUnitTest assembleRelease` passes, and so does `:app:connectedDebugAndroidTest`.
 - Emulator walkthrough:

@@ -23,6 +23,19 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 19: Slime chunks and points of interest
 - [x] Session 20: Measure distance and My worlds
 - [x] Session 21: Full-screen seed map on wide windows
+- [ ] Session 22: Per-tab screen state
+- [ ] Session 23: Article cache correctness
+- [ ] Session 24: Seed map memory and rendering
+- [ ] Session 25: Seed map engine hardening
+- [ ] Session 26: One error model
+- [ ] Session 27: Seed map domain extraction
+- [ ] Session 28: Seed map state split
+- [ ] Session 29: Domain-only use cases (wiki features)
+- [ ] Session 30: Domain-only use cases (seed map) and enforcement
+- [ ] Session 31: Feature MVI tidy-up
+- [ ] Session 32: Stored types and model dependencies
+- [ ] Session 33: Network/data boundary and shared test code
+- [ ] Session 34: Build and CI hygiene
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
