@@ -484,6 +484,7 @@ Decided with the user: **features call use cases only.** From Session 30 on, fea
   - Emulator check: tablet list-detail, and predictive back from a tab root.
 
 ### Session 23: Article cache correctness
+- **Status:** done.
 - **Depends on:** Session 22.
 - **Build:**
   - **Redirect aliases (database v3):**
