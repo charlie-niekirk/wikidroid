@@ -2,6 +2,7 @@ package dev.cniekirk.wikidroid
 
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -313,17 +314,30 @@ class SeedMapTest {
     }
 
     @Test
-    fun leavingTheTabAndComingBackKeepsTheMap() {
+    fun leavingTheTabAndComingBackKeepsTheSeedAndThePosition() {
         openSeedMap()
-        waitForTile(originTile(MapWorld(262, McVersion.newest)))
+        search("2621")
+        waitForTile(originTile(MapWorld(2621, McVersion.newest)))
+        composeRule.onNodeWithTag("seed-map-canvas").performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        val center = centerText()
+        assertThat(center).isNotEqualTo("X 0, Z 0")
 
         composeRule.openTab("Explore")
         composeRule.waitForText("Latest versions")
         composeRule.openTab("Seed map")
 
         composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-canvas"), UI_TIMEOUT_MILLIS)
-        composeRule.onNodeWithTag("seed-map-world-chip").assertTextContains("26.3", substring = true)
+        seedField().assertTextContains("2621")
+        assertThat(centerText()).isEqualTo(center)
     }
+
+    private fun centerText(): String =
+        composeRule
+            .onNodeWithTag("seed-map-center")
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.Text]
+            .joinToString("")
 }
 
 private const val PIN_SETTLE_MILLIS = 1_500L
