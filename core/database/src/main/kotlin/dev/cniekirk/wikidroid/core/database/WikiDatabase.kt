@@ -9,11 +9,12 @@ import androidx.room3.RoomDatabase
         BookmarkEntity::class,
         HistoryEntity::class,
         CachedArticleEntity::class,
+        ArticleAliasEntity::class,
         PointOfInterestEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class WikiDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao

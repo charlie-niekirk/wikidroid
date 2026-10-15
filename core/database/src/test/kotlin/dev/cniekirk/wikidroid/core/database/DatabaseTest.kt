@@ -2,6 +2,7 @@ package dev.cniekirk.wikidroid.core.database
 
 import android.app.Application
 import androidx.room3.Room
+import androidx.room3.useReaderConnection
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import dev.cniekirk.wikidroid.core.testing.RobolectricTest
@@ -38,6 +39,15 @@ abstract class DatabaseTest : RobolectricTest() {
     fun closeDatabase() {
         database.close()
     }
+
+    /** Runs [sql] and returns its first column of its first row, for asserting on what the DAOs don't expose. */
+    protected suspend fun scalar(sql: String): Long =
+        database.useReaderConnection { connection ->
+            connection.usePrepared(sql) { statement ->
+                check(statement.step()) { "No row for $sql" }
+                statement.getLong(0)
+            }
+        }
 
     protected fun bookmark(
         title: String,

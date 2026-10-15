@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.core.database
 
 import androidx.room3.Entity
+import androidx.room3.ForeignKey
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
 
@@ -30,6 +31,28 @@ data class CachedArticleEntity(
     val revisionId: Long,
     val html: String,
     val fetchedAt: Long,
+)
+
+/**
+ * A title that redirects to a cached article: [requested] is what the reader asked for and [canonical] the
+ * `cached_articles` row that holds it. Deleting the article deletes its aliases.
+ */
+@Entity(
+    tableName = "article_aliases",
+    foreignKeys =
+        [
+            ForeignKey(
+                entity = CachedArticleEntity::class,
+                parentColumns = ["title"],
+                childColumns = ["canonical"],
+                onDelete = ForeignKey.CASCADE,
+            ),
+        ],
+    indices = [Index("canonical")],
+)
+data class ArticleAliasEntity(
+    @PrimaryKey val requested: String,
+    val canonical: String,
 )
 
 /**
