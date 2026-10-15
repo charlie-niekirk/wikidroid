@@ -2,7 +2,6 @@ package dev.cniekirk.wikidroid.core.model
 
 import androidx.compose.runtime.Immutable
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 
 @Immutable
 data class Article(
@@ -10,7 +9,6 @@ data class Article(
     val displayTitle: String,
     val revisionId: Long,
     val sections: ImmutableList<ArticleSection>,
-    val categories: ImmutableList<String> = persistentListOf(),
     val pageUrl: String? = null,
     /** A representative image (the infobox picture, else the first lead image) for history and bookmark rows. */
     val thumbnailUrl: String? = null,

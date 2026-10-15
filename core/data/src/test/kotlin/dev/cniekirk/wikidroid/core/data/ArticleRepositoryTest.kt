@@ -5,6 +5,7 @@ import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.common.Result
 import dev.cniekirk.wikidroid.core.common.getOrNull
 import dev.cniekirk.wikidroid.core.database.BookmarkEntity
+import dev.cniekirk.wikidroid.core.database.CachedArticleDao
 import dev.cniekirk.wikidroid.core.database.CachedArticleEntity
 import dev.cniekirk.wikidroid.core.model.Article
 import dev.cniekirk.wikidroid.core.model.ArticleSection
@@ -28,16 +29,18 @@ class ArticleRepositoryTest : DatabaseRepositoryTest() {
 
     @Before
     fun createRepository() {
-        repository =
-            OfflineFirstArticleRepository(
-                remote = remote,
-                cache = cache,
-                parser = EchoParser,
-                clock = clock,
-                defaultDispatcher = Dispatchers.Unconfined,
-                baseUrl = "https://minecraft.wiki/".toHttpUrl(),
-            )
+        repository = repositoryOver(cache)
     }
+
+    private fun repositoryOver(dao: CachedArticleDao) =
+        OfflineFirstArticleRepository(
+            remote = remote,
+            cache = dao,
+            parser = EchoParser,
+            clock = clock,
+            defaultDispatcher = Dispatchers.Unconfined,
+            baseUrl = "https://minecraft.wiki/".toHttpUrl(),
+        )
 
     private suspend fun load(title: String): List<Result<Article, DataError>> = repository.getArticle(title).toList()
 
@@ -86,13 +89,25 @@ class ArticleRepositoryTest : DatabaseRepositoryTest() {
         runTest {
             cache.upsert(CachedArticleEntity("Diamond", 7, "<p>old</p>", 0))
             remote.revisionResults["Diamond"] = Result.Success(PageRevision("Diamond", 8))
-            remote.parseResults["Diamond"] = Result.Success(parsedPage("Diamond", revisionId = 8, text = "<p>new</p>"))
+            remote.parseRevisionResults[8] = Result.Success(parsedPage("Diamond", revisionId = 8, text = "<p>new</p>"))
 
             val emissions = load("Diamond")
 
             assertThat(emissions.articles().map { it?.revisionId }).containsExactly(7L, 8L).inOrder()
             assertThat(cache.get("Diamond")).isEqualTo(CachedArticleEntity("Diamond", 8, "<p>new</p>", 1_000_000))
             assertThat(cache.count()).isEqualTo(1)
+        }
+
+    @Test
+    fun `a refresh asks for the revision it learned of, not for whatever the wiki serves as latest`() =
+        runTest {
+            cache.upsert(CachedArticleEntity("Diamond", 7, "<p>old</p>", 0))
+            remote.revisionResults["Diamond"] = Result.Success(PageRevision("Diamond", 8))
+            remote.parseRevisionResults[8] = Result.Success(parsedPage("Diamond", revisionId = 8))
+
+            load("Diamond")
+
+            assertThat(remote.calls).containsExactly("revision:Diamond", "parseRevision:8").inOrder()
         }
 
     @Test
@@ -106,7 +121,7 @@ class ArticleRepositoryTest : DatabaseRepositoryTest() {
 
             // Online for the check, but the download fails.
             remote.revisionResults["Diamond"] = Result.Success(PageRevision("Diamond", 8))
-            remote.parseResults["Diamond"] = Result.Failure(DataError.Network(503))
+            remote.parseRevisionResults[8] = Result.Failure(DataError.Network(503))
             assertThat(load("Diamond").articles().map { it?.revisionId }).containsExactly(7L)
             assertThat(cache.get("Diamond")!!.revisionId).isEqualTo(7)
         }
@@ -116,16 +131,19 @@ class ArticleRepositoryTest : DatabaseRepositoryTest() {
         runTest {
             cache.upsert(CachedArticleEntity("Old name", 7, "<p>old</p>", 0))
             remote.revisionResults["Old name"] = Result.Success(PageRevision("New name", 7))
-            remote.parseResults["Old name"] = Result.Success(parsedPage("New name", revisionId = 7))
+            remote.parseRevisionResults[7] = Result.Success(parsedPage("New name", revisionId = 7))
 
             val emissions = load("Old name")
 
             assertThat(emissions.articles().map { it?.title }).containsExactly("Old name", "New name").inOrder()
             assertThat(cache.get("New name")).isNotNull()
+            // The old name's own copy is the redirect's old content: it must not win over the alias any more.
+            assertThat(cache.get("Old name")).isNull()
+            assertThat(cache.getByAlias("Old name")?.title).isEqualTo("New name")
         }
 
     @Test
-    fun `redirects are cached under the canonical title`() =
+    fun `redirects are cached under the canonical title and remembered as an alias`() =
         runTest {
             remote.parseResults["Dirt block"] = Result.Success(parsedPage("Dirt", revisionId = 3))
 
@@ -134,6 +152,58 @@ class ArticleRepositoryTest : DatabaseRepositoryTest() {
             assertThat(article.title).isEqualTo("Dirt")
             assertThat(cache.get("Dirt")).isNotNull()
             assertThat(cache.get("Dirt block")).isNull()
+            assertThat(cache.getByAlias("Dirt block")?.title).isEqualTo("Dirt")
+        }
+
+    @Test
+    fun `a redirect that was read online opens from the cache, also when offline`() =
+        runTest {
+            remote.parseResults["Dirt block"] = Result.Success(parsedPage("Dirt", revisionId = 3))
+            load("Dirt block")
+            remote.calls.clear()
+
+            // Online and unchanged: the cached copy is the only emission and nothing is downloaded.
+            remote.revisionResults["Dirt block"] = Result.Success(PageRevision("Dirt", 3))
+            val online = load("Dirt block")
+            assertThat(online.articles().map { it?.title }).containsExactly("Dirt")
+            assertThat(remote.calls).containsExactly("revision:Dirt block")
+
+            // Offline: the freshness check fails and the reader still gets the article.
+            remote.revisionResults["Dirt block"] = Result.Failure(DataError.Network())
+            val offline = load("Dirt block")
+            assertThat(offline.articles().map { it?.title }).containsExactly("Dirt")
+            assertThat(remote.calls).containsNoneOf("parse:Dirt block", "parseRevision:3")
+        }
+
+    @Test
+    fun `a redirect that became a real page drops its alias`() =
+        runTest {
+            remote.parseResults["Dirt block"] = Result.Success(parsedPage("Dirt", revisionId = 3))
+            load("Dirt block")
+            remote.revisionResults["Dirt block"] = Result.Success(PageRevision("Dirt block", 9))
+            remote.parseRevisionResults[9] = Result.Success(parsedPage("Dirt block", revisionId = 9))
+
+            val emissions = load("Dirt block")
+
+            assertThat(emissions.articles().map { it?.title }).containsExactly("Dirt", "Dirt block").inOrder()
+            assertThat(cache.getByAlias("Dirt block")).isNull()
+            assertThat(cache.get("Dirt block")?.revisionId).isEqualTo(9)
+            assertThat(cache.get("Dirt")).isNotNull()
+        }
+
+    @Test
+    fun `a cache that cannot be read is a miss and the page is downloaded`() =
+        runTest {
+            val brokenCache =
+                object : CachedArticleDao by cache {
+                    override suspend fun get(title: String): CachedArticleEntity? = error("disk trouble")
+                }
+            val repository = repositoryOver(brokenCache)
+            remote.parseResults["Diamond"] = Result.Success(parsedPage("Diamond", revisionId = 7))
+
+            val emissions = repository.getArticle("Diamond").toList()
+
+            assertThat(emissions.articles().map { it?.revisionId }).containsExactly(7L)
         }
 
     @Test
