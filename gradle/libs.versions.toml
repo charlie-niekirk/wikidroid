@@ -7,7 +7,7 @@ metro = "1.4.5"
 detekt = "2.0.0-alpha.6"
 spotless = "8.10.3"
 ktlint = "1.8.0"
-composeRules = "0.6.7"
+composeRules = "0.6.8"
 foojay = "1.0.0"
 # Native toolchain (Google tooling; newest stable, no newer pre-release exists). The CI setup action reads these two lines.
 ndk = "30.0.16248370"
