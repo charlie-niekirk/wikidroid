@@ -1,8 +1,15 @@
 package dev.cniekirk.wikidroid.ui
 
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
@@ -20,6 +27,9 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.common.truth.Truth.assertThat
 import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
 import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.CategoryKey
@@ -37,9 +47,11 @@ import org.robolectric.annotation.Config
 
 class AppShellTest : ComposeTest() {
     private val navigator = Navigator()
+    private lateinit var backDispatcher: OnBackPressedDispatcher
 
     private fun setShell(installers: ImmutableSet<EntryProviderInstaller> = persistentSetOf()) {
         composeRule.setContent {
+            backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
             WikiDroidTheme(dynamicColor = false) {
                 AppShell(navigator = navigator, installers = installers)
             }
@@ -161,6 +173,85 @@ class AppShellTest : ComposeTest() {
         composeRule.assertScreenShows("Article: Diamond")
         composeRule.onNodeWithTag(SEED_MAP_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(PLACEHOLDER_TAG).assertWidthIsEqualTo(mapWidth)
+    }
+
+    @Test
+    fun aTabKeepsItsViewModelsAndSavedStateWhileAnotherTabIsShown() {
+        setShell(installers = persistentSetOf(countingCategoryEntry()))
+        composeRule.runOnIdle { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.onNodeWithText("Mobs #1, taps 0").performClick()
+        composeRule.onNodeWithText("Mobs #1, taps 1").assertIsDisplayed()
+
+        composeRule.tab("Library").performClick()
+        composeRule.tab("Explore").performClick()
+
+        composeRule.onNodeWithText("Mobs #1, taps 1").assertIsDisplayed()
+        composeRule.runOnIdle {
+            assertThat(viewModels).hasSize(1)
+            assertThat(viewModels.single().cleared).isFalse()
+        }
+    }
+
+    @Test
+    fun poppingAnEntryClearsItsViewModel() {
+        setShell(installers = persistentSetOf(countingCategoryEntry()))
+        composeRule.runOnIdle { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.onNodeWithText("Mobs #1, taps 0").assertIsDisplayed()
+
+        composeRule.runOnIdle { navigator.goBack() }
+
+        composeRule.assertScreenShows("Explore")
+        composeRule.runOnIdle { assertThat(viewModels.single().cleared).isTrue() }
+    }
+
+    @Test
+    fun theSameDestinationOnTwoTabsHasSeparateState() {
+        setShell(installers = persistentSetOf(countingCategoryEntry()))
+        composeRule.runOnIdle { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.onNodeWithText("Mobs #1, taps 0").performClick()
+
+        composeRule.tab("Search").performClick()
+        composeRule.runOnIdle { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.onNodeWithText("Mobs #2, taps 0").assertIsDisplayed()
+
+        composeRule.tab("Explore").performClick()
+        composeRule.onNodeWithText("Mobs #1, taps 1").assertIsDisplayed()
+    }
+
+    @Test
+    fun backFromAnotherTabsRootReturnsToTheFirstTab() {
+        setShell()
+        composeRule.tab("Library").performClick()
+
+        composeRule.runOnIdle { backDispatcher.onBackPressed() }
+
+        composeRule.tab("Explore").assertIsSelected()
+        composeRule.assertScreenShows("Explore")
+    }
+
+    /** A category screen whose text names its view model (numbered in creation order) and a saved tap count. */
+    private fun countingCategoryEntry() =
+        EntryProviderInstaller {
+            entry<CategoryKey> { key ->
+                val viewModel = viewModel { CountingViewModel(viewModels.size + 1).also(viewModels::add) }
+                var taps by rememberSaveable { mutableIntStateOf(0) }
+                Text(
+                    text = "${key.title} #${viewModel.number}, taps $taps",
+                    modifier = Modifier.clickable { taps++ },
+                )
+            }
+        }
+
+    private val viewModels = mutableListOf<CountingViewModel>()
+
+    private class CountingViewModel(
+        val number: Int,
+    ) : ViewModel() {
+        var cleared = false
+
+        override fun onCleared() {
+            cleared = true
+        }
     }
 
     private companion object {

@@ -8,6 +8,7 @@ import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneSt
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -16,11 +17,13 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.navigation.Navigator
+import dev.cniekirk.wikidroid.core.navigation.TopLevelKey
 import dev.cniekirk.wikidroid.core.navigation.TopLevelKeys
 import dev.cniekirk.wikidroid.core.navigation.WikiKey
 import dev.cniekirk.wikidroid.core.ui.pane.WikiPanes
@@ -72,23 +75,46 @@ private fun AppNavDisplay(
             }
         }
 
-    // NavDisplay handles back while a tab has history. From the root of any tab but the first, go to the first.
-    BackHandler(enabled = navigator.backStack.size == 1 && navigator.currentTab != navigator.startTab) {
+    // Every tab's entries are decorated on every composition, each tab with its own decorators. Handing one set
+    // of decorators only the selected tab's stack would treat the other tabs' entries as popped and clear their
+    // view models and saved state. Never skip a tab here, or its state is dropped.
+    val entriesByTab =
+        TopLevelKeys.associateWith { tab ->
+            key(tab) { rememberTabEntries(navigator, tab, entryProvider) }
+        }
+
+    // NavDisplay handles back only while a tab has history. From the root of any tab but the first, go to the first.
+    BackHandler(enabled = navigator.backStack.size == 1 && navigator.canGoBack) {
         navigator.goBack()
     }
 
-    NavDisplay(
-        backStack = navigator.backStack,
-        onBack = { navigator.goBack() },
+    // An entry is identified by its key alone, so without this the same article on top of two tabs (or two
+    // list-detail scenes) would be taken for one scene when switching tabs, and share its saved state.
+    key(navigator.currentTab) {
+        NavDisplay(
+            entries = entriesByTab.getValue(navigator.currentTab),
+            sceneStrategies = listOf(rememberListDetailSceneStrategy()),
+            onBack = { navigator.goBack() },
+        )
+    }
+}
+
+/** [tab]'s entries, with saved state and view models scoped to that tab and kept until an entry is popped. */
+@Composable
+private fun rememberTabEntries(
+    navigator: Navigator,
+    tab: TopLevelKey,
+    entryProvider: (NavKey) -> NavEntry<NavKey>,
+): List<NavEntry<NavKey>> =
+    rememberDecoratedNavEntries<NavKey>(
+        backStack = navigator.stack(tab),
         entryDecorators =
             listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
-        sceneStrategies = listOf(rememberListDetailSceneStrategy<NavKey>()),
         entryProvider = entryProvider,
     )
-}
 
 /**
  * The fallback for a key no feature has registered. `:feature:article` registers the real article screen, so this
@@ -96,5 +122,5 @@ private fun AppNavDisplay(
  */
 private fun placeholderEntry(key: NavKey): NavEntry<NavKey> =
     NavEntry(key, metadata = if (key is ArticleKey) WikiPanes.detail() else emptyMap()) {
-        PlaceholderScreen(key = key as WikiKey)
+        (key as? WikiKey)?.let { PlaceholderScreen(key = it) }
     }

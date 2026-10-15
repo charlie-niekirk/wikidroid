@@ -33,6 +33,12 @@ class Navigator(
 
     val currentKey: WikiKey get() = backStack.last()
 
+    /** Whether [goBack] has anywhere to go: history on the current tab, or a tab other than [startTab]. */
+    val canGoBack: Boolean get() = backStack.size > 1 || currentTab != startTab
+
+    /** [tab]'s stack, root first, whether or not it is selected. */
+    fun stack(tab: TopLevelKey): List<WikiKey> = stacks.getValue(tab)
+
     init {
         restoredFrom?.let { snapshot ->
             snapshot.stacks.forEach { (tab, keys) ->
@@ -82,22 +88,10 @@ class Navigator(
      * Returns `false` when there is nowhere left to go, so the caller can let the system handle back.
      */
     fun goBack(): Boolean {
+        if (!canGoBack) return false
         val stack = stacks.getValue(currentTab)
-        return when {
-            stack.size > 1 -> {
-                stack.removeAt(stack.lastIndex)
-                true
-            }
-
-            currentTab != startTab -> {
-                currentTab = startTab
-                true
-            }
-
-            else -> {
-                false
-            }
-        }
+        if (stack.size > 1) stack.removeAt(stack.lastIndex) else currentTab = startTab
+        return true
     }
 
     fun snapshot(): NavigatorSnapshot = NavigatorSnapshot(currentTab, stacks.mapValues { (_, stack) -> stack.toList() })

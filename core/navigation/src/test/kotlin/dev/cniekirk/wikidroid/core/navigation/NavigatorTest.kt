@@ -157,4 +157,34 @@ class NavigatorTest {
         navigator.switchTab(ExploreKey)
         assertThat(navigator.backStack).containsExactly(ExploreKey)
     }
+
+    @Test
+    fun stack_showsAnyTabWithoutSelectingIt() {
+        val navigator = Navigator()
+        navigator.navigate(diamond)
+        navigator.switchTab(SearchKey)
+        navigator.navigate(mobs)
+
+        assertThat(navigator.stack(ExploreKey)).containsExactly(ExploreKey, diamond).inOrder()
+        assertThat(navigator.stack(SearchKey)).containsExactly(SearchKey, mobs).inOrder()
+        assertThat(navigator.stack(LibraryKey)).containsExactly(LibraryKey)
+        assertThat(navigator.currentTab).isEqualTo(SearchKey)
+    }
+
+    @Test
+    fun canGoBack_followsWhatGoBackWouldDo() {
+        val navigator = Navigator()
+        assertThat(navigator.canGoBack).isFalse()
+
+        navigator.navigate(diamond)
+        assertThat(navigator.canGoBack).isTrue()
+        navigator.goBack()
+        assertThat(navigator.canGoBack).isFalse()
+
+        navigator.switchTab(LibraryKey)
+        assertThat(navigator.canGoBack).isTrue()
+        assertThat(navigator.goBack()).isTrue()
+        assertThat(navigator.currentTab).isEqualTo(ExploreKey)
+        assertThat(navigator.goBack()).isFalse()
+    }
 }
