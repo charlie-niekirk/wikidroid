@@ -23,7 +23,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 19: Slime chunks and points of interest
 - [x] Session 20: Measure distance and My worlds
 - [x] Session 21: Full-screen seed map on wide windows
-- [ ] Session 22: Per-tab screen state
+- [x] Session 22: Per-tab screen state
 - [ ] Session 23: Article cache correctness
 - [ ] Session 24: Seed map memory and rendering
 - [ ] Session 25: Seed map engine hardening
@@ -250,7 +250,7 @@ What each exposes (for Sessions 8-9):
 - An `adb` Enter key press does not dismiss the keyboard like the IME's search key does; test submit with a tap on the keyboard's search key.
 
 ### Open TODOs
-- **ViewModel state is lost when leaving a tab.** Switching tabs removes the other tab's entries from the displayed back stack, so their ViewModels are cleared (inferred from how `rememberViewModelStoreNavEntryDecorator` works, and the category list was back at the top after a tab round trip; not otherwise verified). A typed search query would be lost the same way. If that matters, keep the saveable state (for example `SavedStateHandle`) or keep non-selected tabs' entries alive in `AppShell`.
+- ~~**ViewModel state is lost when leaving a tab.** Switching tabs removes the other tab's entries from the displayed back stack, so their ViewModels are cleared (inferred from how `rememberViewModelStoreNavEntryDecorator` works, and the category list was back at the top after a tab round trip; not otherwise verified). A typed search query would be lost the same way. If that matters, keep the saveable state (for example `SavedStateHandle`) or keep non-selected tabs' entries alive in `AppShell`.~~ Resolved in Session 22 (per-tab entry decorators).
 - Autocomplete suggestions often have no description or thumbnail (the REST title search omits them for many pages); the rows show a placeholder icon.
 - `Random article` skips version pages by title pattern only.
 - Unchanged: article stub until Session 8, recipe tables lose their grids, tabbers render every tab, autocomplete cached 3 days.
@@ -715,3 +715,33 @@ What changed:
 
 ### Open TODOs
 - The seed pill and chips now stretch across the whole window on a tablet. Capping the pill's width (Material's search bar maxes out around 720 dp) may look better.
+
+## Session 22 notes
+The first architecture follow-up session: each tab keeps its screen state while another tab is shown.
+
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- `:app:connectedDebugAndroidTest` passes (24 tests) on the arm64 `Pixel_10_Pro` AVD (API 37). The two new tests fail against `main`'s `AppShell` and pass with this one.
+- By hand on the same AVD:
+  - An article scrolled down on Explore comes back at the same position after a visit to Library.
+  - An edge-swipe back pops the article, and back from the Library root returns to Explore.
+  - With the display resized to 2560 x 1600 at 320 dpi, a category and its article sit side by side and survive a tab round trip.
+
+What changed:
+- `Navigator` has `stack(tab)` and `canGoBack`. `goBack()` and AppShell's `BackHandler` both use `canGoBack`, so the rule is in one place.
+- `AppNavDisplay` decorates every tab's stack on every composition, each inside `key(tab)` with its own saveable-state and ViewModel-store decorators. It uses `rememberDecoratedNavEntries`, the Nav3 `MultipleBackStackSample` pattern. `NavDisplay` gets only the current tab's entries, through the `entries` overload.
+- `NavDisplay` is wrapped in `key(navigator.currentTab)`. Entry identity is the key alone, so otherwise the same `ArticleKey` on top of two tabs would be taken for one scene and share its saved state.
+- The `BackHandler` for a tab root stays. `NavDisplay` only handles back when the scene has previous entries.
+- Tests:
+  - `NavigatorTest` covers `stack` and `canGoBack`.
+  - `AppShellTest` has four new cases: a counting test ViewModel and a `rememberSaveable` counter survive a tab round trip, popping clears the ViewModel, the same key on two tabs keeps separate state, and back from another tab's root goes to Explore.
+  - Instrumented: `TabNavigationTest.aSearchIsStillThereAfterVisitingAnotherTab`, and `SeedMapTest.leavingTheTabAndComingBackKeepsTheSeedAndThePosition`, which replaces the weaker `leavingTheTabAndComingBackKeepsTheMap`.
+
+### Deviations
+- `placeholderEntry` uses `(key as? WikiKey)?.let { PlaceholderScreen(it) }`, not a bare `as?`, because `PlaceholderScreen` takes a non-null key.
+- The "state lost when leaving a tab" notes in earlier sessions are left as written: they record what was true then. This closes all of them: Session 7, Library/Settings in Session 9, and the seed map's seed, toggles, selection and camera in Sessions 13-17.
+
+### Open TODOs
+- ViewModels survive tab switches but not process death: nothing uses `SavedStateHandle`. The seed map's grid, crosshair and slime switches are therefore still lost when the process dies, though no longer on a tab switch.
+- Every tab's ViewModels now stay in memory until popped, including an `ArticleViewModel` holding a parsed article on each tab. Session 24's memory work should keep this in mind.
+- The instrumented run used the local arm64 AVD; API 35 x86_64 is proved by CI.

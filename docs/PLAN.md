@@ -464,6 +464,7 @@ An architecture review after Session 21 found bugs that come from structure. Eac
 Decided with the user: **features call use cases only.** From Session 30 on, features depend on `:core:domain` and never on `:core:data`.
 
 ### Session 22: Per-tab screen state
+- **Status:** done.
 - **Depends on:** Session 21.
 - **Problem:** `AppShell` gives `NavDisplay` only the current tab's stack, with one pair of decorators. On a tab switch, every entry of the old tab leaves that stack, so its ViewModels and saveable state are cleared. This is the "state lost when leaving a tab" TODO open since Session 7.
 - **Build:**

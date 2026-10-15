@@ -59,6 +59,7 @@ Approved exceptions: Detekt (2.0.0-alpha.6), and AGP, which stays on the latest 
 - Metro 1.4.5 has no `checkMainMetroHiddenDependencies` task, so `:app` defines its own (every `:core:*`/`:feature:*` module must be a direct `implementation` dependency of `:app`). A new module therefore needs a line in `app/build.gradle.kts`.
 - `wikidroid.metro` sets `generateContributionProviders = true`; without it `:app` cannot see `internal` `@ContributesBinding` classes from other modules.
 - Compose params of type `Set`/`List` trip compose-rules `UnstableCollections`; use `ImmutableSet`/`ImmutableList`.
+- Each tab keeps its screen state: `AppNavDisplay` decorates every tab's stack (`rememberDecoratedNavEntries` inside `key(tab)`, each tab with its own decorators) on every composition, and shows the current tab's entries in a `NavDisplay` keyed by tab. Never decorate only the selected tab, and never drop the `key(currentTab)`: entry identity is the key alone, so the same article on two tabs would share state.
 - Screens for a key are registered by a feature's `EntryProviderInstaller`; any key without one shows `PlaceholderScreen` (the `entryProvider` fallback in `:app`).
 - Material icons are frozen at 1.7.8; ship Material Symbols as vector drawables in `:core:designsystem`.
 - Robolectric (SDK 37) on JDK 21 needs `--add-exports=java.base/jdk.internal.access=ALL-UNNAMED`; `wikidroid.android.library` sets it on test tasks. Compose tests extend `ComposeTest` from `:core:testing`.
