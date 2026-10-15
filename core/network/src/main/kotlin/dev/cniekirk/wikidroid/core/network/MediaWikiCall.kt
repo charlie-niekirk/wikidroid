@@ -10,8 +10,8 @@ import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 import java.io.IOException
 
-/** `error.code` values that mean the requested page isn't there. */
-private val NOT_FOUND_CODES = setOf("missingtitle", "invalidtitle")
+/** `error.code` values that mean the requested page or revision isn't there. */
+private val NOT_FOUND_CODES = setOf("missingtitle", "invalidtitle", "nosuchrevid")
 
 /**
  * Runs an `api.php` call. Transport and decoding failures become [DataError.Network] or

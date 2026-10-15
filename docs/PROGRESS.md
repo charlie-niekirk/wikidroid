@@ -24,7 +24,7 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 20: Measure distance and My worlds
 - [x] Session 21: Full-screen seed map on wide windows
 - [x] Session 22: Per-tab screen state
-- [ ] Session 23: Article cache correctness
+- [x] Session 23: Article cache correctness
 - [ ] Session 24: Seed map memory and rendering
 - [ ] Session 25: Seed map engine hardening
 - [ ] Session 26: One error model
@@ -745,3 +745,32 @@ What changed:
 - ViewModels survive tab switches but not process death: nothing uses `SavedStateHandle`. The seed map's grid, crosshair and slime switches are therefore still lost when the process dies, though no longer on a tab switch.
 - Every tab's ViewModels now stay in memory until popped, including an `ArticleViewModel` holding a parsed article on each tab. Session 24's memory work should keep this in mind.
 - The instrumented run used the local arm64 AVD; API 35 x86_64 is proved by CI.
+
+## Session 23 notes
+The second architecture follow-up session: redirect titles now use the article cache, and a refresh can no longer be answered with an older revision.
+
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass.
+- On the arm64 `Pixel_10_Pro` AVD (API 37): `:app:connectedDebugAndroidTest` passes (25 tests) and `:core:database:connectedDebugAndroidTest` passes (4 tests: the v1→2 and v2→3 migrations, and two alias tests on the bundled driver).
+- Mutation checks: with the alias lookup removed, the new repository tests and `ArticleCacheTest` fail; with the refresh asking for `page=` again, the revision test fails.
+- Not checked by hand: opening a redirect title offline in the app. Doing it needs a link to a redirect inside an article; the unit test (`a redirect that was read online opens from the cache, also when offline`) and `ArticleCacheTest` cover it instead.
+
+What changed:
+- **Database v3** (auto-migration, `schemas/3.json` committed): `article_aliases(requested PK, canonical)` with a foreign key to `cached_articles(title)` `ON DELETE CASCADE` and an index on `canonical`.
+  - `CachedArticleDao.storeWithAlias(article, requested)` is a `@Transaction`: it upserts the article; when `requested` is another title it deletes any copy cached directly under that title (the redirect's old content) and upserts the alias; when `requested` is the article's own title it drops a leftover alias.
+  - `getByAlias(requested)` is one join, so a dangling alias could never return anything.
+- **`ArticleRepository`**:
+  - `getArticle` reads `cache.get(requested) ?: cache.getByAlias(requested)`, so a redirect read once opens from the cache, offline too. Before this, every open of a redirect name downloaded and parsed the page again, and `ArticleRepositoryTest` asserted the miss.
+  - A refresh downloads the revision it just learned of with the new `MediaWikiApi.parseRevision(oldid)` (no `page`, `redirects` or `maxage`), so OkHttp's cached `maxage=600` response can't hand back the old revision for up to ten minutes. The first open of a title still uses `page=`; if that response was stale, the next open's revision check repairs it.
+  - `toArticle` maps only a parser failure to `DataError.Parse`; building the `Article` is outside that `try`.
+- **Network:** `nosuchrevid` is now `DataError.NotFound`. `categories` is gone from the parse `prop`, `ParsedPageDto` and `Article` (nothing filled it in).
+- **Tests:** DAO tests for aliases (including the cascade, asserted on the alias table rows, not through the join); repository tests for alias hit, offline, redirect that became a page, refresh by revision, and unreadable cache; `ArticleEndpointsTest` for `parseRevision`; `ArticleCacheTest` (app, instrumented) counting the mock server's requests.
+
+### Deviations
+- **An unreadable cache is a miss, not a `Result.Failure`.** The plan said a Room failure in `cache.get`/`aliasFor` should become `Result.Failure`. Failing the article because its cache can't be read would be worse than downloading it, and it matches how `store` already treats a failed write. Session 26 adds `DataError.Storage` and logging, and should log this one.
+- No new network fixture: `parseRevision` reuses `parse_diamond.json`, which has the same shape.
+- `MigrationTest` deletes its database in `@Before`/`@After`: the Room 3 helper refuses to create a database over a file an earlier test left, which the first two tests in one class exposed.
+
+### Open TODOs
+- A bookmarked page that later becomes a redirect loses its offline badge in Library: its own cached row is deleted (it is the redirect's old content) and the badge joins on the bookmark's title, not on aliases. Opening the bookmark still works offline through the alias. Extending the join in `BookmarkDao`/`HistoryDao` to aliases would fix the badge.
+- The first open of a title (nothing cached) can still return a copy up to ten minutes old; the next open repairs it.

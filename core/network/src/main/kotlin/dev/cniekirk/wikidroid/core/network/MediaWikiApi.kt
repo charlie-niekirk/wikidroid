@@ -30,13 +30,26 @@ interface MediaWikiApi {
         @QueryMap continuation: Map<String, String>,
     ): PageQueryResponse
 
-    /** `maxage`/`smaxage` make the server answer with `Cache-Control: max-age=600`, so OkHttp caches it. */
+    /**
+     * Whatever the page's latest revision is. `maxage`/`smaxage` make the server answer with
+     * `Cache-Control: max-age=600`, so OkHttp caches it: it can be up to ten minutes behind an edit, which is why
+     * a refresh asks for a known revision with [parseRevision] instead.
+     */
     @GET(
-        "api.php?action=parse&prop=text%7Csections%7Cdisplaytitle%7Ccategories%7Crevid" +
+        "api.php?action=parse&prop=text%7Csections%7Cdisplaytitle%7Crevid" +
             "&mobileformat=1&disableeditsection=1&disabletoc=1&redirects=1&maxage=600&smaxage=600",
     )
     suspend fun parseArticle(
         @Query("page") title: String,
+    ): ParseResponse
+
+    /** One specific revision, which never changes, so the response is not given a cache lifetime. */
+    @GET(
+        "api.php?action=parse&prop=text%7Csections%7Cdisplaytitle%7Crevid" +
+            "&mobileformat=1&disableeditsection=1&disabletoc=1",
+    )
+    suspend fun parseRevision(
+        @Query("oldid") revisionId: Long,
     ): ParseResponse
 
     /** Cheap freshness check: `lastrevid` of the (redirect-resolved) page. */

@@ -6,6 +6,7 @@ import dev.cniekirk.wikidroid.core.common.flatMap
 import dev.cniekirk.wikidroid.core.common.map
 import dev.cniekirk.wikidroid.core.model.LatestVersions
 import dev.cniekirk.wikidroid.core.network.dto.PageDto
+import dev.cniekirk.wikidroid.core.network.dto.ParseResponse
 import dev.cniekirk.wikidroid.core.network.dto.ParsedPageDto
 import dev.cniekirk.wikidroid.core.network.dto.RestPageDto
 import dev.zacsweers.metro.AppScope
@@ -47,8 +48,14 @@ interface WikiRemoteDataSource {
         continuation: String? = null,
     ): Result<PageList, DataError>
 
-    /** [DataError.NotFound] when the page doesn't exist. */
+    /**
+     * The latest revision of [title], following redirects. The wiki lets this lag an edit by up to ten minutes (see
+     * [parseRevision]). [DataError.NotFound] when the page doesn't exist.
+     */
     suspend fun parseArticle(title: String): Result<ParsedPageDto, DataError>
+
+    /** Exactly revision [revisionId], so a revision the caller just learned of is never answered with an older one. */
+    suspend fun parseRevision(revisionId: Long): Result<ParsedPageDto, DataError>
 
     /** [DataError.NotFound] when the page doesn't exist. */
     suspend fun latestRevision(title: String): Result<PageRevision, DataError>
@@ -105,9 +112,10 @@ class RetrofitWikiRemoteDataSource(
             }
 
     override suspend fun parseArticle(title: String): Result<ParsedPageDto, DataError> =
-        mediaWikiCall { api.parseArticle(title) }.flatMap { response ->
-            response.parse?.let { Result.Success(it) } ?: Result.Failure(DataError.Parse)
-        }
+        mediaWikiCall { api.parseArticle(title) }.flatMap { it.parsedPage() }
+
+    override suspend fun parseRevision(revisionId: Long): Result<ParsedPageDto, DataError> =
+        mediaWikiCall { api.parseRevision(revisionId) }.flatMap { it.parsedPage() }
 
     override suspend fun latestRevision(title: String): Result<PageRevision, DataError> =
         mediaWikiCall { api.revisionInfo(title) }.flatMap { response ->
@@ -130,3 +138,6 @@ class RetrofitWikiRemoteDataSource(
     override suspend fun randomPages(count: Int): Result<List<PageDto>, DataError> =
         mediaWikiCall { api.randomPages(count) }.map { it.query?.pages.orEmpty() }
 }
+
+private fun ParseResponse.parsedPage(): Result<ParsedPageDto, DataError> =
+    parse?.let { Result.Success(it) } ?: Result.Failure(DataError.Parse)

@@ -38,6 +38,7 @@ class FakeRemote : WikiRemoteDataSource {
     var searchResult: Result<PageList, DataError> = Result.Success(PageList(emptyList(), null))
     var categoryResult: Result<PageList, DataError> = Result.Success(PageList(emptyList(), null))
     var parseResults: MutableMap<String, Result<ParsedPageDto, DataError>> = mutableMapOf()
+    var parseRevisionResults: MutableMap<Long, Result<ParsedPageDto, DataError>> = mutableMapOf()
     var revisionResults: MutableMap<String, Result<PageRevision, DataError>> = mutableMapOf()
     var versionsResult: Result<LatestVersions, DataError> = Result.Failure(DataError.NotFound)
     var randomBatches: ArrayDeque<Result<List<PageDto>, DataError>> = ArrayDeque()
@@ -71,6 +72,11 @@ class FakeRemote : WikiRemoteDataSource {
     override suspend fun parseArticle(title: String): Result<ParsedPageDto, DataError> {
         calls += "parse:$title"
         return parseResults[title] ?: Result.Failure(DataError.NotFound)
+    }
+
+    override suspend fun parseRevision(revisionId: Long): Result<ParsedPageDto, DataError> {
+        calls += "parseRevision:$revisionId"
+        return parseRevisionResults[revisionId] ?: Result.Failure(DataError.NotFound)
     }
 
     override suspend fun latestRevision(title: String): Result<PageRevision, DataError> {

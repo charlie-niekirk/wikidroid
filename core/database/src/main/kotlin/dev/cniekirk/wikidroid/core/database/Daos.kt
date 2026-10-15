@@ -3,6 +3,7 @@ package dev.cniekirk.wikidroid.core.database
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Transaction
 import androidx.room3.Update
 import androidx.room3.Upsert
 import kotlinx.coroutines.flow.Flow
@@ -59,8 +60,45 @@ interface CachedArticleDao {
     @Query("SELECT * FROM cached_articles WHERE title = :title")
     suspend fun get(title: String): CachedArticleEntity?
 
+    /** The article cached under the title that [requested] redirects to, if [storeWithAlias] saw it redirect. */
+    @Query(
+        """
+        SELECT c.* FROM cached_articles c JOIN article_aliases a ON a.canonical = c.title
+        WHERE a.requested = :requested
+        """,
+    )
+    suspend fun getByAlias(requested: String): CachedArticleEntity?
+
     @Upsert
     suspend fun upsert(article: CachedArticleEntity)
+
+    @Upsert
+    suspend fun upsertAlias(alias: ArticleAliasEntity)
+
+    @Query("DELETE FROM article_aliases WHERE requested = :requested")
+    suspend fun deleteAlias(requested: String)
+
+    /**
+     * Stores [article] as what [requested] resolves to. When [requested] is another title (a redirect), it
+     * becomes an alias of [article], and any copy cached under it directly is deleted: it is the redirect's
+     * old content, and a direct hit would keep winning over the alias. When [requested] is [article]'s own
+     * title, a leftover alias for it (the page used to be a redirect) is dropped.
+     *
+     * Use `upsert`, never a replacing insert: replacing deletes the row first and would cascade to its aliases.
+     */
+    @Transaction
+    suspend fun storeWithAlias(
+        article: CachedArticleEntity,
+        requested: String,
+    ) {
+        upsert(article)
+        if (requested == article.title) {
+            deleteAlias(requested)
+        } else {
+            delete(requested)
+            upsertAlias(ArticleAliasEntity(requested = requested, canonical = article.title))
+        }
+    }
 
     @Query("SELECT COUNT(*) FROM cached_articles")
     suspend fun count(): Int

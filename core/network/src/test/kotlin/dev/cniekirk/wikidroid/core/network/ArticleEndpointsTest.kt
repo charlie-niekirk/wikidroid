@@ -23,9 +23,6 @@ class ArticleEndpointsTest : NetworkTest() {
             assertThat(page.sections.first().line).isEqualTo("Obtaining")
             assertThat(page.sections.first().level).isEqualTo("2")
             assertThat(page.sections.first().anchor).isEqualTo("Obtaining")
-            assertThat(page.categories.first().category).isEqualTo("Resources_with_invalid_renewability")
-            assertThat(page.categories.first().hidden).isTrue()
-            assertThat(page.categories[1].hidden).isFalse()
         }
 
     @Test
@@ -38,13 +35,40 @@ class ArticleEndpointsTest : NetworkTest() {
             val url = takeRequest().url
             assertThat(url.queryParameter("action")).isEqualTo("parse")
             assertThat(url.queryParameter("page")).isEqualTo("Diamond ore")
-            assertThat(url.queryParameter("prop")).isEqualTo("text|sections|displaytitle|categories|revid")
+            assertThat(url.queryParameter("prop")).isEqualTo("text|sections|displaytitle|revid")
             assertThat(url.queryParameter("mobileformat")).isEqualTo("1")
             assertThat(url.queryParameter("disableeditsection")).isEqualTo("1")
             assertThat(url.queryParameter("disabletoc")).isEqualTo("1")
             assertThat(url.queryParameter("redirects")).isEqualTo("1")
             assertThat(url.queryParameter("maxage")).isEqualTo("600")
             assertThat(url.queryParameter("smaxage")).isEqualTo("600")
+        }
+
+    @Test
+    fun `parseRevision asks for exactly that revision and gives the response no cache lifetime`() =
+        runTest {
+            enqueueFixture("parse_diamond.json")
+
+            val page = dataSource.parseRevision(3825498).successData()
+
+            assertThat(page.revisionId).isEqualTo(3825498)
+            val url = takeRequest().url
+            assertThat(url.queryParameter("action")).isEqualTo("parse")
+            assertThat(url.queryParameter("oldid")).isEqualTo("3825498")
+            assertThat(url.queryParameter("page")).isNull()
+            assertThat(url.queryParameter("prop")).isEqualTo("text|sections|displaytitle|revid")
+            assertThat(url.queryParameter("mobileformat")).isEqualTo("1")
+            assertThat(url.queryParameter("redirects")).isNull()
+            assertThat(url.queryParameter("maxage")).isNull()
+            assertThat(url.queryParameter("smaxage")).isNull()
+        }
+
+    @Test
+    fun `parseRevision maps a revision that does not exist to NotFound`() =
+        runTest {
+            enqueueBody("""{"error":{"code":"nosuchrevid","info":"There is no revision with ID 1."}}""")
+
+            assertThat(dataSource.parseRevision(1).failure()).isEqualTo(DataError.NotFound)
         }
 
     @Test

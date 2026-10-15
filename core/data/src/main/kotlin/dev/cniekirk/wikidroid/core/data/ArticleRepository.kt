@@ -15,6 +15,7 @@ import dev.cniekirk.wikidroid.core.model.ArticleSection
 import dev.cniekirk.wikidroid.core.model.ContentBlock
 import dev.cniekirk.wikidroid.core.network.WikiBaseUrl
 import dev.cniekirk.wikidroid.core.network.WikiRemoteDataSource
+import dev.cniekirk.wikidroid.core.network.dto.ParsedPageDto
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -38,7 +39,9 @@ interface ArticleRepository {
      * 3. With no cached copy the page is downloaded and emitted, or a failure is emitted.
      *
      * Once a cached copy has been emitted, network failures are swallowed: the reader keeps what they have.
-     * [title] may be a redirect or use underscores; the emitted [Article.title] is the canonical one.
+     * [title] may be a redirect or use underscores; the emitted [Article.title] is the canonical one. A copy
+     * cached under the canonical title is found through the redirect too, so a redirect opens offline once it
+     * has been read online.
      */
     fun getArticle(title: String): Flow<Result<Article, DataError>>
 
@@ -63,11 +66,11 @@ internal class OfflineFirstArticleRepository(
     override fun getArticle(title: String): Flow<Result<Article, DataError>> =
         flow {
             val requested = normalizeTitle(title)
-            val cached = cache.get(requested)
+            val cached = readCache(requested)
             val cachedArticle = cached?.let { toArticle(it.title, it.revisionId, it.html).getOrNull() }
             if (cached == null || cachedArticle == null) {
                 // Missing or unreadable (e.g. written by an incompatible parser): download it.
-                emit(download(requested))
+                emit(download(requested) { remote.parseArticle(requested) })
             } else {
                 emit(Result.Success(cachedArticle))
                 refreshIfStale(requested, cached)
@@ -76,42 +79,59 @@ internal class OfflineFirstArticleRepository(
 
     override suspend fun clearCache() = cache.pruneUnbookmarked(keep = 0)
 
+    /**
+     * The copy cached under [requested], or under the title it redirects to. A cache that can't be read counts as
+     * a miss, so a broken cache never stops an article that the network can serve.
+     */
+    private suspend fun readCache(requested: String): CachedArticleEntity? =
+        dataResultOf { cache.get(requested) ?: cache.getByAlias(requested) }.getOrNull()
+
     private suspend fun FlowCollector<Result<Article, DataError>>.refreshIfStale(
         requested: String,
         cached: CachedArticleEntity,
     ) {
         val latest = remote.latestRevision(requested).getOrNull() ?: return
         if (latest.revisionId == cached.revisionId && latest.title == cached.title) return
-        val fresh = download(requested)
+        // Ask for the revision just learned of, not "the latest": the wiki lets that answer lag an edit by minutes.
+        val fresh = download(requested) { remote.parseRevision(latest.revisionId) }
         // A failed refresh must not replace the copy the reader is already looking at.
         if (fresh is Result.Success) emit(fresh)
     }
 
-    private suspend fun download(title: String): Result<Article, DataError> =
-        remote.parseArticle(title).flatMap { parsed ->
+    private suspend fun download(
+        requested: String,
+        fetch: suspend () -> Result<ParsedPageDto, DataError>,
+    ): Result<Article, DataError> =
+        fetch().flatMap { parsed ->
             toArticle(parsed.title, parsed.revisionId, parsed.text).map { article ->
                 val fetchedAt = clock.now().toEpochMilliseconds()
-                store(CachedArticleEntity(parsed.title, parsed.revisionId, parsed.text, fetchedAt))
+                store(CachedArticleEntity(parsed.title, parsed.revisionId, parsed.text, fetchedAt), requested)
                 article
             }
         }
 
     /** A full disk shouldn't stop an article that was downloaded fine from being shown. */
-    private suspend fun store(entity: CachedArticleEntity) {
+    private suspend fun store(
+        entity: CachedArticleEntity,
+        requested: String,
+    ) {
         dataResultOf {
-            cache.upsert(entity)
+            cache.storeWithAlias(entity, requested)
             cache.pruneUnbookmarked(MAX_CACHED_ARTICLES)
         }
     }
 
-    // Parsing is CPU-bound (tens of milliseconds for a big page), so it stays off the caller's dispatcher.
+    // Parsing is CPU-bound (tens of milliseconds for a big page), so it stays off the caller's dispatcher. The
+    // parser is not supposed to throw, so a failure here means this HTML is one it can't read; nothing else in
+    // building the article can fail.
     private suspend fun toArticle(
         title: String,
         revisionId: Long,
         html: String,
     ): Result<Article, DataError> =
         dataResultOf(mapError = { DataError.Parse }) {
-            val sections = withContext(defaultDispatcher) { parser.parse(html) }
+            withContext(defaultDispatcher) { parser.parse(html) }
+        }.map { sections ->
             Article(
                 title = title,
                 displayTitle = title,
