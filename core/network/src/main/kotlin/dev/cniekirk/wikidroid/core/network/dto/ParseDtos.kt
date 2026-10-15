@@ -19,7 +19,6 @@ data class ParsedPageDto(
     /** The article body as MediaWiki HTML (mobile format, sections wrapped in `mf-section-N`). */
     val text: String,
     val sections: List<SectionDto> = emptyList(),
-    val categories: List<ParsedCategoryDto> = emptyList(),
     val redirects: List<RedirectDto> = emptyList(),
 )
 
@@ -31,10 +30,4 @@ data class SectionDto(
     val anchor: String,
     val number: String? = null,
     val index: String? = null,
-)
-
-@Serializable
-data class ParsedCategoryDto(
-    val category: String,
-    val hidden: Boolean = false,
 )
