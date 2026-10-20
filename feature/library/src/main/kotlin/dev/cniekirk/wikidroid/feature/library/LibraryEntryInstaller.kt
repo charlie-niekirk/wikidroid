@@ -11,13 +11,18 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
 import dev.zacsweers.metro.Inject
 
-/** Registers the Library tab. */
+/**
+ * Registers the Library (bookmarks and history). It is not a tab: Explore's top bar pushes it onto the current stack.
+ */
 @Inject
 @ContributesIntoSet(AppScope::class)
 class LibraryEntryInstaller : EntryProviderInstaller {
     override fun EntryProviderScope<NavKey>.install(navigator: Navigator) {
         entry<LibraryKey>(metadata = WikiPanes.list()) {
-            LibraryRoute(onOpenArticle = { navigator.navigate(ArticleKey(it)) })
+            LibraryRoute(
+                onOpenArticle = { navigator.navigate(ArticleKey(it)) },
+                onNavigateBack = { navigator.goBack() },
+            )
         }
     }
 }

@@ -32,8 +32,8 @@ sealed interface VersionsState {
 }
 
 /**
- * What the user can do on the Explore screen. [OpenArticle] and [OpenCategory] are navigation: the route
- * handles them and the ViewModel never sees them.
+ * What the user can do on the Explore screen. [OpenArticle], [OpenCategory] and [OpenLibrary] are navigation: the
+ * route handles them and the ViewModel never sees them.
  */
 sealed interface ExploreAction {
     data object RetryVersions : ExploreAction
@@ -47,6 +47,9 @@ sealed interface ExploreAction {
     data class OpenCategory(
         val name: String,
     ) : ExploreAction
+
+    /** The top bar's Library button: bookmarks and history. */
+    data object OpenLibrary : ExploreAction
 }
 
 sealed interface ExploreEffect {
