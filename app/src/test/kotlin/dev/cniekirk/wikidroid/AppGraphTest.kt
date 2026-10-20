@@ -13,6 +13,7 @@ import dev.cniekirk.wikidroid.feature.library.LibraryViewModel
 import dev.cniekirk.wikidroid.feature.search.SearchViewModel
 import dev.cniekirk.wikidroid.feature.seedmap.SeedMapViewModel
 import dev.cniekirk.wikidroid.feature.settings.SettingsViewModel
+import dev.cniekirk.wikidroid.feature.tools.calculator.ResourceCalculatorViewModel
 import dev.zacsweers.metro.createGraphFactory
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Test
@@ -67,6 +68,9 @@ class AppGraphTest : RobolectricTest() {
         assertThat(
             factory.create(SeedMapViewModel::class, CreationExtras.Empty),
         ).isInstanceOf(SeedMapViewModel::class.java)
+        assertThat(
+            factory.create(ResourceCalculatorViewModel::class, CreationExtras.Empty),
+        ).isInstanceOf(ResourceCalculatorViewModel::class.java)
     }
 
     @Test

@@ -3,4 +3,36 @@
     <string name="tools_title">Tools</string>
     <string name="tools_resource_calculator">Resource calculator</string>
     <string name="tools_resource_calculator_summary">Work out the raw materials and crafting steps for anything you want to make.</string>
+
+    <string name="calculator_title">Resource calculator</string>
+    <string name="calculator_add_item">Add item</string>
+    <string name="calculator_reset">Reset choices</string>
+    <string name="calculator_empty_title">Nothing to make yet</string>
+    <string name="calculator_empty_message">Add the items you want to make, and the calculator lists the raw materials and the crafting steps.</string>
+    <string name="calculator_section_targets">Making</string>
+    <string name="calculator_section_raw">Raw materials</string>
+    <string name="calculator_section_steps">Crafting steps</string>
+    <string name="calculator_section_leftovers">Left over</string>
+    <string name="calculator_quantity">Quantity of %1$s</string>
+    <string name="calculator_decrease">Fewer %1$s</string>
+    <string name="calculator_increase">More %1$s</string>
+    <string name="calculator_remove">Remove %1$s</string>
+    <string name="calculator_owned">You have this</string>
+    <string name="calculator_count">×%1$s</string>
+    <string name="calculator_step">%1$d. Craft %2$s×</string>
+    <string name="calculator_step_makes">Makes %1$s %2$s</string>
+    <string name="calculator_needs_table">Needs a crafting table</string>
+    <string name="calculator_other_recipes">Other recipes (%1$d)</string>
+    <string name="calculator_ignored">Some choices would need the item they make, so the default was used instead.</string>
+    <string name="calculator_plan_failed">The plan could not be worked out.</string>
+    <string name="calculator_version">Crafting recipes from Java Edition %1$s</string>
+    <string name="calculator_search">Search items</string>
+    <string name="calculator_no_results">No craftable item matches.</string>
+    <string name="calculator_i_have_this">I have this</string>
+    <string name="calculator_craft_instead">Craft it instead</string>
+    <string name="calculator_break_down">Work out what it takes</string>
+    <string name="calculator_open_in_wiki">Open in the wiki</string>
+    <string name="calculator_recipes">Recipes</string>
+    <string name="calculator_recipe_makes">Makes %1$d</string>
+    <string name="calculator_variants_title">Use which?</string>
 </resources>

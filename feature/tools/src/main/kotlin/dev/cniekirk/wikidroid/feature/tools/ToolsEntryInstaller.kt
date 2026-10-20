@@ -2,9 +2,12 @@ package dev.cniekirk.wikidroid.feature.tools
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.navigation.Navigator
+import dev.cniekirk.wikidroid.core.navigation.ResourceCalculatorKey
 import dev.cniekirk.wikidroid.core.navigation.ToolsKey
+import dev.cniekirk.wikidroid.feature.tools.calculator.ResourceCalculatorRoute
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
 import dev.zacsweers.metro.Inject
@@ -16,6 +19,12 @@ class ToolsEntryInstaller : EntryProviderInstaller {
     override fun EntryProviderScope<NavKey>.install(navigator: Navigator) {
         entry<ToolsKey> {
             ToolsScreen(onOpenTool = { navigator.navigate(it.key) })
+        }
+        entry<ResourceCalculatorKey> {
+            ResourceCalculatorRoute(
+                onNavigateBack = { navigator.goBack() },
+                onOpenArticle = { navigator.navigate(ArticleKey(it)) },
+            )
         }
     }
 }
