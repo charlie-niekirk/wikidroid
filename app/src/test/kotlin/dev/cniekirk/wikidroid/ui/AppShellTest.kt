@@ -6,11 +6,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
@@ -26,7 +29,9 @@ import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.common.truth.Truth.assertThat
@@ -49,11 +54,16 @@ class AppShellTest : ComposeTest() {
     private val navigator = Navigator()
     private lateinit var backDispatcher: OnBackPressedDispatcher
 
-    private fun setShell(installers: ImmutableSet<EntryProviderInstaller> = persistentSetOf()) {
+    private fun setShell(
+        installers: ImmutableSet<EntryProviderInstaller> = persistentSetOf(),
+        layoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    ) {
         composeRule.setContent {
             backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
-            WikiDroidTheme(dynamicColor = false) {
-                AppShell(navigator = navigator, installers = installers)
+            CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+                WikiDroidTheme(dynamicColor = false) {
+                    AppShell(navigator = navigator, installers = installers)
+                }
             }
         }
     }
@@ -229,6 +239,80 @@ class AppShellTest : ComposeTest() {
         composeRule.assertScreenShows("Explore")
     }
 
+    @Test
+    fun aPushSlidesTheNewScreenInFromTheEnd() {
+        setShell(installers = persistentSetOf(taggedEntries()))
+        composeRule.mainClock.autoAdvance = false
+
+        composeRule.runOnUiThread { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(HALFWAY_MILLIS)
+
+        assertThat(bounds(CATEGORY_TAG).left).isGreaterThan(0f)
+        assertThat(bounds(EXPLORE_TAG).right).isLessThan(displayWidth())
+    }
+
+    @Test
+    fun aPopSlidesTheScreenOutTowardsTheEnd() {
+        setShell(installers = persistentSetOf(taggedEntries()))
+        composeRule.runOnIdle { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.onNodeWithTag(CATEGORY_TAG).assertIsDisplayed()
+        composeRule.mainClock.autoAdvance = false
+
+        composeRule.runOnUiThread { navigator.goBack() }
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(HALFWAY_MILLIS)
+
+        assertThat(bounds(CATEGORY_TAG).left).isGreaterThan(0f)
+        assertThat(bounds(EXPLORE_TAG).right).isLessThan(displayWidth())
+    }
+
+    @Test
+    fun aPushInARightToLeftLayoutComesInFromTheLeft() {
+        setShell(installers = persistentSetOf(taggedEntries()), layoutDirection = LayoutDirection.Rtl)
+        composeRule.mainClock.autoAdvance = false
+
+        composeRule.runOnUiThread { navigator.navigate(CategoryKey("Mobs")) }
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(HALFWAY_MILLIS)
+
+        assertThat(bounds(CATEGORY_TAG).right).isLessThan(displayWidth())
+        assertThat(bounds(EXPLORE_TAG).left).isGreaterThan(0f)
+    }
+
+    @Test
+    fun switchingTabsDoesNotAnimate() {
+        setShell(installers = persistentSetOf(taggedEntries()))
+        composeRule.mainClock.autoAdvance = false
+
+        composeRule.tab("Search").performClick()
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeByFrame()
+
+        assertThat(bounds(SEARCH_TAG).left).isEqualTo(0f)
+        composeRule.onNodeWithTag(EXPLORE_TAG).assertDoesNotExist()
+    }
+
+    // Bounds in root are clipped to the display, so a screen that has slid part way out shows as narrower, not offset.
+    private fun bounds(tag: String): Rect =
+        composeRule.onNodeWithTag(tag).getBoundsInRoot().let {
+            Rect(it.left.value, it.top.value, it.right.value, it.bottom.value)
+        }
+
+    private fun displayWidth(): Float =
+        composeRule
+            .onRoot()
+            .getBoundsInRoot()
+            .right.value
+
+    /** Full-size screens for Explore, Search and categories, tagged so a test can find each while both are shown. */
+    private fun taggedEntries() =
+        EntryProviderInstaller {
+            entry<ExploreKey> { Box(Modifier.fillMaxSize().testTag(EXPLORE_TAG)) }
+            entry<SearchKey> { Box(Modifier.fillMaxSize().testTag(SEARCH_TAG)) }
+            entry<CategoryKey> { Box(Modifier.fillMaxSize().testTag(CATEGORY_TAG)) }
+        }
+
     /** A category screen whose text names its view model (numbered in creation order) and a saved tap count. */
     private fun countingCategoryEntry() =
         EntryProviderInstaller {
@@ -257,5 +341,9 @@ class AppShellTest : ComposeTest() {
     private companion object {
         const val WIDE_WINDOW = "w1280dp-h800dp"
         const val SEED_MAP_TAG = "seed-map"
+        const val EXPLORE_TAG = "explore"
+        const val SEARCH_TAG = "search"
+        const val CATEGORY_TAG = "category"
+        const val HALFWAY_MILLIS = NavTransitions.DURATION_MILLIS / 2L
     }
 }
