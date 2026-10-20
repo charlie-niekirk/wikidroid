@@ -26,6 +26,16 @@ object WikiIcons {
     @DrawableRes
     val BookmarkBorder: Int = R.drawable.ic_bookmark_border
 
+    /** A stack of bookmarked pages: the Library (bookmarks and history), as opposed to bookmarking one page. */
+    @DrawableRes
+    val CollectionsBookmark: Int = R.drawable.ic_collections_bookmark
+
+    @DrawableRes
+    val Handyman: Int = R.drawable.ic_handyman
+
+    @DrawableRes
+    val Calculate: Int = R.drawable.ic_calculate
+
     @DrawableRes
     val History: Int = R.drawable.ic_history
 

@@ -38,9 +38,9 @@ class TabNavigationTest {
         composeRule.waitUntilAtLeastOneExists(hasTestTag("seed-map-canvas"), UI_TIMEOUT_MILLIS)
         composeRule.tab("Seed map").assertIsSelected()
 
-        composeRule.openTab("Library")
-        composeRule.waitForText("No bookmarks yet")
-        composeRule.tab("Library").assertIsSelected()
+        composeRule.openTab("Tools")
+        composeRule.waitForText("Resource calculator")
+        composeRule.tab("Tools").assertIsSelected()
 
         composeRule.openTab("Settings")
         composeRule.waitForText("Appearance")
@@ -66,8 +66,8 @@ class TabNavigationTest {
         val suggestion = hasText("Diamond") and hasClickAction() and !hasSetTextAction()
         composeRule.waitUntilAtLeastOneExists(suggestion, UI_TIMEOUT_MILLIS)
 
-        composeRule.openTab("Library")
-        composeRule.waitForText("No bookmarks yet")
+        composeRule.openTab("Tools")
+        composeRule.waitForText("Resource calculator")
         composeRule.openTab("Search")
 
         composeRule.onNodeWithTag("search-field").assertTextContains("Diamond")

@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.cniekirk.wikidroid.core.common.DataError
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiIcon
+import dev.cniekirk.wikidroid.core.designsystem.component.WikiIconButton
 import dev.cniekirk.wikidroid.core.designsystem.component.WikiTopAppBar
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.designsystem.theme.WikiDroidTheme
@@ -55,7 +56,18 @@ fun ExploreScreen(
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = { WikiTopAppBar(title = stringResource(R.string.explore_title)) },
+        topBar = {
+            WikiTopAppBar(
+                title = stringResource(R.string.explore_title),
+                actions = {
+                    WikiIconButton(
+                        icon = WikiIcons.CollectionsBookmark,
+                        contentDescription = stringResource(R.string.explore_open_library),
+                        onClick = { onAction(ExploreAction.OpenLibrary) },
+                    )
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyVerticalGrid(

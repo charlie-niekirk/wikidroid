@@ -4,8 +4,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -63,6 +65,13 @@ fun ComposeTestRule.tab(label: String): SemanticsNodeInteraction = onNode(hasTex
 
 fun ComposeTestRule.openTab(label: String) {
     tab(label).performClick()
+}
+
+/** The Library is not a tab: Explore's top bar opens it. */
+fun ComposeTestRule.openLibrary() {
+    openTab("Explore")
+    waitUntilAtLeastOneExists(hasContentDescription("Library"), UI_TIMEOUT_MILLIS)
+    onNodeWithContentDescription("Library").performClick()
 }
 
 fun ComposeTestRule.waitForText(

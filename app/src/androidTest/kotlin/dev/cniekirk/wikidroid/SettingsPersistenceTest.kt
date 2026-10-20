@@ -49,7 +49,7 @@ class SettingsPersistenceTest {
             composeRule.clickText("Save reading history")
             composeRule.waitUntil(UI_TIMEOUT_MILLIS) { !currentPreferences().saveHistory }
 
-            composeRule.openTab("Library")
+            composeRule.openLibrary()
             composeRule.clickText("History")
             composeRule.waitForText("History is turned off")
         }

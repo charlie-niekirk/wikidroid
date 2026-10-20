@@ -121,6 +121,8 @@ private fun LibraryTopBar(
     Column {
         WikiTopAppBar(
             title = stringResource(R.string.library_title),
+            onNavigateBack = { onAction(LibraryAction.Back) },
+            navigateBackDescription = stringResource(UiR.string.ui_navigate_back),
             actions = {
                 if (state.selectedTab == LibraryTab.History && !state.history.isNullOrEmpty()) {
                     WikiIconButton(

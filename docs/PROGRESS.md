@@ -25,17 +25,18 @@ Definition of green: `./gradlew spotlessCheck detekt testDebugUnitTest assembleD
 - [x] Session 21: Full-screen seed map on wide windows
 - [x] Session 22: Per-tab screen state
 - [x] Session 23: Article cache correctness
-- [ ] Session 24: Seed map memory and rendering
-- [ ] Session 25: Seed map engine hardening
-- [ ] Session 26: One error model
-- [ ] Session 27: Seed map domain extraction
-- [ ] Session 28: Seed map state split
-- [ ] Session 29: Domain-only use cases (wiki features)
-- [ ] Session 30: Domain-only use cases (seed map) and enforcement
-- [ ] Session 31: Feature MVI tidy-up
-- [ ] Session 32: Stored types and model dependencies
-- [ ] Session 33: Network/data boundary and shared test code
-- [ ] Session 34: Build and CI hygiene
+- [x] Session 24: Tools tab, resource calculator and slide transitions (unplanned; the planned sessions moved up one)
+- [ ] Session 25: Seed map memory and rendering
+- [ ] Session 26: Seed map engine hardening
+- [ ] Session 27: One error model
+- [ ] Session 28: Seed map domain extraction
+- [ ] Session 29: Seed map state split
+- [ ] Session 30: Domain-only use cases (wiki features)
+- [ ] Session 31: Domain-only use cases (seed map) and enforcement
+- [ ] Session 32: Feature MVI tidy-up
+- [ ] Session 33: Stored types and model dependencies
+- [ ] Session 34: Network/data boundary and shared test code
+- [ ] Session 35: Build and CI hygiene
 
 ## Session 1 notes
 Verified: `:app:assembleDebug :app:assembleRelease spotlessCheck detekt` pass; debug and release APKs install and launch on an API 37 arm64 emulator (Pixel_10_Pro AVD) with no crash. Release APK is debug-signed (fallback path, no keystore configured).
@@ -743,7 +744,7 @@ What changed:
 
 ### Open TODOs
 - ViewModels survive tab switches but not process death: nothing uses `SavedStateHandle`. The seed map's grid, crosshair and slime switches are therefore still lost when the process dies, though no longer on a tab switch.
-- Every tab's ViewModels now stay in memory until popped, including an `ArticleViewModel` holding a parsed article on each tab. Session 24's memory work should keep this in mind.
+- Every tab's ViewModels now stay in memory until popped, including an `ArticleViewModel` holding a parsed article on each tab. Session 25's memory work should keep this in mind (it was Session 24 before Session 24 became the Tools tab).
 - The instrumented run used the local arm64 AVD; API 35 x86_64 is proved by CI.
 
 ## Session 23 notes
@@ -767,10 +768,44 @@ What changed:
 - **Tests:** DAO tests for aliases (including the cascade, asserted on the alias table rows, not through the join); repository tests for alias hit, offline, redirect that became a page, refresh by revision, and unreadable cache; `ArticleEndpointsTest` for `parseRevision`; `ArticleCacheTest` (app, instrumented) counting the mock server's requests.
 
 ### Deviations
-- **An unreadable cache is a miss, not a `Result.Failure`.** The plan said a Room failure in `cache.get`/`aliasFor` should become `Result.Failure`. Failing the article because its cache can't be read would be worse than downloading it, and it matches how `store` already treats a failed write. Session 26 adds `DataError.Storage` and logging, and should log this one.
+- **An unreadable cache is a miss, not a `Result.Failure`.** The plan said a Room failure in `cache.get`/`aliasFor` should become `Result.Failure`. Failing the article because its cache can't be read would be worse than downloading it, and it matches how `store` already treats a failed write. Session 27 (One error model) adds `DataError.Storage` and logging, and should log this one.
 - No new network fixture: `parseRevision` reuses `parse_diamond.json`, which has the same shape.
 - `MigrationTest` deletes its database in `@Before`/`@After`: the Room 3 helper refuses to create a database over a file an earlier test left, which the first two tests in one class exposed.
 
 ### Open TODOs
 - A bookmarked page that later becomes a redirect loses its offline badge in Library: its own cached row is deleted (it is the redirect's old content) and the badge joins on the bookmark's title, not on aliases. Opening the bookmark still works offline through the alias. Extending the join in `BookmarkDao`/`HistoryDao` to aliases would fix the badge.
 - The first open of a title (nothing cached) can still return a copy up to ten minutes old; the next open repairs it.
+
+## Session 24 notes
+An unplanned session (asked for by the user): the Library tab became a **Tools** tab whose first tool is a **resource calculator**, and pushing or popping a screen now slides instead of cross-fading. The planned Sessions 24-34 are now 25-35; `docs/PLAN.md` is renumbered in its own `docs/` PR.
+
+Verified locally:
+- `spotlessApply` (its own invocation), then `spotlessCheck detekt lintDebug testDebugUnitTest assembleDebug :app:checkMainMetroHiddenDependencies` pass (992 unit tests).
+- On the arm64 `Pixel_10_Pro` AVD (API 37): `:app:connectedDebugAndroidTest` passes (27 tests), and `ResourceCalculatorTest` again after the Add item button got its accessibility label.
+- By hand on the emulator: the Tools tab, the calculator's empty state and the item picker with wiki icons. Typing through `adb` went to the emulator keyboard's stylus mode, so adding items by hand was left to `ResourceCalculatorTest`.
+- `python3 -m unittest discover -s scripts/recipes` passes (8 tests), and rerunning `generate_recipes.py` without flags leaves `java.json` byte for byte the same.
+- Not checked by hand: predictive back (Robolectric can't drive it), and the release build's calculator under R8.
+
+What changed:
+- **Transitions** (`app/.../ui/NavTransitions.kt`): push slides the new screen in from the end edge while the covered one moves a quarter of the width; pop and predictive back reverse it (the back gesture uses a linear tween because the system already eases its progress). 400 ms, emphasized-decelerate. `NavDisplay` is clipped so the covered screen never shows under the rail. Tab switches stay instant: `NavDisplay` is keyed by tab, so a new tab starts on its scene. Moves inside one list-detail scene keep the scaffold's pane motion.
+- **Navigation:** `ToolsKey` replaces `LibraryKey` in `TopLevelKeys` (Explore, Search, Seed map, Tools, Settings). `LibraryKey` is a plain `WikiKey` that Explore's top bar pushes (`ExploreAction.OpenLibrary`, a collections-bookmark icon labelled "Library"); the Library gained a back arrow and keeps `WikiPanes.list()`. `ResourceCalculatorKey` is pushed from the Tools tab. A navigator snapshot saved while the Library was a tab no longer decodes, so `Navigator.saver` now restores nothing (a fresh start) instead of crashing.
+- **Recipe data:** `scripts/recipes/generate_recipes.py` (Python 3, standard library only) downloads the client jar of a Minecraft: Java Edition release from Mojang's manifest into `build/recipe-cache/`, checks its sha1, and writes `core/data/src/main/assets/recipes/java.json` (26.3: 1252 items, 1236 crafting recipes, 32 tags, 51 raw by default; 333 KB, about 36 KB compressed). It keeps shaped, shapeless, transmute, imbue and decorated-pot recipes, skips special and non-crafting types, and stops on an unknown type. It flags storage unpacking (`unpack`) and items that are raw by default (furnace outputs, self-duplicating smithing templates, `RAW_OVERRIDES`), and with `--check-icons` asks the wiki which `Invicon_<Name>.png` exist (all 1252 do). `core/data/NOTICE.md` and About credit the data.
+- **Models and repository:** `core.model.recipe` (`RecipeBook`, `Recipe`, `Ingredient` with a shared `key`, `PlanChoices`, `CraftingPlan`, `CraftingStep`, ...). `RecipeRepository` (`AssetRecipeRepository`) decodes the asset once on IO; anything wrong in it is `DataError.Parse`. Icons resolve against `@WikiBaseUrl`.
+- **Planner** (`core.domain.recipes`): `RecipeGraph` gives every item a default recipe by a cost that only goes down (so defaults never loop), ties to the recipe named after the item and then to the game's order (oak first). `CraftingPlanner` resolves recipes and variants from the targets down (a user choice that would need the item itself is dropped and reported in `ignoredChoices`), then hands demand down in an order where each item waits for all its consumers, so shared intermediates are crafted in one batch and leftovers are reported. `CalculateCraftingPlanUseCase` keeps the graph for the repository's book; `SearchRecipeItemsUseCase` ranks exact, prefix, word prefix, anywhere.
+- **`:feature:tools`:** `ToolsScreen` (a card per `Tool`, no ViewModel) and the calculator: targets with a quantity field and steppers, raw materials, numbered crafting steps with ingredient chips, leftovers. Sheets: an item picker, an item sheet (I have this / craft it instead / work out what it takes, recipe choice, open in the wiki) and a variant chooser. State lives in `ResourceCalculatorViewModel` only.
+- **Tests:** planner, graph and use case tests over `TestRecipes.miniVanilla` (`:core:testing`, with a small `recipeBook { }` builder); `RecipeRepositoryTest` on the real asset; `RecipeBookSanityTest` in `:app` plans every craftable item of the real book with its defaults; contract, ViewModel and screen tests for the calculator; `ToolsScreenTest`; transition tests in `AppShellTest`; navigator tests for the Library push and the old snapshot; instrumented `ResourceCalculatorTest`, and the Library tests now open it from Explore.
+
+### Deviations
+- **One `:feature:tools` module** holds the Tools list and the calculator; a large second tool could get its own module later.
+- **Crafting only.** As agreed, smelting, stonecutting and smithing are not followed, so glass, ingots and gems are raw materials. The generator still reads furnace recipes to decide what is raw by default.
+- **A raw-by-default target stays raw** (adding Iron Ingot lists 1 Iron Ingot) until "Craft it instead" is tapped; the plan had it crafted from nuggets.
+- **Choices are global.** A variant choice applies to every ingredient with the same `Ingredient.key` (picking spruce for "any planks" applies everywhere), and "I have this" applies to the item wherever it appears.
+- **Baseline profile** generator now opens Tools, the calculator and the Library from Explore; the profile itself was not regenerated (needs a device and the live wiki).
+- The RTL transition test provides `LocalLayoutDirection` itself: Robolectric's `ldrtl` qualifier does not flip Compose's layout direction.
+- The Add item button sets its own content description: an `ExtendedFloatingActionButton`'s merged node did not carry its label, so uiautomator (and TalkBack) saw an unlabelled button.
+
+### Open TODOs
+- The calculator's list is lost when the app is closed; persisting it would need a store (and a line in `ResetAppStateRule`).
+- Stack sizes (`2 stacks + 12`) and a crafting-grid view of each step would help on big orders.
+- Regenerate `java.json` when a new Java release changes recipes (`--latest --check-icons`), and update `core/data/NOTICE.md`.
+- `docs/PLAN.md` still lists four tabs and the old session numbers until its `docs/` PR is merged.

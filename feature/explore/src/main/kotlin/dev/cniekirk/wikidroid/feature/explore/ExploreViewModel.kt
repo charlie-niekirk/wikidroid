@@ -29,7 +29,7 @@ class ExploreViewModel(
             ExploreAction.OpenRandomArticle -> openRandomArticle()
 
             // Navigation is the route's job.
-            is ExploreAction.OpenArticle, is ExploreAction.OpenCategory -> Unit
+            is ExploreAction.OpenArticle, is ExploreAction.OpenCategory, ExploreAction.OpenLibrary -> Unit
         }
     }
 
