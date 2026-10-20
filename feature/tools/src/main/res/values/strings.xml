@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tools_title">Tools</string>
+    <string name="tools_resource_calculator">Resource calculator</string>
+    <string name="tools_resource_calculator_summary">Work out the raw materials and crafting steps for anything you want to make.</string>
+</resources>

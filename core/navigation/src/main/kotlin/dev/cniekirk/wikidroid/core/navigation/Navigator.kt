@@ -100,11 +100,21 @@ class Navigator(
         // Map keys are sealed objects, which JSON only supports in the structured (array) form.
         private val json = Json { allowStructuredMapKeys = true }
 
-        /** Saves to a JSON string so it survives process death through `rememberSaveable`. */
+        /**
+         * Saves to a JSON string so it survives process death through `rememberSaveable`. A snapshot that no longer
+         * decodes (one saved when a removed key was a tab) restores nothing, so the app starts afresh.
+         */
         fun saver(startTab: TopLevelKey = ExploreKey): Saver<Navigator, String> =
             Saver(
                 save = { json.encodeToString(NavigatorSnapshot.serializer(), it.snapshot()) },
-                restore = { Navigator(startTab, json.decodeFromString(NavigatorSnapshot.serializer(), it)) },
+                restore = { saved ->
+                    try {
+                        Navigator(startTab, json.decodeFromString(NavigatorSnapshot.serializer(), saved))
+                    } catch (_: IllegalArgumentException) {
+                        // SerializationException is an IllegalArgumentException.
+                        null
+                    }
+                },
             )
     }
 }

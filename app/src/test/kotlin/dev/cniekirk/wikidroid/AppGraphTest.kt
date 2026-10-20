@@ -44,6 +44,7 @@ class AppGraphTest : RobolectricTest() {
                 "SearchEntryInstaller",
                 "SeedMapEntryInstaller",
                 "SettingsEntryInstaller",
+                "ToolsEntryInstaller",
             )
     }
 

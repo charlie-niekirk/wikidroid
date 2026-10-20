@@ -74,10 +74,10 @@ class AppShellTest : ComposeTest() {
         onNodeWithTag(PLACEHOLDER_TAG).assert(hasAnyDescendant(hasText(text) and hasNoClickAction()))
 
     @Test
-    fun showsTheFourTabsWithExploreSelected() {
+    fun showsTheFiveTabsWithExploreSelected() {
         setShell()
 
-        listOf("Explore", "Search", "Library", "Settings").forEach { composeRule.tab(it).assertIsDisplayed() }
+        listOf("Explore", "Search", "Seed map", "Tools", "Settings").forEach { composeRule.tab(it).assertIsDisplayed() }
         composeRule.tab("Explore").assertIsSelected()
         composeRule.assertScreenShows("Explore")
     }
@@ -86,10 +86,10 @@ class AppShellTest : ComposeTest() {
     fun tappingATabShowsItsScreen() {
         setShell()
 
-        composeRule.tab("Library").performClick()
+        composeRule.tab("Tools").performClick()
 
-        composeRule.tab("Library").assertIsSelected()
-        composeRule.assertScreenShows("Library")
+        composeRule.tab("Tools").assertIsSelected()
+        composeRule.assertScreenShows("Tools")
     }
 
     @Test
@@ -192,7 +192,7 @@ class AppShellTest : ComposeTest() {
         composeRule.onNodeWithText("Mobs #1, taps 0").performClick()
         composeRule.onNodeWithText("Mobs #1, taps 1").assertIsDisplayed()
 
-        composeRule.tab("Library").performClick()
+        composeRule.tab("Tools").performClick()
         composeRule.tab("Explore").performClick()
 
         composeRule.onNodeWithText("Mobs #1, taps 1").assertIsDisplayed()
@@ -231,7 +231,7 @@ class AppShellTest : ComposeTest() {
     @Test
     fun backFromAnotherTabsRootReturnsToTheFirstTab() {
         setShell()
-        composeRule.tab("Library").performClick()
+        composeRule.tab("Tools").performClick()
 
         composeRule.runOnIdle { backDispatcher.onBackPressed() }
 

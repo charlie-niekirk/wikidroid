@@ -41,7 +41,7 @@ class SearchToLibraryTest {
         composeRule.onNodeWithContentDescription("Save for offline reading").performClick()
         composeRule.waitUntilAtLeastOneExists(hasContentDescription("Remove from saved"), UI_TIMEOUT_MILLIS)
 
-        composeRule.openTab("Library")
+        composeRule.openLibrary()
         composeRule.waitUntilAtLeastOneExists(hasTestTag("library-list"), UI_TIMEOUT_MILLIS)
         composeRule.onNodeWithText("Diamond").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Available offline").assertIsDisplayed()
@@ -63,7 +63,7 @@ class SearchToLibraryTest {
         composeRule.onNode(suggestion).performClick()
         composeRule.waitUntilAtLeastOneExists(hasTestTag("article-list"), UI_TIMEOUT_MILLIS)
 
-        composeRule.openTab("Library")
+        composeRule.openLibrary()
         composeRule.clickText("History")
         composeRule.waitUntilAtLeastOneExists(hasTestTag("library-list"), UI_TIMEOUT_MILLIS)
         composeRule.onNodeWithText("Diamond").assertIsDisplayed()

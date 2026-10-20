@@ -25,7 +25,7 @@ data object SearchKey : TopLevelKey
 data object SeedMapKey : TopLevelKey
 
 @Serializable
-data object LibraryKey : TopLevelKey
+data object ToolsKey : TopLevelKey
 
 @Serializable
 data object SettingsKey : TopLevelKey
@@ -47,5 +47,13 @@ data class ArticleKey(
 @Serializable
 data object AboutKey : WikiKey
 
+/** Bookmarks and history. Not a tab: Explore's top bar pushes it onto the current stack. */
+@Serializable
+data object LibraryKey : WikiKey
+
+/** The resource calculator, pushed from the Tools tab. */
+@Serializable
+data object ResourceCalculatorKey : WikiKey
+
 /** The tabs in bottom-bar order. */
-val TopLevelKeys: List<TopLevelKey> = listOf(ExploreKey, SearchKey, SeedMapKey, LibraryKey, SettingsKey)
+val TopLevelKeys: List<TopLevelKey> = listOf(ExploreKey, SearchKey, SeedMapKey, ToolsKey, SettingsKey)
