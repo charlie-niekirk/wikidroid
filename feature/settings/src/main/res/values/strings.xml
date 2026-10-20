@@ -48,7 +48,8 @@
     <string name="about_disclaimer">WikiDroid is an unofficial app and is not affiliated with Mojang or Microsoft. It is an independent reader for the community-run Minecraft Wiki.</string>
     <string name="about_content_title">Content</string>
     <string name="about_content">Articles come from the Minecraft Wiki and are available under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 licence. Because of the non-commercial licence, WikiDroid has no ads and no in-app purchases.</string>
-    <string name="about_icons">The structure and dimension icons on the seed map are item and block sprites from the Minecraft Wiki, shared under the same licence. The artwork is Mojang\'s.</string>
+    <string name="about_icons">The structure and dimension icons on the seed map, and the item icons in the resource calculator, are sprites from the Minecraft Wiki, shared under the same licence. The artwork is Mojang\'s.</string>
+    <string name="about_recipes">The resource calculator\'s crafting recipes and item names are taken from Minecraft: Java Edition\'s game data, © Mojang and Microsoft.</string>
     <string name="about_link_licence">View the licence</string>
     <string name="about_link_wiki">Visit the Minecraft Wiki</string>
     <string name="about_source_title">Source code</string>
