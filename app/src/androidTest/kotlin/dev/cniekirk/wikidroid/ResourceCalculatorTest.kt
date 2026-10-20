@@ -57,7 +57,7 @@ class ResourceCalculatorTest {
         query: String,
         id: String,
     ) {
-        composeRule.onNodeWithText("Add item", useUnmergedTree = true).performClick()
+        composeRule.onNodeWithContentDescription("Add item").performClick()
         composeRule.waitUntilAtLeastOneExists(hasTestTag("calculator-picker-field"), UI_TIMEOUT_MILLIS)
         composeRule.onNodeWithTag("calculator-picker-field").performTextInput(query)
         composeRule.waitUntilAtLeastOneExists(hasTestTag("calculator-picker-$id"), UI_TIMEOUT_MILLIS)

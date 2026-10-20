@@ -69,8 +69,7 @@ class ResourceCalculatorScreenTest : ComposeTest() {
         setScreen(CalculatorState(minecraftVersion = "26.3"))
 
         composeRule.onNodeWithText("Nothing to make yet").assertIsDisplayed()
-        // The button merges its icon and label, so the label is only in the unmerged tree.
-        composeRule.onNodeWithText("Add item", useUnmergedTree = true).performClick()
+        composeRule.onNodeWithContentDescription("Add item").performClick()
 
         assertThat(actions).containsExactly(CalculatorAction.Sheet.OpenPicker)
     }
