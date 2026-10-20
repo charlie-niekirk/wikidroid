@@ -1,6 +1,7 @@
 plugins {
     id("wikidroid.android.library")
     id("wikidroid.metro")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {

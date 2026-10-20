@@ -43,6 +43,7 @@ interface DataTestGraph {
     val settingsRepository: SettingsRepository
     val wikiInfoRepository: WikiInfoRepository
     val pointOfInterestRepository: PointOfInterestRepository
+    val recipeRepository: RecipeRepository
 
     @DependencyGraph.Factory
     fun interface Factory {
@@ -77,6 +78,7 @@ class DataGraphTest : RobolectricTest() {
         assertThat(graph.articleRepository).isSameInstanceAs(graph.articleRepository)
         assertThat(graph.libraryRepository).isSameInstanceAs(graph.libraryRepository)
         assertThat(graph.pointOfInterestRepository).isSameInstanceAs(graph.pointOfInterestRepository)
+        assertThat(graph.recipeRepository).isSameInstanceAs(graph.recipeRepository)
     }
 
     @Test
