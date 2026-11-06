@@ -72,6 +72,11 @@ fun AboutScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                 )
+                Text(
+                    text = stringResource(R.string.about_recipes),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                )
                 LinkRow(stringResource(R.string.about_link_licence), CONTENT_LICENCE_URL, onOpenUrl)
                 LinkRow(stringResource(R.string.about_link_wiki), WIKI_URL, onOpenUrl)
                 HorizontalDivider(modifier = Modifier.padding(top = 8.dp))

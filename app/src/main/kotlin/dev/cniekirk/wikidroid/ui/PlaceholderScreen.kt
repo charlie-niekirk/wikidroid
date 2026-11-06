@@ -14,6 +14,8 @@ import dev.cniekirk.wikidroid.core.navigation.AboutKey
 import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.CategoryKey
 import dev.cniekirk.wikidroid.core.navigation.ExploreKey
+import dev.cniekirk.wikidroid.core.navigation.LibraryKey
+import dev.cniekirk.wikidroid.core.navigation.ResourceCalculatorKey
 import dev.cniekirk.wikidroid.core.navigation.TopLevelKey
 import dev.cniekirk.wikidroid.core.navigation.WikiKey
 import dev.cniekirk.wikidroid.core.ui.MessageState
@@ -34,6 +36,8 @@ internal fun PlaceholderScreen(
             is TopLevelKey -> stringResource(key.labelRes)
             is CategoryKey -> stringResource(R.string.placeholder_category_title, key.title)
             AboutKey -> stringResource(R.string.placeholder_about_title)
+            LibraryKey -> stringResource(R.string.placeholder_library_title)
+            ResourceCalculatorKey -> stringResource(R.string.placeholder_resource_calculator_title)
             is ArticleKey -> stringResource(R.string.placeholder_article_title, key.title)
         }
     Surface(modifier = modifier.fillMaxSize().testTag(PLACEHOLDER_TAG)) {

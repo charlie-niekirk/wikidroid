@@ -40,8 +40,16 @@ class BaselineProfileGenerator {
             device.openTab("Seed map")
             device.panMap()
 
-            device.openTab("Library")
+            device.openTab("Tools")
+            device.waitForText("Resource calculator")?.click()
+            device.waitForText("Add item")
+            device.pressBack()
+
+            device.openTab("Explore")
+            device.findObject(By.desc("Library"))?.click()
             device.waitForText("Bookmarks")
+            device.pressBack()
+
             device.openTab("Settings")
             device.waitForText("Appearance")
             device.openTab("Explore")

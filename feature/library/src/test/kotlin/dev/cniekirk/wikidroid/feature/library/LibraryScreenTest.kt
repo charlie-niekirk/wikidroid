@@ -128,6 +128,15 @@ class LibraryScreenTest : ComposeTest() {
     // region interactions
 
     @Test
+    fun theBackArrowGoesBack() {
+        setScreen(loaded())
+
+        composeRule.onNodeWithContentDescription("Back").performClick()
+
+        assertThat(actions).containsExactly(LibraryAction.Back)
+    }
+
+    @Test
     fun tappingATabSelectsIt() {
         setScreen(loaded())
 

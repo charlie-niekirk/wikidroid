@@ -40,6 +40,7 @@ dependencies {
     implementation(projects.feature.search)
     implementation(projects.feature.seedmap)
     implementation(projects.feature.settings)
+    implementation(projects.feature.tools)
 
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)

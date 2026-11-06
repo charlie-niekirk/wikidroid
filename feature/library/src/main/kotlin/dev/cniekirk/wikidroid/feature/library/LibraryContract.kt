@@ -36,6 +36,9 @@ data class LibraryState(
 }
 
 sealed interface LibraryAction {
+    /** The top bar's back arrow; the route handles it. */
+    data object Back : LibraryAction
+
     data class SelectTab(
         val tab: LibraryTab,
     ) : LibraryAction

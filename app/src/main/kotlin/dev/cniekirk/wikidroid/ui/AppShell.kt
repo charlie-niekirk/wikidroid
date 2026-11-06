@@ -1,6 +1,7 @@
 package dev.cniekirk.wikidroid.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -93,7 +95,12 @@ private fun AppNavDisplay(
     key(navigator.currentTab) {
         NavDisplay(
             entries = entriesByTab.getValue(navigator.currentTab),
+            // The covered screen slides part way, so clip it to the display or it shows under the rail.
+            modifier = Modifier.fillMaxSize().clipToBounds(),
             sceneStrategies = listOf(rememberListDetailSceneStrategy()),
+            transitionSpec = NavTransitions.push,
+            popTransitionSpec = NavTransitions.pop,
+            predictivePopTransitionSpec = NavTransitions.predictivePop,
             onBack = { navigator.goBack() },
         )
     }

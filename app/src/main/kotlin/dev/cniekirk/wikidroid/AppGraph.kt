@@ -6,6 +6,7 @@ import dev.cniekirk.wikidroid.core.data.ArticleRepository
 import dev.cniekirk.wikidroid.core.data.CategoryRepository
 import dev.cniekirk.wikidroid.core.data.LibraryRepository
 import dev.cniekirk.wikidroid.core.data.PointOfInterestRepository
+import dev.cniekirk.wikidroid.core.data.RecipeRepository
 import dev.cniekirk.wikidroid.core.data.SearchRepository
 import dev.cniekirk.wikidroid.core.data.SeedRepository
 import dev.cniekirk.wikidroid.core.data.SettingsRepository
@@ -42,6 +43,7 @@ interface AppGraph : ViewModelGraph {
     val categoryRepository: CategoryRepository
     val libraryRepository: LibraryRepository
     val pointOfInterestRepository: PointOfInterestRepository
+    val recipeRepository: RecipeRepository
     val searchRepository: SearchRepository
     val seedRepository: SeedRepository
     val settingsRepository: SettingsRepository

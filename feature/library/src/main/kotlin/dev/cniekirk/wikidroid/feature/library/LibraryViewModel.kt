@@ -52,6 +52,11 @@ class LibraryViewModel(
 
     fun onAction(action: LibraryAction) {
         when (action) {
+            // Navigation is the route's job.
+            LibraryAction.Back -> {
+                Unit
+            }
+
             is LibraryAction.SelectTab -> {
                 intent { reduce { state.copy(selectedTab = action.tab) } }
             }

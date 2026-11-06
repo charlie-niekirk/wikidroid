@@ -11,6 +11,7 @@ import org.orbitmvi.orbit.compose.collectSideEffect
 @Composable
 fun LibraryRoute(
     onOpenArticle: (title: String) -> Unit,
+    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = metroViewModel(),
 ) {
@@ -22,5 +23,9 @@ fun LibraryRoute(
         }
     }
 
-    LibraryScreen(state = state, onAction = viewModel::onAction, modifier = modifier)
+    LibraryScreen(
+        state = state,
+        onAction = { action -> if (action == LibraryAction.Back) onNavigateBack() else viewModel.onAction(action) },
+        modifier = modifier,
+    )
 }

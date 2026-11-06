@@ -5,10 +5,10 @@ import androidx.annotation.StringRes
 import dev.cniekirk.wikidroid.R
 import dev.cniekirk.wikidroid.core.designsystem.icon.WikiIcons
 import dev.cniekirk.wikidroid.core.navigation.ExploreKey
-import dev.cniekirk.wikidroid.core.navigation.LibraryKey
 import dev.cniekirk.wikidroid.core.navigation.SearchKey
 import dev.cniekirk.wikidroid.core.navigation.SeedMapKey
 import dev.cniekirk.wikidroid.core.navigation.SettingsKey
+import dev.cniekirk.wikidroid.core.navigation.ToolsKey
 import dev.cniekirk.wikidroid.core.navigation.TopLevelKey
 
 /** How a bottom-bar tab looks. The tabs themselves (and their order) are `TopLevelKeys`. */
@@ -18,7 +18,7 @@ internal val TopLevelKey.iconRes: Int
             ExploreKey -> WikiIcons.Explore
             SearchKey -> WikiIcons.Search
             SeedMapKey -> WikiIcons.Map
-            LibraryKey -> WikiIcons.Bookmark
+            ToolsKey -> WikiIcons.Handyman
             SettingsKey -> WikiIcons.Settings
         }
 
@@ -28,6 +28,6 @@ internal val TopLevelKey.labelRes: Int
             ExploreKey -> R.string.tab_explore
             SearchKey -> R.string.tab_search
             SeedMapKey -> R.string.tab_seed_map
-            LibraryKey -> R.string.tab_library
+            ToolsKey -> R.string.tab_tools
             SettingsKey -> R.string.tab_settings
         }

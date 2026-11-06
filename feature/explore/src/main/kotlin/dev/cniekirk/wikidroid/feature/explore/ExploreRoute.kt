@@ -16,6 +16,7 @@ import org.orbitmvi.orbit.compose.collectSideEffect
 fun ExploreRoute(
     onOpenArticle: (title: String) -> Unit,
     onOpenCategory: (name: String) -> Unit,
+    onOpenLibrary: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ExploreViewModel = metroViewModel(),
 ) {
@@ -36,6 +37,7 @@ fun ExploreRoute(
             when (action) {
                 is ExploreAction.OpenArticle -> onOpenArticle(action.title)
                 is ExploreAction.OpenCategory -> onOpenCategory(action.name)
+                ExploreAction.OpenLibrary -> onOpenLibrary()
                 else -> viewModel.onAction(action)
             }
         },

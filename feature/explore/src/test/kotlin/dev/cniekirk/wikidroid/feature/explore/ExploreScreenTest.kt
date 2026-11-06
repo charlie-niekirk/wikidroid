@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -42,6 +43,15 @@ class ExploreScreenTest : ComposeTest() {
         composeRule.onNodeWithText("Explore").assertIsDisplayed()
         composeRule.onNodeWithText("Latest versions").assertIsDisplayed()
         composeRule.onNodeWithText("Browse by category").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTopBarOpensTheLibrary() {
+        setScreen(ExploreState())
+
+        composeRule.onNodeWithContentDescription("Library").performClick()
+
+        assertThat(actions).containsExactly(ExploreAction.OpenLibrary)
     }
 
     @Test

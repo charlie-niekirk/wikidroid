@@ -1,5 +1,6 @@
 package dev.cniekirk.wikidroid.core.navigation
 
+import androidx.compose.runtime.saveable.SaverScope
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -42,10 +43,10 @@ class NavigatorTest {
     fun navigate_withATopLevelKeySwitchesTab() {
         val navigator = Navigator()
 
-        navigator.navigate(LibraryKey)
+        navigator.navigate(ToolsKey)
 
-        assertThat(navigator.currentTab).isEqualTo(LibraryKey)
-        assertThat(navigator.backStack).containsExactly(LibraryKey)
+        assertThat(navigator.currentTab).isEqualTo(ToolsKey)
+        assertThat(navigator.backStack).containsExactly(ToolsKey)
     }
 
     @Test
@@ -108,9 +109,9 @@ class NavigatorTest {
         val navigator = Navigator()
         navigator.navigate(diamond)
 
-        navigator.reselectTab(LibraryKey)
+        navigator.reselectTab(ToolsKey)
 
-        assertThat(navigator.currentTab).isEqualTo(LibraryKey)
+        assertThat(navigator.currentTab).isEqualTo(ToolsKey)
         navigator.switchTab(ExploreKey)
         assertThat(navigator.backStack).containsExactly(ExploreKey, diamond).inOrder()
     }
@@ -120,13 +121,13 @@ class NavigatorTest {
         val original = Navigator()
         original.navigate(mobs)
         original.navigate(creeper)
-        original.switchTab(LibraryKey)
+        original.switchTab(ToolsKey)
         original.navigate(diamond)
 
         val restored = Navigator(restoredFrom = original.snapshot())
 
-        assertThat(restored.currentTab).isEqualTo(LibraryKey)
-        assertThat(restored.backStack).containsExactly(LibraryKey, diamond).inOrder()
+        assertThat(restored.currentTab).isEqualTo(ToolsKey)
+        assertThat(restored.backStack).containsExactly(ToolsKey, diamond).inOrder()
         restored.switchTab(ExploreKey)
         assertThat(restored.backStack).containsExactly(ExploreKey, mobs, creeper).inOrder()
     }
@@ -142,7 +143,7 @@ class NavigatorTest {
 
     @Test
     fun theSeedMapIsTheMiddleTab() {
-        assertThat(TopLevelKeys).containsExactly(ExploreKey, SearchKey, SeedMapKey, LibraryKey, SettingsKey).inOrder()
+        assertThat(TopLevelKeys).containsExactly(ExploreKey, SearchKey, SeedMapKey, ToolsKey, SettingsKey).inOrder()
     }
 
     @Test
@@ -167,7 +168,7 @@ class NavigatorTest {
 
         assertThat(navigator.stack(ExploreKey)).containsExactly(ExploreKey, diamond).inOrder()
         assertThat(navigator.stack(SearchKey)).containsExactly(SearchKey, mobs).inOrder()
-        assertThat(navigator.stack(LibraryKey)).containsExactly(LibraryKey)
+        assertThat(navigator.stack(ToolsKey)).containsExactly(ToolsKey)
         assertThat(navigator.currentTab).isEqualTo(SearchKey)
     }
 
@@ -181,10 +182,34 @@ class NavigatorTest {
         navigator.goBack()
         assertThat(navigator.canGoBack).isFalse()
 
-        navigator.switchTab(LibraryKey)
+        navigator.switchTab(ToolsKey)
         assertThat(navigator.canGoBack).isTrue()
         assertThat(navigator.goBack()).isTrue()
         assertThat(navigator.currentTab).isEqualTo(ExploreKey)
         assertThat(navigator.goBack()).isFalse()
+    }
+
+    @Test
+    fun navigate_pushesTheLibraryOnTheCurrentTab() {
+        val navigator = Navigator()
+        navigator.switchTab(SearchKey)
+
+        navigator.navigate(LibraryKey)
+
+        assertThat(navigator.currentTab).isEqualTo(SearchKey)
+        assertThat(navigator.backStack).containsExactly(SearchKey, LibraryKey).inOrder()
+    }
+
+    @Test
+    fun saver_restoresNothingFromASnapshotWithATabThatIsGone() {
+        val saver = Navigator.saver()
+        val navigator = Navigator()
+        navigator.switchTab(ToolsKey)
+        val saved = with(saver) { SaverScope { true }.save(navigator) }
+        // The Library was a tab until the Tools tab replaced it.
+        val fromAnOlderVersion = checkNotNull(saved).replace("ToolsKey", "LibraryKey")
+
+        assertThat(saver.restore(fromAnOlderVersion)).isNull()
+        assertThat(saver.restore(saved)?.currentTab).isEqualTo(ToolsKey)
     }
 }

@@ -65,10 +65,19 @@ class AboutScreenTest : ComposeTest() {
     }
 
     @Test
+    fun creditsTheRecipeData() {
+        setScreen()
+
+        composeRule.onNodeWithText("Java Edition's game data", substring = true).assertExists()
+    }
+
+    @Test
     fun linksToTheLicenceTheWikiAndTheSource() {
         setScreen()
 
+        scrollTo("View the licence")
         composeRule.onNodeWithText("View the licence").performClick()
+        scrollTo("Visit the Minecraft Wiki")
         composeRule.onNodeWithText("Visit the Minecraft Wiki").performClick()
         scrollTo("WikiDroid on GitHub")
         composeRule.onNodeWithText("WikiDroid on GitHub").performClick()

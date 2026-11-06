@@ -6,13 +6,14 @@ import dev.cniekirk.wikidroid.core.navigation.ArticleKey
 import dev.cniekirk.wikidroid.core.navigation.CategoryKey
 import dev.cniekirk.wikidroid.core.navigation.EntryProviderInstaller
 import dev.cniekirk.wikidroid.core.navigation.ExploreKey
+import dev.cniekirk.wikidroid.core.navigation.LibraryKey
 import dev.cniekirk.wikidroid.core.navigation.Navigator
 import dev.cniekirk.wikidroid.core.ui.pane.WikiPanes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
 import dev.zacsweers.metro.Inject
 
-/** Registers the Explore tab and the category screen. */
+/** Registers the Explore tab and the category screen. Explore's top bar is the way into the Library. */
 @Inject
 @ContributesIntoSet(AppScope::class)
 class ExploreEntryInstaller : EntryProviderInstaller {
@@ -21,6 +22,7 @@ class ExploreEntryInstaller : EntryProviderInstaller {
             ExploreRoute(
                 onOpenArticle = { navigator.navigate(ArticleKey(it)) },
                 onOpenCategory = { navigator.navigate(CategoryKey(it)) },
+                onOpenLibrary = { navigator.navigate(LibraryKey) },
             )
         }
         entry<CategoryKey>(metadata = WikiPanes.list()) { key ->

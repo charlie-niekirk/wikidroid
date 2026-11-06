@@ -13,3 +13,4 @@ captures/
 *.keystore
 .kotlin/
 .claude/settings.local.json
+__pycache__/
