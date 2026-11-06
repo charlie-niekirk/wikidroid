@@ -34,7 +34,7 @@ espresso = "3.7.0"
 uiautomator = "2.4.0"
 
 # Other libraries (latest stable)
-kotlinxSerialization = "1.11.0"
+kotlinxSerialization = "1.12.0"
 coroutines = "1.11.0"
 collectionsImmutable = "0.5.2"
 datetime = "0.8.0"
